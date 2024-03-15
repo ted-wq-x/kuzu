@@ -124,6 +124,9 @@ else
 endif
 	cd tools/rust_api && cargo build --all-features
 
+#build booster so file
+booster:
+	$(call run-cmake-release, -DBUILD_BOOSTER=TRUE)
 
 # Language API tests
 javatest: java
