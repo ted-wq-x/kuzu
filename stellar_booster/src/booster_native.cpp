@@ -265,7 +265,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_con
     uint64_t qrAddress = reinterpret_cast<uint64_t>(query_result);
     jlong qr_ref = static_cast<jlong>(qrAddress);
 
-    jclass qrClass = env->FindClass("com/kuzudb/BoosterQueryResult");
+    jclass qrClass = env->FindClass("io/transwarp/stellardb_booster/BoosterQueryResult");
     jobject newQRObject = env->AllocObject(qrClass);
     jfieldID refID = env->GetFieldID(qrClass, "qr_ref", "J");
     env->SetLongField(newQRObject, refID, qr_ref);
@@ -284,7 +284,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_con
     }
 
     jobject ret =
-        createJavaObject(env, prepared_statement, "com/kuzudb/BoosterPreparedStatement", "ps_ref");
+        createJavaObject(env, prepared_statement, "io/transwarp/stellardb_booster/BoosterPreparedStatement", "ps_ref");
     return ret;
 }
 
@@ -301,7 +301,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_con
         return nullptr;
     }
 
-    jobject ret = createJavaObject(env, query_result, "com/kuzudb/BoosterQueryResult", "qr_ref");
+    jobject ret = createJavaObject(env, query_result, "io/transwarp/stellardb_booster/BoosterQueryResult", "qr_ref");
     return ret;
 }
 
@@ -406,7 +406,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_que
     uint64_t dtAddress = reinterpret_cast<uint64_t>(cdt_copy);
     jlong dt_ref = static_cast<jlong>(dtAddress);
 
-    jclass dtClass = env->FindClass("com/kuzudb/BoosterDataType");
+    jclass dtClass = env->FindClass("io/transwarp/stellardb_booster/BoosterDataType");
     jobject newDTObject = env->AllocObject(dtClass);
     jfieldID refID = env->GetFieldID(dtClass, "dt_ref", "J");
     env->SetLongField(newDTObject, refID, dt_ref);
@@ -427,7 +427,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_que
     jdouble cmpTime = static_cast<jdouble>(query_summary->getCompilingTime());
     jdouble exeTime = static_cast<jdouble>(query_summary->getExecutionTime());
 
-    jclass qsClass = env->FindClass("com/kuzudb/BoosterQuerySummary");
+    jclass qsClass = env->FindClass("io/transwarp/stellardb_booster/BoosterQuerySummary");
     jmethodID ctor = env->GetMethodID(qsClass, "<init>", "(DD)V");
     jobject newQSObject = env->NewObject(qsClass, ctor, cmpTime, exeTime);
     return newQSObject;
@@ -448,7 +448,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_que
     uint64_t ftAddress = reinterpret_cast<uint64_t>(newFT);
     jlong ft_ref = static_cast<jlong>(ftAddress);
 
-    jclass ftClass = env->FindClass("com/kuzudb/BoosterFlatTuple");
+    jclass ftClass = env->FindClass("io/transwarp/stellardb_booster/BoosterFlatTuple");
     jobject newFTObject = env->AllocObject(ftClass);
     jfieldID refID = env->GetFieldID(ftClass, "ft_ref", "J");
     env->SetLongField(newFTObject, refID, ft_ref);
@@ -494,7 +494,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_fla
         value = ft->getValue(index);
     } catch (Exception& e) { return nullptr; }
 
-    jobject v = createJavaObject(env, value, "com/kuzudb/BoosterValue", "v_ref");
+    jobject v = createJavaObject(env, value, "io/transwarp/stellardb_booster/BoosterValue", "v_ref");
     jclass clazz = env->GetObjectClass(v);
     jfieldID fieldID = env->GetFieldID(clazz, "isOwnedByCPP", "Z");
     env->SetBooleanField(v, fieldID, static_cast<jboolean>(true));
@@ -551,7 +551,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_dat
     auto* oldDT = getDataType(env, thisDT);
     auto* newDT = new LogicalType(*oldDT);
 
-    jobject dt = createJavaObject(env, newDT, "com/kuzudb/BoosterDataType", "dt_ref");
+    jobject dt = createJavaObject(env, newDT, "io/transwarp/stellardb_booster/BoosterDataType", "dt_ref");
     return dt;
 }
 
@@ -574,9 +574,9 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_dat
 
     auto* dt = getDataType(env, thisDT);
     std::string id_str = dataTypeToString(*dt);
-    jclass idClass = env->FindClass("com/kuzudb/BoosterDataTypeID");
+    jclass idClass = env->FindClass("io/transwarp/stellardb_booster/BoosterDataTypeID");
     jfieldID idField =
-        env->GetStaticFieldID(idClass, id_str.c_str(), "Lcom/kuzudb/BoosterDataTypeID;");
+        env->GetStaticFieldID(idClass, id_str.c_str(), "Lio/transwarp/stellardb_booster/BoosterDataTypeID;");
     jobject id = env->GetStaticObjectField(idClass, idField);
     return id;
 }
@@ -593,7 +593,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_dat
         return nullptr;
     }
     auto* new_child_type = new LogicalType(*child_type);
-    jobject ret = createJavaObject(env, new_child_type, "com/kuzudb/BoosterDataType", "dt_ref");
+    jobject ret = createJavaObject(env, new_child_type, "io/transwarp/stellardb_booster/BoosterDataType", "dt_ref");
     return ret;
 }
 
@@ -614,7 +614,7 @@ Java_io_transwarp_stellardb_1booster_BoosterNative_data_1type_1get_1fixed_1num_1
 JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1create_1null(
     JNIEnv* env, jclass) {
     Value* v = new Value(Value::createNullValue());
-    jobject ret = createJavaObject(env, v, "com/kuzudb/BoosterValue", "v_ref");
+    jobject ret = createJavaObject(env, v, "io/transwarp/stellardb_booster/BoosterValue", "v_ref");
     return ret;
 }
 
@@ -622,7 +622,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
     JNIEnv* env, jclass, jobject data_type) {
     auto* dt = getDataType(env, data_type);
     Value* v = new Value(Value::createNullValue(*dt));
-    jobject ret = createJavaObject(env, v, "com/kuzudb/BoosterValue", "v_ref");
+    jobject ret = createJavaObject(env, v, "io/transwarp/stellardb_booster/BoosterValue", "v_ref");
     return ret;
 }
 
@@ -642,7 +642,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
     JNIEnv* env, jclass, jobject data_type) {
     auto* dt = getDataType(env, data_type);
     Value* v = new Value(Value::createDefaultValue(*dt));
-    jobject ret = createJavaObject(env, v, "com/kuzudb/BoosterValue", "v_ref");
+    jobject ret = createJavaObject(env, v, "io/transwarp/stellardb_booster/BoosterValue", "v_ref");
     return ret;
 }
 
@@ -675,7 +675,7 @@ JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value
         const char* str = env->GetStringUTFChars(value, JNI_FALSE);
         v = new Value(str);
         env->ReleaseStringUTFChars(value, str);
-    } else if (env->IsInstanceOf(val, env->FindClass("com/kuzudb/BoosterInternalID"))) {
+    } else if (env->IsInstanceOf(val, env->FindClass("io/transwarp/stellardb_booster/BoosterInternalID"))) {
         jfieldID fieldID = env->GetFieldID(val_class, "tableId", "J");
         long table_id = static_cast<long>(env->GetLongField(val, fieldID));
         fieldID = env->GetFieldID(val_class, "offset", "J");
@@ -711,7 +711,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
     JNIEnv* env, jclass, jobject thisValue) {
     Value* v = getValue(env, thisValue);
     Value* copy = new Value(*v);
-    return createJavaObject(env, copy, "com/kuzudb/BoosterValue", "v_ref");
+    return createJavaObject(env, copy, "io/transwarp/stellardb_booster/BoosterValue", "v_ref");
 }
 
 JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1copy(
@@ -745,7 +745,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
 
     auto val = NestedVal::getChildVal(v, idx);
 
-    jobject element = createJavaObject(env, val, "com/kuzudb/BoosterValue", "v_ref");
+    jobject element = createJavaObject(env, val, "io/transwarp/stellardb_booster/BoosterValue", "v_ref");
     jclass clazz = env->GetObjectClass(element);
     jfieldID fieldID = env->GetFieldID(clazz, "isOwnedByCPP", "Z");
     env->SetBooleanField(element, fieldID, static_cast<jboolean>(true));
@@ -756,7 +756,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
     JNIEnv* env, jclass, jobject thisValue) {
     Value* v = getValue(env, thisValue);
     auto* dt = new LogicalType(*v->getDataType());
-    return createJavaObject(env, dt, "com/kuzudb/BoosterDataType", "dt_ref");
+    return createJavaObject(env, dt, "io/transwarp/stellardb_booster/BoosterDataType", "dt_ref");
 }
 
 JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1value(
@@ -920,7 +920,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
         return ret;
     }
     case LogicalTypeID::INTERNAL_ID: {
-        jclass retClass = env->FindClass("com/kuzudb/BoosterInternalID");
+        jclass retClass = env->FindClass("io/transwarp/stellardb_booster/BoosterInternalID");
         jmethodID ctor = env->GetMethodID(retClass, "<init>", "(JJ)V");
         internalID_t iid = v->getValue<internalID_t>();
         jobject ret = env->NewObject(retClass, ctor, iid.tableID, iid.offset);
@@ -970,7 +970,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_nod
         return NULL;
     }
     auto id = idVal->getValue<internalID_t>();
-    jclass retClass = env->FindClass("com/kuzudb/BoosterInternalID");
+    jclass retClass = env->FindClass("io/transwarp/stellardb_booster/BoosterInternalID");
     jmethodID ctor = env->GetMethodID(retClass, "<init>", "(JJ)V");
     jobject ret = env->NewObject(retClass, ctor, id.tableID, id.offset);
     return ret;
@@ -1005,7 +1005,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_nod
     JNIEnv* env, jclass, jobject thisNV, jlong index) {
     auto* nv = getValue(env, thisNV);
     auto propertyValue = NodeVal::getPropertyVal(nv, index);
-    jobject ret = createJavaObject(env, propertyValue, "com/kuzudb/BoosterValue", "v_ref");
+    jobject ret = createJavaObject(env, propertyValue, "io/transwarp/stellardb_booster/BoosterValue", "v_ref");
     jclass clazz = env->GetObjectClass(ret);
     jfieldID fieldID = env->GetFieldID(clazz, "isOwnedByCPP", "Z");
     env->SetBooleanField(ret, fieldID, static_cast<jboolean>(true));
@@ -1028,7 +1028,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel
         return NULL;
     }
     internalID_t id = srcIdVal->getValue<internalID_t>();
-    jclass retClass = env->FindClass("com/kuzudb/BoosterInternalID");
+    jclass retClass = env->FindClass("io/transwarp/stellardb_booster/BoosterInternalID");
     jmethodID ctor = env->GetMethodID(retClass, "<init>", "(JJ)V");
     jobject ret = env->NewObject(retClass, ctor, id.tableID, id.offset);
     return ret;
@@ -1042,7 +1042,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel
         return NULL;
     }
     internalID_t id = dstIdVal->getValue<internalID_t>();
-    jclass retClass = env->FindClass("com/kuzudb/BoosterInternalID");
+    jclass retClass = env->FindClass("io/transwarp/stellardb_booster/BoosterInternalID");
     jmethodID ctor = env->GetMethodID(retClass, "<init>", "(JJ)V");
     jobject ret = env->NewObject(retClass, ctor, id.tableID, id.offset);
     return ret;
@@ -1079,7 +1079,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel
     uint64_t idx = static_cast<uint64_t>(index);
     Value* val = RelVal::getPropertyVal(rv, idx);
 
-    jobject ret = createJavaObject(env, val, "com/kuzudb/BoosterValue", "v_ref");
+    jobject ret = createJavaObject(env, val, "io/transwarp/stellardb_booster/BoosterValue", "v_ref");
     jclass clazz = env->GetObjectClass(ret);
     jfieldID fieldID = env->GetFieldID(clazz, "isOwnedByCPP", "Z");
     env->SetBooleanField(ret, fieldID, static_cast<jboolean>(true));
@@ -1126,7 +1126,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rdf
     auto* value = getValue(env, thisValue);
     auto logicalTypeId = RdfVariant::getLogicalTypeID(value);
     auto* dt = new LogicalType(logicalTypeId);
-    return createJavaObject(env, dt, "com/kuzudb/BoosterDataType", "dt_ref");
+    return createJavaObject(env, dt, "io/transwarp/stellardb_booster/BoosterDataType", "dt_ref");
 }
 
 JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rdf_1variant_1get_1value(
