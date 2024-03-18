@@ -6,8 +6,11 @@
 #include "binder/query/reading_clause/bound_unwind_clause.h"
 #include "common/exception/binder.h"
 #include "common/string_format.h"
+#include "common/string_utils.h"
 #include "function/table/bind_input.h"
-#include "main/client_context.h"
+#include "main/attached_database.h"
+#include "main/database.h"
+#include "main/database_manager.h"
 #include "parser/expression/parsed_function_expression.h"
 #include "parser/query/reading_clause/in_query_call_clause.h"
 #include "parser/query/reading_clause/load_from.h"
@@ -140,7 +143,7 @@ std::unique_ptr<BoundReadingClause> Binder::bindInQueryCall(const ReadingClause&
     auto offset = expressionBinder.createVariableExpression(
         *LogicalType::INT64(), std::string(InternalKeyword::ROW_OFFSET));
     auto boundInQueryCall = std::make_unique<BoundInQueryCall>(
-        tableFunc, std::move(bindData), std::move(columns), offset);
+        *tableFunc, std::move(bindData), std::move(columns), offset);
     if (call.hasWherePredicate()) {
         auto wherePredicate = expressionBinder.bindExpression(*call.getWherePredicate());
         boundInQueryCall->setPredicate(std::move(wherePredicate));
@@ -150,22 +153,36 @@ std::unique_ptr<BoundReadingClause> Binder::bindInQueryCall(const ReadingClause&
 
 std::unique_ptr<BoundReadingClause> Binder::bindLoadFrom(const ReadingClause& readingClause) {
     auto& loadFrom = ku_dynamic_cast<const ReadingClause&, const LoadFrom&>(readingClause);
-    function::TableFunction* scanFunction;
+    function::TableFunction scanFunction;
     std::unique_ptr<TableFuncBindInput> bindInput;
     auto source = loadFrom.getSource();
     switch (source->type) {
     case ScanSourceType::OBJECT: {
         auto objectSource = ku_dynamic_cast<BaseScanSource*, ObjectScanSource*>(source);
         auto objectName = objectSource->objectName;
-        auto objectExpr = expressionBinder.bindVariableExpression(objectName);
-        auto literalExpr =
-            ku_dynamic_cast<const Expression*, const LiteralExpression*>(objectExpr.get());
-        auto functions = clientContext->getCatalog()->getFunctions(clientContext->getTx());
-        auto func = BuiltInFunctionsUtils::matchFunction(
-            READ_PANDAS_FUNC_NAME, std::vector<LogicalType>{objectExpr->getDataType()}, functions);
-        scanFunction = ku_dynamic_cast<Function*, TableFunction*>(func);
-        bindInput = std::make_unique<function::TableFuncBindInput>();
-        bindInput->inputs.push_back(*literalExpr->getValue());
+        if (objectName.find("_") == std::string::npos) {
+            auto objectExpr = expressionBinder.bindVariableExpression(objectName);
+            auto literalExpr =
+                ku_dynamic_cast<const Expression*, const LiteralExpression*>(objectExpr.get());
+            auto functions = clientContext->getCatalog()->getFunctions(clientContext->getTx());
+            auto func = BuiltInFunctionsUtils::matchFunction(READ_PANDAS_FUNC_NAME,
+                std::vector<LogicalType>{objectExpr->getDataType()}, functions);
+            scanFunction = *ku_dynamic_cast<Function*, TableFunction*>(func);
+            bindInput = std::make_unique<function::TableFuncBindInput>();
+            bindInput->inputs.push_back(*literalExpr->getValue());
+        } else {
+            auto dbName = common::StringUtils::split(objectName, "_")[0];
+            auto attachedDB =
+                clientContext->getDatabase()->getDatabaseManagerUnsafe()->getAttachedDatabase(
+                    dbName);
+            if (attachedDB == nullptr) {
+                throw BinderException{
+                    common::stringFormat("No database named {} has been attached.", dbName)};
+            }
+            scanFunction = attachedDB->getScanFunction();
+            bindInput = std::make_unique<function::TableFuncBindInput>();
+            bindInput->inputs.push_back(Value(common::StringUtils::split(objectName, "_")[1]));
+        }
     } break;
     case ScanSourceType::FILE: {
         auto fileSource = ku_dynamic_cast<BaseScanSource*, FileScanSource*>(source);
@@ -202,7 +219,7 @@ std::unique_ptr<BoundReadingClause> Binder::bindLoadFrom(const ReadingClause& re
     default:
         throw BinderException(stringFormat("LOAD FROM subquery is not supported."));
     }
-    auto bindData = scanFunction->bindFunc(clientContext, bindInput.get());
+    auto bindData = scanFunction.bindFunc(clientContext, bindInput.get());
     expression_vector columns;
     for (auto i = 0u; i < bindData->columnTypes.size(); i++) {
         columns.push_back(createVariable(bindData->columnNames[i], bindData->columnTypes[i]));

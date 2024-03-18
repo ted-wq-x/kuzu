@@ -139,10 +139,14 @@ private:
     std::unique_ptr<BoundStatement> bindExportDatabaseClause(const parser::Statement& statement);
     std::unique_ptr<BoundStatement> bindImportDatabaseClause(const parser::Statement& statement);
 
+    std::unique_ptr<BoundStatement> bindAttachDatabase(const parser::Statement& statement);
+    std::unique_ptr<BoundStatement> bindDetachDatabase(const parser::Statement& statement);
+
     /*** bind scan source ***/
     std::unique_ptr<BoundBaseScanSource> bindScanSource(parser::BaseScanSource* scanSource,
         const parser::parsing_option_t& options, const std::vector<std::string>& columnNames,
         const std::vector<common::LogicalType>& columnTypes);
+
     std::unordered_map<std::string, common::Value> bindParsingOptions(
         const parser::parsing_option_t& parsingOptions);
     common::FileType bindFileType(const std::vector<std::string>& filePaths);
@@ -283,7 +287,7 @@ private:
     std::unique_ptr<BinderScope> saveScope();
     void restoreScope(std::unique_ptr<BinderScope> prevVariableScope);
 
-    function::TableFunction* getScanFunction(
+    function::TableFunction getScanFunction(
         common::FileType fileType, const common::ReaderConfig& config);
 
 private:

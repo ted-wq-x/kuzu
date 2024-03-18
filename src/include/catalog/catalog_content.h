@@ -36,16 +36,12 @@ public:
 
 private:
     // ----------------------------- Functions ----------------------------
-    common::ExpressionType getFunctionType(const std::string& name) const;
-
     void registerBuiltInFunctions();
 
     bool containMacro(const std::string& macroName) const {
         return functions->containsEntry(macroName);
     }
     void addFunction(std::string name, function::function_set definitions);
-    void addScalarMacroFunction(
-        std::string name, std::unique_ptr<function::ScalarMacroFunction> macro);
 
     function::ScalarMacroFunction* getScalarMacroFunction(const std::string& name) const;
 
