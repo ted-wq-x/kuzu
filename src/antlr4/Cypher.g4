@@ -464,10 +464,7 @@ oC_RelationshipTypes
     :  ':' SP? oC_RelTypeName ( SP? '|' ':'? SP? oC_RelTypeName )* ;
 
 oC_NodeLabels
-    :  oC_NodeLabel ( SP? oC_NodeLabel )* ;
-
-oC_NodeLabel
-    : ':' SP? oC_LabelName ;
+    :  ':' SP? oC_LabelName ( SP? '|'? ':'? SP? oC_LabelName )* ;
 
 oC_RangeLiteral
     :  '*' SP? ( SHORTEST | ALL SP SHORTEST )? SP? (oC_LowerBound? SP? '..' SP? oC_UpperBound? | oC_IntegerLiteral)? (SP? kU_RecursiveRelationshipComprehension)? ;
