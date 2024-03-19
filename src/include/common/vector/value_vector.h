@@ -17,9 +17,8 @@ class Value;
 
 //! A Vector represents values of the same data type.
 //! The capacity of a ValueVector is either 1 (sequence) or DEFAULT_VECTOR_CAPACITY.
-class ValueVector {
+class KUZU_API ValueVector {
     friend class ListVector;
-    friend class FixedListVector;
     friend class ListAuxiliaryBuffer;
     friend class StructVector;
     friend class StringVector;
@@ -32,7 +31,7 @@ public:
         KU_ASSERT(dataTypeID != LogicalTypeID::VAR_LIST);
     }
 
-    KUZU_API ~ValueVector() = default;
+    ~ValueVector() = default;
 
     void setState(const std::shared_ptr<DataChunkState>& state_);
 
@@ -43,10 +42,10 @@ public:
     void setNullRange(uint32_t startPos, uint32_t len, bool value) {
         nullMask->setNullFromRange(startPos, len, value);
     }
-    inline const uint64_t* getNullMaskData() { return nullMask->getData(); }
-    KUZU_API void setNull(uint32_t pos, bool isNull);
-    KUZU_API uint8_t isNull(uint32_t pos) const { return nullMask->isNull(pos); }
-    inline void setAsSingleNullEntry() {
+    const uint64_t* getNullMaskData() { return nullMask->getData(); }
+    void setNull(uint32_t pos, bool isNull);
+    uint8_t isNull(uint32_t pos) const { return nullMask->isNull(pos); }
+    void setAsSingleNullEntry() {
         state->selVector->selectedSize = 1;
         setNull(state->selVector->selectedPositions[0], true);
     }
@@ -62,7 +61,7 @@ public:
         return ((T*)valueBuffer.get())[pos];
     }
     template<typename T>
-    KUZU_API void setValue(uint32_t pos, T val);
+    void setValue(uint32_t pos, T val);
     // copyFromRowData assumes rowData is non-NULL.
     void copyFromRowData(uint32_t pos, const uint8_t* rowData);
     // copyToRowData assumes srcVectorData is non-NULL.
@@ -74,9 +73,9 @@ public:
     void copyFromVectorData(uint64_t dstPos, const ValueVector* srcVector, uint64_t srcPos);
     void copyFromValue(uint64_t pos, const Value& value);
 
-    std::unique_ptr<Value> getAsValue(uint64_t pos);
+    std::unique_ptr<Value> getAsValue(uint64_t pos) const;
 
-    KUZU_API uint8_t* getData() const { return valueBuffer.get(); }
+    uint8_t* getData() const { return valueBuffer.get(); }
 
     offset_t readNodeOffset(uint32_t pos) const {
         KU_ASSERT(dataType.getLogicalTypeID() == LogicalTypeID::INTERNAL_ID);
@@ -86,7 +85,7 @@ public:
     void setSequential() { _isSequential = true; }
     bool isSequential() const { return _isSequential; }
 
-    KUZU_API void resetAuxiliaryBuffer();
+    void resetAuxiliaryBuffer();
 
     // If there is still non-null values after discarding, return true. Otherwise, return false.
     // For an unflat vector, its selection vector is also updated to the resultSelVector.
@@ -200,29 +199,6 @@ public:
         ValueVector* dstVector, ValueVector* srcDataVector, uint64_t numValuesToAppend);
     static void sliceDataVector(ValueVector* vectorToSlice, uint64_t offset, uint64_t numValues);
 };
-
-class KUZU_API FixedListVector {
-public:
-    template<typename T>
-    static void getAsValue(ValueVector* vector, std::vector<std::unique_ptr<Value>>& children,
-        uint64_t pos, uint64_t numElements);
-};
-
-template<>
-void FixedListVector::getAsValue<int64_t>(ValueVector* vector,
-    std::vector<std::unique_ptr<Value>>& children, uint64_t pos, uint64_t numElements);
-template<>
-void FixedListVector::getAsValue<int32_t>(ValueVector* vector,
-    std::vector<std::unique_ptr<Value>>& children, uint64_t pos, uint64_t numElements);
-template<>
-void FixedListVector::getAsValue<int16_t>(ValueVector* vector,
-    std::vector<std::unique_ptr<Value>>& children, uint64_t pos, uint64_t numElements);
-template<>
-void FixedListVector::getAsValue<double>(ValueVector* vector,
-    std::vector<std::unique_ptr<Value>>& children, uint64_t pos, uint64_t numElements);
-template<>
-void FixedListVector::getAsValue<float>(ValueVector* vector,
-    std::vector<std::unique_ptr<Value>>& children, uint64_t pos, uint64_t numElements);
 
 class StructVector {
 public:

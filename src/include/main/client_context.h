@@ -7,6 +7,7 @@
 #include <mutex>
 
 #include "client_config.h"
+#include "common/task_system/progress_bar.h"
 #include "common/timer.h"
 #include "common/types/value/value.h"
 #include "function/scalar_function.h"
@@ -93,7 +94,7 @@ public:
     // Database component getters.
     KUZU_API Database* getDatabase() const { return database; }
     storage::StorageManager* getStorageManager();
-    storage::MemoryManager* getMemoryManager();
+    KUZU_API storage::MemoryManager* getMemoryManager();
     catalog::Catalog* getCatalog();
     common::VirtualFileSystem* getVFSUnsafe() const;
     common::RandomEngine* getRandomEngine();
@@ -104,6 +105,10 @@ public:
         std::unordered_map<std::string, std::unique_ptr<common::Value>> inputParams);
     std::unique_ptr<QueryResult> query(std::string_view queryStatement);
     void runQuery(std::string query);
+
+    void setProgressBarPrinting(bool progressBarPrinting);
+
+    common::ProgressBar* getProgressBar() const { return progressBar.get(); }
 
 private:
     std::unique_ptr<QueryResult> query(
@@ -154,6 +159,8 @@ private:
     std::unique_ptr<common::RandomEngine> randomEngine;
     // Attached database.
     Database* database;
+    // Progress bar for queries
+    std::unique_ptr<common::ProgressBar> progressBar;
     std::mutex mtx;
 };
 
