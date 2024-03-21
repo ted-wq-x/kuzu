@@ -55,6 +55,8 @@ public:
      */
     KUZU_API static std::string toString(const Value* val);
 
+    KUZU_API static Value* getRelIDVal(const Value* val);
+
 private:
     static void throwIfNotRel(const Value* val);
     // 4 offset for id, label, src, dst.

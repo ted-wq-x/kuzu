@@ -128,6 +128,9 @@ endif
 booster:
 	$(call run-cmake-release, -DBUILD_BOOSTER=TRUE)
 
+booster-debug:
+	$(call run-cmake-debug, -DBUILD_BOOSTER=TRUE)
+
 # Language API tests
 javatest: java
 	cmake -E make_directory tools/java_api/build/test

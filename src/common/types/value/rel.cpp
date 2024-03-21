@@ -68,6 +68,11 @@ std::string RelVal::toString(const Value* val) {
     return val->toString();
 }
 
+Value* RelVal::getRelIDVal(const Value* val) {
+    auto fieldIdx = StructType::getFieldIdx(val->dataType.get(), InternalKeyword::ID);
+    return val->children[fieldIdx].get();
+}
+
 void RelVal::throwIfNotRel(const Value* val) {
     // LCOV_EXCL_START
     if (val->dataType->getLogicalTypeID() != LogicalTypeID::REL) {

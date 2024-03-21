@@ -183,6 +183,8 @@ public class BoosterNative {
 
     protected static native BoosterInternalID node_val_get_id(BoosterValue node_val);
 
+    protected static native BoosterInternalID rel_val_get_id(BoosterValue node_val);
+
     protected static native String node_val_get_label_name(BoosterValue node_val);
 
     protected static native long node_val_get_property_size(BoosterValue node_val);

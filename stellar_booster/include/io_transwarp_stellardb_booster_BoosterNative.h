@@ -441,6 +441,14 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_nod
 
 /*
  * Class:     io_transwarp_stellardb_booster_BoosterNative
+ * Method:    rel_val_get_id
+ * Signature: (Lio/transwarp/stellardb_booster/BoosterValue;)Lio/transwarp/stellardb_booster/BoosterInternalID;
+ */
+JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1id
+  (JNIEnv *, jclass, jobject);
+
+/*
+ * Class:     io_transwarp_stellardb_booster_BoosterNative
  * Method:    node_val_get_label_name
  * Signature: (Lio/transwarp/stellardb_booster/BoosterValue;)Ljava/lang/String;
  */

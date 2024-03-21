@@ -976,6 +976,20 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_nod
     return ret;
 }
 
+JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1id
+    (JNIEnv * env, jclass, jobject thisNV){
+    auto nv = getValue(env, thisNV);
+    auto idVal = RelVal::getRelIDVal(nv);
+    if (idVal == nullptr) {
+        return NULL;
+    }
+    auto id = idVal->getValue<internalID_t>();
+    jclass retClass = env->FindClass("io/transwarp/stellardb_booster/BoosterInternalID");
+    jmethodID ctor = env->GetMethodID(retClass, "<init>", "(JJ)V");
+    jobject ret = env->NewObject(retClass, ctor, id.tableID, id.offset);
+    return ret;
+}
+
 JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_node_1val_1get_1label_1name(
     JNIEnv* env, jclass, jobject thisNV) {
     auto* nv = getValue(env, thisNV);

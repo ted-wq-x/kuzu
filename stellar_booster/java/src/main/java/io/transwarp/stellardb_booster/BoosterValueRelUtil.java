@@ -4,6 +4,12 @@ package io.transwarp.stellardb_booster;
  * Utility functions for BoosterValue of rel type.
  */
 public class BoosterValueRelUtil {
+
+    public static BoosterInternalID getID(BoosterValue value) throws BoosterObjectRefDestroyedException {
+        value.checkNotDestroyed();
+        return BoosterNative.rel_val_get_id(value);
+    }
+
     /**
      * Get src id of the given rel value.
      * @param value: The rel value.
