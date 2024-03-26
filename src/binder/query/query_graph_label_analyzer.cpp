@@ -1,10 +1,10 @@
 #include "binder/query/query_graph_label_analyzer.h"
 
+#include "catalog/catalog.h"
 #include "catalog/catalog_entry/rel_table_catalog_entry.h"
 #include "common/cast.h"
 #include "common/exception/binder.h"
 #include "common/string_format.h"
-#include "transaction/transaction.h"
 
 using namespace kuzu::common;
 using namespace kuzu::catalog;
@@ -23,6 +23,7 @@ void QueryGraphLabelAnalyzer::pruneLabel(const QueryGraph& graph) {
 }
 
 void QueryGraphLabelAnalyzer::pruneNode(const QueryGraph& graph, NodeExpression& node) {
+    auto catalog = clientContext.getCatalog();
     for (auto i = 0u; i < graph.getNumQueryRels(); ++i) {
         auto queryRel = graph.getQueryRel(i);
         if (queryRel->isRecursive()) {
@@ -32,18 +33,18 @@ void QueryGraphLabelAnalyzer::pruneNode(const QueryGraph& graph, NodeExpression&
         std::unordered_set<std::string> candidateNamesSet;
         auto isSrcConnect = *queryRel->getSrcNode() == node;
         auto isDstConnect = *queryRel->getDstNode() == node;
-        auto tx = &DUMMY_READ_TRANSACTION;
+        auto tx = clientContext.getTx();
         if (queryRel->getDirectionType() == RelDirectionType::BOTH) {
             if (isSrcConnect || isDstConnect) {
                 for (auto relTableID : queryRel->getTableIDs()) {
                     auto relTableSchema = ku_dynamic_cast<CatalogEntry*, RelTableCatalogEntry*>(
-                        catalog.getTableCatalogEntry(tx, relTableID));
+                        catalog->getTableCatalogEntry(tx, relTableID));
                     auto srcTableID = relTableSchema->getSrcTableID();
                     auto dstTableID = relTableSchema->getDstTableID();
                     candidates.insert(srcTableID);
                     candidates.insert(dstTableID);
-                    auto srcTableSchema = catalog.getTableCatalogEntry(tx, srcTableID);
-                    auto dstTableSchema = catalog.getTableCatalogEntry(tx, dstTableID);
+                    auto srcTableSchema = catalog->getTableCatalogEntry(tx, srcTableID);
+                    auto dstTableSchema = catalog->getTableCatalogEntry(tx, dstTableID);
                     candidateNamesSet.insert(srcTableSchema->getName());
                     candidateNamesSet.insert(dstTableSchema->getName());
                 }
@@ -52,19 +53,19 @@ void QueryGraphLabelAnalyzer::pruneNode(const QueryGraph& graph, NodeExpression&
             if (isSrcConnect) {
                 for (auto relTableID : queryRel->getTableIDs()) {
                     auto relTableSchema = ku_dynamic_cast<CatalogEntry*, RelTableCatalogEntry*>(
-                        catalog.getTableCatalogEntry(tx, relTableID));
+                        catalog->getTableCatalogEntry(tx, relTableID));
                     auto srcTableID = relTableSchema->getSrcTableID();
                     candidates.insert(srcTableID);
-                    auto srcTableSchema = catalog.getTableCatalogEntry(tx, srcTableID);
+                    auto srcTableSchema = catalog->getTableCatalogEntry(tx, srcTableID);
                     candidateNamesSet.insert(srcTableSchema->getName());
                 }
             } else if (isDstConnect) {
                 for (auto relTableID : queryRel->getTableIDs()) {
                     auto relTableSchema = ku_dynamic_cast<CatalogEntry*, RelTableCatalogEntry*>(
-                        catalog.getTableCatalogEntry(tx, relTableID));
+                        catalog->getTableCatalogEntry(tx, relTableID));
                     auto dstTableID = relTableSchema->getDstTableID();
                     candidates.insert(dstTableID);
-                    auto dstTableSchema = catalog.getTableCatalogEntry(tx, dstTableID);
+                    auto dstTableSchema = catalog->getTableCatalogEntry(tx, dstTableID);
                     candidateNamesSet.insert(dstTableSchema->getName());
                 }
             }
@@ -95,6 +96,7 @@ void QueryGraphLabelAnalyzer::pruneNode(const QueryGraph& graph, NodeExpression&
 }
 
 void QueryGraphLabelAnalyzer::pruneRel(RelExpression& rel) {
+    auto catalog = clientContext.getCatalog();
     if (rel.isRecursive()) {
         return;
     }
@@ -109,7 +111,7 @@ void QueryGraphLabelAnalyzer::pruneRel(RelExpression& rel) {
         }
         for (auto& relTableID : rel.getTableIDs()) {
             auto relTableSchema = ku_dynamic_cast<CatalogEntry*, RelTableCatalogEntry*>(
-                catalog.getTableCatalogEntry(&DUMMY_READ_TRANSACTION, relTableID));
+                catalog->getTableCatalogEntry(clientContext.getTx(), relTableID));
             auto srcTableID = relTableSchema->getSrcTableID();
             auto dstTableID = relTableSchema->getDstTableID();
             if (!boundTableIDSet.contains(srcTableID) || !boundTableIDSet.contains(dstTableID)) {
@@ -122,7 +124,7 @@ void QueryGraphLabelAnalyzer::pruneRel(RelExpression& rel) {
         auto dstTableIDSet = rel.getDstNode()->getTableIDsSet();
         for (auto& relTableID : rel.getTableIDs()) {
             auto relTableSchema = ku_dynamic_cast<CatalogEntry*, RelTableCatalogEntry*>(
-                catalog.getTableCatalogEntry(&DUMMY_READ_TRANSACTION, relTableID));
+                catalog->getTableCatalogEntry(clientContext.getTx(), relTableID));
             auto srcTableID = relTableSchema->getSrcTableID();
             auto dstTableID = relTableSchema->getDstTableID();
             if (!srcTableIDSet.contains(srcTableID) || !dstTableIDSet.contains(dstTableID)) {

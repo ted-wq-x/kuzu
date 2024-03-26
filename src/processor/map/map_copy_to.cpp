@@ -18,6 +18,7 @@ std::unique_ptr<CopyToInfo> getCopyToInfo(Schema* childSchema, std::string fileP
     case FileType::PARQUET: {
         auto copyToSchema = std::make_unique<FactorizedTableSchema>();
         auto copyToExpressions = childSchema->getExpressionsInScope();
+        auto countingVecPos = DataPos(childSchema->getExpressionPos(*copyToExpressions[0]));
         for (auto& copyToExpression : copyToExpressions) {
             auto [dataChunkPos, vectorPos] = childSchema->getExpressionPos(*copyToExpression);
             std::unique_ptr<ColumnSchema> columnSchema;
@@ -25,6 +26,7 @@ std::unique_ptr<CopyToInfo> getCopyToInfo(Schema* childSchema, std::string fileP
                 // payload is unFlat and not in the same group as keys
                 columnSchema = std::make_unique<ColumnSchema>(
                     true /* isUnFlat */, dataChunkPos, sizeof(overflow_value_t));
+                countingVecPos = DataPos(childSchema->getExpressionPos(*copyToExpression));
             } else {
                 columnSchema = std::make_unique<ColumnSchema>(false /* isUnFlat */, dataChunkPos,
                     LogicalTypeUtils::getRowLayoutSize(copyToExpression->getDataType()));
@@ -32,7 +34,8 @@ std::unique_ptr<CopyToInfo> getCopyToInfo(Schema* childSchema, std::string fileP
             copyToSchema->appendColumn(std::move(columnSchema));
         }
         return std::make_unique<CopyToParquetInfo>(std::move(copyToSchema), std::move(columnsTypes),
-            std::move(columnNames), std::move(vectorsToCopyPos), std::move(filePath));
+            std::move(columnNames), std::move(vectorsToCopyPos), std::move(filePath),
+            std::move(countingVecPos));
     }
     case FileType::CSV: {
         return std::make_unique<CopyToCSVInfo>(std::move(columnNames), std::move(vectorsToCopyPos),
@@ -85,7 +88,8 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapCopyTo(LogicalOperator* logical
     }
     std::shared_ptr<FactorizedTable> fTable;
     auto ftTableSchema = std::make_unique<FactorizedTableSchema>();
-    fTable = std::make_shared<FactorizedTable>(memoryManager, std::move(ftTableSchema));
+    fTable = std::make_shared<FactorizedTable>(
+        clientContext->getMemoryManager(), std::move(ftTableSchema));
     return createEmptyFTableScan(fTable, 0, std::move(copyTo));
 }
 

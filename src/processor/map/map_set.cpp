@@ -3,7 +3,7 @@
 #include "planner/operator/persistent/logical_set.h"
 #include "processor/operator/persistent/set.h"
 #include "processor/plan_mapper.h"
-#include "transaction/transaction.h"
+#include "storage/storage_manager.h"
 
 using namespace kuzu::binder;
 using namespace kuzu::common;
@@ -16,6 +16,8 @@ namespace processor {
 
 std::unique_ptr<NodeSetExecutor> PlanMapper::getNodeSetExecutor(
     planner::LogicalSetPropertyInfo* info, const planner::Schema& inSchema) const {
+    auto storageManager = clientContext->getStorageManager();
+    auto catalog = clientContext->getCatalog();
     auto node = (NodeExpression*)info->nodeOrRel.get();
     auto nodeIDPos = DataPos(inSchema.getExpressionPos(*node->getInternalID()));
     auto property = (PropertyExpression*)info->setItem.first.get();
@@ -31,8 +33,8 @@ std::unique_ptr<NodeSetExecutor> PlanMapper::getNodeSetExecutor(
                 continue;
             }
             auto propertyID = property->getPropertyID(tableID);
-            auto table = storageManager.getNodeTable(tableID);
-            auto columnID = catalog->getTableCatalogEntry(&DUMMY_READ_TRANSACTION, tableID)
+            auto table = storageManager->getNodeTable(tableID);
+            auto columnID = catalog->getTableCatalogEntry(clientContext->getTx(), tableID)
                                 ->getColumnID(propertyID);
             tableIDToSetInfo.insert({tableID, NodeSetInfo{table, columnID}});
         }
@@ -40,11 +42,11 @@ std::unique_ptr<NodeSetExecutor> PlanMapper::getNodeSetExecutor(
             std::move(tableIDToSetInfo), nodeIDPos, propertyPos, std::move(evaluator));
     } else {
         auto tableID = node->getSingleTableID();
-        auto table = storageManager.getNodeTable(tableID);
+        auto table = storageManager->getNodeTable(tableID);
         auto columnID = INVALID_COLUMN_ID;
         if (property->hasPropertyID(tableID)) {
             auto propertyID = property->getPropertyID(tableID);
-            columnID = catalog->getTableCatalogEntry(&DUMMY_READ_TRANSACTION, tableID)
+            columnID = catalog->getTableCatalogEntry(clientContext->getTx(), tableID)
                            ->getColumnID(propertyID);
         }
         return std::make_unique<SingleLabelNodeSetExecutor>(
@@ -66,6 +68,8 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapSetNodeProperty(LogicalOperator
 
 std::unique_ptr<RelSetExecutor> PlanMapper::getRelSetExecutor(
     planner::LogicalSetPropertyInfo* info, const planner::Schema& inSchema) const {
+    auto storageManager = clientContext->getStorageManager();
+    auto catalog = clientContext->getCatalog();
     auto rel = (RelExpression*)info->nodeOrRel.get();
     auto srcNodePos = DataPos(inSchema.getExpressionPos(*rel->getSrcNode()->getInternalID()));
     auto dstNodePos = DataPos(inSchema.getExpressionPos(*rel->getDstNode()->getInternalID()));
@@ -83,9 +87,9 @@ std::unique_ptr<RelSetExecutor> PlanMapper::getRelSetExecutor(
             if (!property->hasPropertyID(tableID)) {
                 continue;
             }
-            auto table = storageManager.getRelTable(tableID);
+            auto table = storageManager->getRelTable(tableID);
             auto propertyID = property->getPropertyID(tableID);
-            auto columnID = catalog->getTableCatalogEntry(&DUMMY_READ_TRANSACTION, tableID)
+            auto columnID = catalog->getTableCatalogEntry(clientContext->getTx(), tableID)
                                 ->getColumnID(propertyID);
             tableIDToTableAndColumnID.insert({tableID, std::make_pair(table, columnID)});
         }
@@ -93,11 +97,11 @@ std::unique_ptr<RelSetExecutor> PlanMapper::getRelSetExecutor(
             srcNodePos, dstNodePos, relIDPos, propertyPos, std::move(evaluator));
     } else {
         auto tableID = rel->getSingleTableID();
-        auto table = storageManager.getRelTable(tableID);
+        auto table = storageManager->getRelTable(tableID);
         auto columnID = common::INVALID_COLUMN_ID;
         if (property->hasPropertyID(tableID)) {
             auto propertyID = property->getPropertyID(tableID);
-            columnID = catalog->getTableCatalogEntry(&DUMMY_READ_TRANSACTION, tableID)
+            columnID = catalog->getTableCatalogEntry(clientContext->getTx(), tableID)
                            ->getColumnID(propertyID);
         }
         return std::make_unique<SingleLabelRelSetExecutor>(

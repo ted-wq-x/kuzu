@@ -206,9 +206,9 @@ public:
 
 InternalIDColumn::InternalIDColumn(std::string name, const MetadataDAHInfo& metaDAHeaderInfo,
     BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
-    transaction::Transaction* transaction, RWPropertyStats stats)
+    transaction::Transaction* transaction, RWPropertyStats stats, bool enableCompression)
     : Column{name, *LogicalType::INTERNAL_ID(), metaDAHeaderInfo, dataFH, metadataFH, bufferManager,
-          wal, transaction, stats, false /*enableCompression*/},
+          wal, transaction, stats, enableCompression},
       commonTableID{INVALID_TABLE_ID} {}
 
 void InternalIDColumn::populateCommonTableID(ValueVector* resultVector) const {
@@ -792,7 +792,8 @@ void Column::commitColumnChunkOutOfPlace(Transaction* transaction, node_group_id
         auto chunkMeta = getMetadata(nodeGroupIdx, transaction->getType());
         // TODO(Guodong): Should consider caching the scanned column chunk to avoid redundant
         // scans in the same transaction.
-        auto columnChunk = getEmptyChunkForCommit(chunkMeta.numValues + dstOffsets.size());
+        auto columnChunk =
+            getEmptyChunkForCommit(1.5 * std::bit_ceil(chunkMeta.numValues + dstOffsets.size()));
         scan(transaction, nodeGroupIdx, columnChunk.get());
         for (auto i = 0u; i < dstOffsets.size(); i++) {
             columnChunk->write(chunk, srcOffset + i, dstOffsets[i], 1 /* numValues */);
@@ -914,7 +915,7 @@ std::unique_ptr<Column> ColumnFactory::createColumn(std::string name, LogicalTyp
     }
     case LogicalTypeID::INTERNAL_ID: {
         return std::make_unique<InternalIDColumn>(name, metaDAHeaderInfo, dataFH, metadataFH,
-            bufferManager, wal, transaction, propertyStatistics);
+            bufferManager, wal, transaction, propertyStatistics, enableCompression);
     }
     case LogicalTypeID::BLOB:
     case LogicalTypeID::STRING: {

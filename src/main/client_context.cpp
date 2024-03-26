@@ -17,6 +17,7 @@
 #include "planner/planner.h"
 #include "processor/plan_mapper.h"
 #include "processor/processor.h"
+#include "storage/storage_manager.h"
 #include "transaction/transaction_context.h"
 
 #if defined(_WIN32)
@@ -56,6 +57,7 @@ ClientContext::ClientContext(Database* database) : database{database} {
     config.timeoutInMS = ClientConfigDefault::TIMEOUT_IN_MS;
     config.varLengthMaxDepth = ClientConfigDefault::VAR_LENGTH_MAX_DEPTH;
     config.enableProgressBar = ClientConfigDefault::ENABLE_PROGRESS_BAR;
+    config.showProgressAfter = ClientConfigDefault::SHOW_PROGRESS_AFTER;
 }
 
 uint64_t ClientContext::getTimeoutRemainingInMS() const {
@@ -120,6 +122,22 @@ common::ProgressBar* ClientContext::getProgressBar() const {
     return progressBar.get();
 }
 
+void ClientContext::addScanReplace(function::ScanReplacement scanReplacement) {
+    scanReplacements.push_back(std::move(scanReplacement));
+}
+
+std::unique_ptr<function::ScanReplacementData> ClientContext::tryReplace(
+    const std::string& objectName) const {
+    for (auto& scanReplacement : scanReplacements) {
+        auto replaceData = scanReplacement.replaceFunc(objectName);
+        if (replaceData == nullptr) {
+            continue; // Fail to replace.
+        }
+        return replaceData;
+    }
+    return nullptr;
+}
+
 void ClientContext::setExtensionOption(std::string name, common::Value value) {
     StringUtils::toLower(name);
     extensionOptionValues.insert_or_assign(name, std::move(value));
@@ -133,7 +151,7 @@ std::string ClientContext::getExtensionDir() const {
     return common::stringFormat("{}/.kuzu/extension", config.homeDirectory);
 }
 
-storage::StorageManager* ClientContext::getStorageManager() {
+storage::StorageManager* ClientContext::getStorageManager() const {
     return database->storageManager.get();
 }
 
@@ -141,7 +159,7 @@ storage::MemoryManager* ClientContext::getMemoryManager() {
     return database->memoryManager.get();
 }
 
-catalog::Catalog* ClientContext::getCatalog() {
+catalog::Catalog* ClientContext::getCatalog() const {
     return database->catalog.get();
 }
 
@@ -278,7 +296,7 @@ std::unique_ptr<PreparedStatement> ClientContext::prepareNoLock(
         preparedStatement->statementResult =
             std::make_unique<BoundStatementResult>(boundStatement->getStatementResult()->copy());
         // planning
-        auto planner = Planner(database->catalog.get(), database->storageManager.get());
+        auto planner = Planner(this);
         std::vector<std::unique_ptr<LogicalPlan>> plans;
         if (enumerateAllPlans) {
             plans = planner.getAllPlans(*boundStatement);
@@ -378,8 +396,7 @@ std::unique_ptr<QueryResult> ClientContext::executeAndAutoCommitIfNecessaryNoLoc
     }
     this->resetActiveQuery();
     this->startTimer();
-    auto mapper = PlanMapper(
-        *database->storageManager, database->memoryManager.get(), database->catalog.get(), this);
+    auto mapper = PlanMapper(this);
     std::unique_ptr<PhysicalPlan> physicalPlan;
     if (preparedStatement->isSuccess()) {
         try {

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(Kuzu VERSION 0.3.2.2 LANGUAGES CXX C)
+project(Kuzu VERSION 0.3.2.4 LANGUAGES CXX C)
 
 find_package(Threads REQUIRED)
 
@@ -46,6 +46,7 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
     message(STATUS "32-bit architecture detected")
     add_compile_definitions(__32BIT__)
+    set(__32BIT__ TRUE)
 endif()
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -197,7 +198,7 @@ endif ()
 if(${BUILD_KUZU})
 add_definitions(-DKUZU_ROOT_DIRECTORY="${PROJECT_SOURCE_DIR}")
 add_definitions(-DKUZU_CMAKE_VERSION="${CMAKE_PROJECT_VERSION}")
-add_definitions(-DKUZU_EXTENSION_VERSION="0.2.0")
+add_definitions(-DKUZU_EXTENSION_VERSION="0.2.4")
 
 include_directories(src/include)
 include_directories(third_party/antlr4_cypher/include)

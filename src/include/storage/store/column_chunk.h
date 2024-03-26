@@ -48,6 +48,7 @@ public:
     }
 
     inline NullColumnChunk* getNullChunk() { return nullChunk.get(); }
+    inline const NullColumnChunk& getNullChunk() const { return *nullChunk; }
     inline common::LogicalType& getDataType() { return dataType; }
     inline const common::LogicalType& getDataType() const { return dataType; }
 
@@ -92,6 +93,7 @@ public:
 
     template<typename T>
     void setValue(T val, common::offset_t pos) {
+        KU_ASSERT(pos < capacity);
         ((T*)buffer.get())[pos] = val;
         if (pos >= numValues) {
             numValues = pos + 1;
