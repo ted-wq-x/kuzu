@@ -2,6 +2,7 @@
 
 #include "catalog/catalog_entry/rdf_graph_catalog_entry.h"
 #include "storage/stats/nodes_store_statistics.h"
+#include "storage/store/node_table.h"
 #include "storage/wal_replayer.h"
 #include "storage/wal_replayer_utils.h"
 
@@ -125,10 +126,14 @@ void StorageManager::dropTable(table_id_t tableID) {
 }
 
 void StorageManager::prepareCommit(transaction::Transaction* transaction) {
-    auto localStorage = transaction->getLocalStorage();
-    for (auto tableID : localStorage->getTableIDsWithUpdates()) {
-        KU_ASSERT(tables.contains(tableID));
-        tables.at(tableID)->prepareCommit(transaction, localStorage->getLocalTable(tableID));
+    transaction->getLocalStorage()->prepareCommit();
+    // Tables which are created but not inserted into may have pending writes
+    // which need to be flushed (specifically, the metadata disk array header)
+    // TODO(bmwinger): wal->getUpdatedTables isn't the ideal place to store this information
+    for (auto tableID : wal->getUpdatedTables()) {
+        if (transaction->getLocalStorage()->getLocalTable(tableID) == nullptr) {
+            getTable(tableID)->prepareCommit();
+        }
     }
     if (nodesStatisticsAndDeletedIDs->hasUpdates()) {
         wal->logTableStatisticsRecord(true /* isNodeTable */);
@@ -147,11 +152,7 @@ void StorageManager::prepareRollback(transaction::Transaction* transaction) {
     if (relsStatistics->hasUpdates()) {
         wal->logTableStatisticsRecord(false /* isNodeTable */);
     }
-    auto localStorage = transaction->getLocalStorage();
-    for (auto tableID : localStorage->getTableIDsWithUpdates()) {
-        KU_ASSERT(tables.contains(tableID));
-        tables.at(tableID)->prepareRollback(localStorage->getLocalTableData(tableID));
-    }
+    transaction->getLocalStorage()->prepareRollback();
 }
 
 void StorageManager::checkpointInMemory() {

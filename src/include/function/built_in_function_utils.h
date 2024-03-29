@@ -80,31 +80,6 @@ private:
         const std::string& name, const std::vector<common::LogicalType>& inputTypes,
         function::function_set& set);
 
-    // Scalar functions.
-    static void registerScalarFunctions(catalog::CatalogSet* catalogSet);
-    static void registerComparisonFunctions(catalog::CatalogSet* catalogSet);
-    static void registerDateFunctions(catalog::CatalogSet* catalogSet);
-    static void registerTimestampFunctions(catalog::CatalogSet* catalogSet);
-    static void registerIntervalFunctions(catalog::CatalogSet* catalogSet);
-    static void registerBlobFunctions(catalog::CatalogSet* catalogSet);
-    static void registerUUIDFunctions(catalog::CatalogSet* catalogSet);
-    static void registerStructFunctions(catalog::CatalogSet* catalogSet);
-    static void registerMapFunctions(catalog::CatalogSet* catalogSet);
-    static void registerUnionFunctions(catalog::CatalogSet* catalogSet);
-    static void registerNodeRelFunctions(catalog::CatalogSet* catalogSet);
-    static void registerPathFunctions(catalog::CatalogSet* catalogSet);
-    static void registerRdfFunctions(catalog::CatalogSet* catalogSet);
-
-    // Aggregate functions.
-    static void registerAggregateFunctions(catalog::CatalogSet* catalogSet);
-    static void registerCountStar(catalog::CatalogSet* catalogSet);
-    static void registerCount(catalog::CatalogSet* catalogSet);
-    static void registerSum(catalog::CatalogSet* catalogSet);
-    static void registerAvg(catalog::CatalogSet* catalogSet);
-    static void registerMin(catalog::CatalogSet* catalogSet);
-    static void registerMax(catalog::CatalogSet* catalogSet);
-    static void registerCollect(catalog::CatalogSet* catalogSet);
-
     // Table functions.
     static void registerTableFunctions(catalog::CatalogSet* catalogSet);
 

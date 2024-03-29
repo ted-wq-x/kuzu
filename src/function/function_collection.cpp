@@ -1,20 +1,39 @@
 #include "function/function_collection.h"
 
+#include "function/aggregate/collect.h"
+#include "function/aggregate/count.h"
+#include "function/aggregate/count_star.h"
 #include "function/arithmetic/vector_arithmetic_functions.h"
 #include "function/array/vector_array_functions.h"
+#include "function/blob/vector_blob_functions.h"
 #include "function/cast/vector_cast_functions.h"
+#include "function/comparison/vector_comparison_functions.h"
+#include "function/date/vector_date_functions.h"
+#include "function/interval/vector_interval_functions.h"
 #include "function/list/vector_list_functions.h"
+#include "function/map/vector_map_functions.h"
+#include "function/path/vector_path_functions.h"
+#include "function/rdf/vector_rdf_functions.h"
+#include "function/schema/vector_node_rel_functions.h"
 #include "function/string/vector_string_functions.h"
+#include "function/struct/vector_struct_functions.h"
+#include "function/timestamp/vector_timestamp_functions.h"
+#include "function/union/vector_union_functions.h"
+#include "function/uuid/vector_uuid_functions.h"
 
 namespace kuzu {
 namespace function {
 
 #define SCALAR_FUNCTION(_PARAM)                                                                    \
-    { _PARAM::name, _PARAM::getFunctionSet }
+    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::SCALAR_FUNCTION_ENTRY }
 #define SCALAR_FUNCTION_ALIAS(_PARAM)                                                              \
-    { _PARAM::alias, _PARAM::getFunctionSet }
+    { _PARAM::getFunctionSet, _PARAM::alias, CatalogEntryType::SCALAR_FUNCTION_ENTRY }
+#define REWRITE_FUNCTION(_PARAM)                                                                   \
+    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::REWRITE_FUNCTION_ENTRY }
+#define AGGREGATE_FUNCTION(_PARAM)                                                                 \
+    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::AGGREGATE_FUNCTION_ENTRY }
 #define FINAL_FUNCTION                                                                             \
-    { nullptr, nullptr }
+    { nullptr, nullptr, CatalogEntryType::SCALAR_FUNCTION_ENTRY }
 
 FunctionCollection* FunctionCollection::getFunctions() {
     static FunctionCollection functions[] = {
@@ -55,6 +74,7 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(RegexpFullMatchFunction), SCALAR_FUNCTION(RegexpMatchesFunction),
         SCALAR_FUNCTION(RegexpReplaceFunction), SCALAR_FUNCTION(RegexpExtractFunction),
         SCALAR_FUNCTION(RegexpExtractAllFunction), SCALAR_FUNCTION(LevenshteinFunction),
+        SCALAR_FUNCTION(InitcapFunction),
 
         // Array Functions
         SCALAR_FUNCTION(ArrayValueFunction), SCALAR_FUNCTION(ArrayCrossProductFunction),
@@ -94,6 +114,64 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(CastToUInt16Function), SCALAR_FUNCTION(CastToUInt8Function),
         SCALAR_FUNCTION(CastToInt128Function), SCALAR_FUNCTION(CastToBoolFunction),
         SCALAR_FUNCTION(CastAnyFunction),
+
+        // Comparison functions
+        SCALAR_FUNCTION(EqualsFunction), SCALAR_FUNCTION(NotEqualsFunction),
+        SCALAR_FUNCTION(GreaterThanFunction), SCALAR_FUNCTION(GreaterThanEqualsFunction),
+        SCALAR_FUNCTION(LessThanFunction), SCALAR_FUNCTION(LessThanEqualsFunction),
+
+        // Date functions
+        SCALAR_FUNCTION(DatePartFunction), SCALAR_FUNCTION_ALIAS(DatePartFunction),
+        SCALAR_FUNCTION(DateTruncFunction), SCALAR_FUNCTION_ALIAS(DateTruncFunction),
+        SCALAR_FUNCTION(DayNameFunction), SCALAR_FUNCTION(GreatestFunction),
+        SCALAR_FUNCTION(LastDayFunction), SCALAR_FUNCTION(LeastFunction),
+        SCALAR_FUNCTION(MakeDateFunction), SCALAR_FUNCTION(MonthNameFunction),
+
+        // Timestamp functions
+        SCALAR_FUNCTION(CenturyFunction), SCALAR_FUNCTION(EpochMsFunction),
+        SCALAR_FUNCTION(ToTimestampFunction),
+
+        // Interval functions
+        SCALAR_FUNCTION(ToYearsFunction), SCALAR_FUNCTION(ToMonthsFunction),
+        SCALAR_FUNCTION(ToDaysFunction), SCALAR_FUNCTION(ToHoursFunction),
+        SCALAR_FUNCTION(ToMinutesFunction), SCALAR_FUNCTION(ToSecondsFunction),
+        SCALAR_FUNCTION(ToMillisecondsFunction), SCALAR_FUNCTION(ToMicrosecondsFunction),
+
+        // Blob functions
+        SCALAR_FUNCTION(OctetLengthFunctions), SCALAR_FUNCTION(EncodeFunctions),
+        SCALAR_FUNCTION(DecodeFunctions),
+
+        // UUID functions
+        SCALAR_FUNCTION(GenRandomUUIDFunction),
+
+        // Struct functions
+        SCALAR_FUNCTION(StructPackFunctions), SCALAR_FUNCTION(StructExtractFunctions),
+
+        // Map functions
+        SCALAR_FUNCTION(MapCreationFunctions), SCALAR_FUNCTION(MapExtractFunctions),
+        SCALAR_FUNCTION_ALIAS(MapExtractFunctions), SCALAR_FUNCTION_ALIAS(SizeFunction),
+        SCALAR_FUNCTION(MapKeysFunctions), SCALAR_FUNCTION(MapValuesFunctions),
+
+        // Union functions
+        SCALAR_FUNCTION(UnionValueFunction), SCALAR_FUNCTION(UnionTagFunction),
+        SCALAR_FUNCTION(UnionExtractFunction),
+
+        // Node/rel functions
+        SCALAR_FUNCTION(OffsetFunction), REWRITE_FUNCTION(IDFunction),
+
+        // Path functions
+        SCALAR_FUNCTION(NodesFunction), SCALAR_FUNCTION(RelsFunction),
+        SCALAR_FUNCTION(PropertiesFunction), SCALAR_FUNCTION(IsTrailFunction),
+        SCALAR_FUNCTION(IsACyclicFunction),
+
+        // Rdf functions
+        SCALAR_FUNCTION(RDFTypeFunction), SCALAR_FUNCTION(ValidatePredicateFunction),
+
+        // Aggregate functions
+        AGGREGATE_FUNCTION(CountStarFunction), AGGREGATE_FUNCTION(CountFunction),
+        AGGREGATE_FUNCTION(AggregateSumFunction), AGGREGATE_FUNCTION(AggregateAvgFunction),
+        AGGREGATE_FUNCTION(AggregateMinFunction), AGGREGATE_FUNCTION(AggregateMaxFunction),
+        AGGREGATE_FUNCTION(CollectFunction),
 
         // End of array
         FINAL_FUNCTION};

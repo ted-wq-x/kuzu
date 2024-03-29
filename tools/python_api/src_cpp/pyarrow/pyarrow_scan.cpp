@@ -16,7 +16,7 @@ static std::unique_ptr<function::TableFuncBindData> bindFunc(
     main::ClientContext* /*context*/, TableFuncBindInput* input) {
 
     py::gil_scoped_acquire acquire;
-    py::object table(py::reinterpret_steal<py::object>(
+    py::object table(py::reinterpret_borrow<py::object>(
         reinterpret_cast<PyObject*>(input->inputs[0].getValue<uint8_t*>())));
     if (py::isinstance(table, importCache->pandas.DataFrame())) {
         table = importCache->pyarrow.lib.Table.from_pandas()(table);
@@ -29,7 +29,7 @@ static std::unique_ptr<function::TableFuncBindData> bindFunc(
     auto numRows = py::len(table);
     auto schema = Pyarrow::bind(table, returnTypes, names);
     return std::make_unique<PyArrowTableScanFunctionData>(
-        std::move(returnTypes), std::move(schema), std::move(names), table, numRows);
+        std::move(returnTypes), std::move(schema), std::move(names), std::move(table), numRows);
 }
 
 ArrowArrayWrapper* PyArrowTableScanSharedState::getNextChunk() {
@@ -46,7 +46,7 @@ static std::unique_ptr<function::TableFuncSharedState> initSharedState(
     py::gil_scoped_acquire acquire;
     PyArrowTableScanFunctionData* bindData =
         dynamic_cast<PyArrowTableScanFunctionData*>(input.bindData);
-    py::list batches = bindData->table->attr("to_batches")(DEFAULT_VECTOR_CAPACITY);
+    py::list batches = bindData->table.attr("to_batches")(DEFAULT_VECTOR_CAPACITY);
     std::vector<std::shared_ptr<ArrowArrayWrapper>> arrowArrayBatches;
 
     for (auto& i : batches) {
@@ -85,18 +85,27 @@ static common::offset_t tableFunc(
     return len;
 }
 
+double progressFunc(function::TableFuncSharedState* sharedState) {
+    PyArrowTableScanSharedState* state =
+        ku_dynamic_cast<TableFuncSharedState*, PyArrowTableScanSharedState*>(sharedState);
+    if (state->chunks.size() == 0) {
+		return 0.0;
+	}
+    return static_cast<double>(state->currentChunk) / state->chunks.size();
+}   
+
 function::function_set PyArrowTableScanFunction::getFunctionSet() {
 
     function_set functionSet;
     functionSet.push_back(
         std::make_unique<TableFunction>(READ_PYARROW_FUNC_NAME, tableFunc, bindFunc,
-            initSharedState, initLocalState, std::vector<LogicalTypeID>{LogicalTypeID::POINTER}));
+            initSharedState, initLocalState, progressFunc, std::vector<LogicalTypeID>{LogicalTypeID::POINTER}));
     return functionSet;
 }
 
 TableFunction PyArrowTableScanFunction::getFunction() {
     return TableFunction(READ_PYARROW_FUNC_NAME, tableFunc, bindFunc, initSharedState,
-        initLocalState, std::vector<LogicalTypeID>{LogicalTypeID::POINTER});
+        initLocalState, progressFunc, std::vector<LogicalTypeID>{LogicalTypeID::POINTER});
 }
 
 } // namespace kuzu

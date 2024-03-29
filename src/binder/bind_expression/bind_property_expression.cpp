@@ -6,6 +6,7 @@
 #include "common/cast.h"
 #include "common/exception/binder.h"
 #include "common/string_format.h"
+#include "function/struct/vector_struct_functions.h"
 #include "parser/expression/parsed_property_expression.h"
 
 using namespace kuzu::common;
@@ -92,6 +93,13 @@ std::shared_ptr<Expression> ExpressionBinder::bindPropertyExpression(
 std::shared_ptr<Expression> ExpressionBinder::bindNodeOrRelPropertyExpression(
     const Expression& child, const std::string& propertyName) {
     auto& nodeOrRel = ku_dynamic_cast<const Expression&, const NodeOrRelExpression&>(child);
+    // TODO(Xiyang): we should be able to remove l97-l100 after removing propertyDataExprs from node
+    // & rel expression.
+    if (propertyName == InternalKeyword::ID &&
+        child.dataType.getLogicalTypeID() == common::LogicalTypeID::NODE) {
+        auto& node = ku_dynamic_cast<const Expression&, const NodeExpression&>(child);
+        return node.getInternalID();
+    }
     if (!nodeOrRel.hasPropertyExpression(propertyName)) {
         throw BinderException(
             "Cannot find property " + propertyName + " for " + child.toString() + ".");
@@ -103,7 +111,7 @@ std::shared_ptr<Expression> ExpressionBinder::bindStructPropertyExpression(
     std::shared_ptr<Expression> child, const std::string& propertyName) {
     auto children =
         expression_vector{std::move(child), createStringLiteralExpression(propertyName)};
-    return bindScalarFunctionExpression(children, STRUCT_EXTRACT_FUNC_NAME);
+    return bindScalarFunctionExpression(children, function::StructExtractFunctions::name);
 }
 
 } // namespace binder

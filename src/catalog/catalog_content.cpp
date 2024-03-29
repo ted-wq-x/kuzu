@@ -3,11 +3,11 @@
 #include <fcntl.h>
 
 #include "binder/ddl/bound_create_table_info.h"
+#include "catalog/catalog_entry/function_catalog_entry.h"
 #include "catalog/catalog_entry/node_table_catalog_entry.h"
 #include "catalog/catalog_entry/rdf_graph_catalog_entry.h"
 #include "catalog/catalog_entry/rel_group_catalog_entry.h"
 #include "catalog/catalog_entry/rel_table_catalog_entry.h"
-#include "catalog/catalog_entry/scalar_function_catalog_entry.h"
 #include "catalog/catalog_entry/scalar_macro_catalog_entry.h"
 #include "common/cast.h"
 #include "common/exception/catalog.h"
@@ -17,8 +17,8 @@
 #include "common/serializer/deserializer.h"
 #include "common/serializer/serializer.h"
 #include "common/string_format.h"
-#include "storage/storage_info.h"
 #include "storage/storage_utils.h"
+#include "storage/storage_version_info.h"
 
 using namespace kuzu::binder;
 using namespace kuzu::common;
@@ -209,8 +209,8 @@ void CatalogContent::addFunction(std::string name, function::function_set defini
     if (functions->containsEntry(name)) {
         throw CatalogException{common::stringFormat("function {} already exists.", name)};
     }
-    functions->createEntry(
-        std::make_unique<ScalarFunctionCatalogEntry>(std::move(name), std::move(definitions)));
+    functions->createEntry(std::make_unique<FunctionCatalogEntry>(
+        CatalogEntryType::SCALAR_FUNCTION_ENTRY, std::move(name), std::move(definitions)));
 }
 
 function::ScalarMacroFunction* CatalogContent::getScalarMacroFunction(

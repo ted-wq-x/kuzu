@@ -3,8 +3,10 @@
 #include "binder/expression/rel_expression.h"
 #include "binder/expression_binder.h"
 #include "common/cast.h"
+#include "common/types/value/value.h"
 #include "function/rewrite_function.h"
 #include "function/schema/vector_node_rel_functions.h"
+#include "function/struct/vector_struct_functions.h"
 
 using namespace kuzu::common;
 using namespace kuzu::binder;
@@ -28,7 +30,7 @@ static std::shared_ptr<binder::Expression> rewriteFunc(
     auto key = Value(LogicalType::STRING(), InternalKeyword::ID);
     auto keyExpr = binder->createLiteralExpression(key.copy());
     auto newParams = expression_vector{params[0], keyExpr};
-    return binder->bindScalarFunctionExpression(newParams, STRUCT_EXTRACT_FUNC_NAME);
+    return binder->bindScalarFunctionExpression(newParams, StructExtractFunctions::name);
 }
 
 function_set IDFunction::getFunctionSet() {

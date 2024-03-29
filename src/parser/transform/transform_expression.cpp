@@ -1,7 +1,9 @@
+#include "function/aggregate/count_star.h"
 #include "function/arithmetic/vector_arithmetic_functions.h"
 #include "function/cast/functions/cast_from_string_functions.h"
 #include "function/list/vector_list_functions.h"
 #include "function/string/vector_string_functions.h"
+#include "function/struct/vector_struct_functions.h"
 #include "parser/expression/parsed_case_expression.h"
 #include "parser/expression/parsed_function_expression.h"
 #include "parser/expression/parsed_literal_expression.h"
@@ -439,7 +441,7 @@ std::unique_ptr<ParsedExpression> Transformer::transformListLiteral(
 std::unique_ptr<ParsedExpression> Transformer::transformStructLiteral(
     CypherParser::KU_StructLiteralContext& ctx) {
     auto structPack =
-        std::make_unique<ParsedFunctionExpression>(STRUCT_PACK_FUNC_NAME, ctx.getText());
+        std::make_unique<ParsedFunctionExpression>(StructPackFunctions::name, ctx.getText());
     for (auto& structField : ctx.kU_StructField()) {
         auto structExpr = transformExpression(*structField->oC_Expression());
         std::string alias;
@@ -469,7 +471,7 @@ std::unique_ptr<ParsedExpression> Transformer::transformParenthesizedExpression(
 std::unique_ptr<ParsedExpression> Transformer::transformFunctionInvocation(
     CypherParser::OC_FunctionInvocationContext& ctx) {
     if (ctx.STAR()) {
-        return std::make_unique<ParsedFunctionExpression>(COUNT_STAR_FUNC_NAME, ctx.getText());
+        return std::make_unique<ParsedFunctionExpression>(CountStarFunction::name, ctx.getText());
     }
     std::string functionName;
     if (ctx.COUNT()) {

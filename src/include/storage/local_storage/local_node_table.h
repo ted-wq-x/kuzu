@@ -27,10 +27,10 @@ public:
     bool delete_(
         common::ValueVector* nodeIDVector, common::ValueVector* /*extraVector*/ = nullptr) override;
 
-    inline const offset_to_row_idx_t& getInsertInfoRef() {
+    inline const offset_to_row_idx_t& getInsertInfoRef() const {
         return insertChunks.getOffsetToRowIdx();
     }
-    inline const offset_to_row_idx_t& getUpdateInfoRef(common::column_id_t columnID) {
+    inline const offset_to_row_idx_t& getUpdateInfoRef(common::column_id_t columnID) const {
         return getUpdateChunks(columnID).getOffsetToRowIdx();
     }
 };
@@ -48,6 +48,24 @@ public:
 
 private:
     LocalNodeGroup* getOrCreateLocalNodeGroup(common::ValueVector* nodeIDVector) override;
+};
+
+class LocalNodeTable final : public LocalTable {
+public:
+    explicit LocalNodeTable(Table& table);
+
+    bool insert(TableInsertState& insertState) override;
+    bool update(TableUpdateState& updateState) override;
+    bool delete_(TableDeleteState& deleteState) override;
+
+    void scan(TableReadState& state) override;
+    void lookup(TableReadState& state) override;
+
+    LocalNodeTableData* getTableData() {
+        KU_ASSERT(localTableDataCollection.size() == 1);
+        return common::ku_dynamic_cast<LocalTableData*, LocalNodeTableData*>(
+            localTableDataCollection[0].get());
+    }
 };
 
 } // namespace storage

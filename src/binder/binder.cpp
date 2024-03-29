@@ -101,12 +101,12 @@ std::shared_ptr<Expression> Binder::createVariable(
 
 std::shared_ptr<Expression> Binder::createVariable(
     const std::string& name, const LogicalType& dataType) {
-    if (scope->contains(name)) {
+    if (scope.contains(name)) {
         throw BinderException("Variable " + name + " already exists.");
     }
     auto expression = expressionBinder.createVariableExpression(dataType, name);
     expression->setAlias(name);
-    scope->addExpression(name, expression);
+    scope.addExpression(name, expression);
     return expression;
 }
 
@@ -153,18 +153,6 @@ void Binder::validateOrderByFollowedBySkipOrLimitInWithClause(
     }
 }
 
-void Binder::validateReadNotFollowUpdate(const NormalizedSingleQuery& singleQuery) {
-    bool hasSeenUpdateClause = false;
-    for (auto i = 0u; i < singleQuery.getNumQueryParts(); ++i) {
-        auto normalizedQueryPart = singleQuery.getQueryPart(i);
-        if (hasSeenUpdateClause && normalizedQueryPart->hasReadingClause()) {
-            throw BinderException(
-                "Read after update is not supported. Try query with multiple statements.");
-        }
-        hasSeenUpdateClause |= normalizedQueryPart->hasUpdatingClause();
-    }
-}
-
 void Binder::validateTableType(table_id_t tableID, TableType expectedTableType) {
     auto tableEntry =
         clientContext->getCatalog()->getTableCatalogEntry(clientContext->getTx(), tableID);
@@ -194,12 +182,12 @@ bool Binder::isReservedPropertyName(const std::string& name) {
     return false;
 }
 
-std::unique_ptr<BinderScope> Binder::saveScope() {
-    return scope->copy();
+BinderScope Binder::saveScope() {
+    return scope.copy();
 }
 
-void Binder::restoreScope(std::unique_ptr<BinderScope> prevVariableScope) {
-    scope = std::move(prevVariableScope);
+void Binder::restoreScope(BinderScope prevScope) {
+    scope = std::move(prevScope);
 }
 
 function::TableFunction Binder::getScanFunction(FileType fileType, const ReaderConfig& config) {

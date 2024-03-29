@@ -2,8 +2,6 @@
 
 #include <unordered_map>
 
-#include "common/enums/rel_multiplicity.h"
-#include "common/enums/table_type.h"
 #include "common/vector/value_vector.h"
 #include "storage/store/chunked_node_group_collection.h"
 
@@ -32,11 +30,12 @@ public:
             rowIdx % ChunkedNodeGroupCollection::CHUNK_CAPACITY);
     }
 
-    inline common::row_idx_t getRowIdxFromOffset(common::offset_t offset) {
+    inline common::row_idx_t getRowIdxFromOffset(common::offset_t offset) const {
         KU_ASSERT(offsetToRowIdx.contains(offset));
         return offsetToRowIdx.at(offset);
     }
-    inline std::vector<common::row_idx_t>& getRelOffsetsFromSrcOffset(common::offset_t srcOffset) {
+    inline const std::vector<common::row_idx_t>& getRelOffsetsFromSrcOffset(
+        common::offset_t srcOffset) const {
         KU_ASSERT(srcNodeOffsetToRelOffsets.contains(srcOffset));
         return srcNodeOffsetToRelOffsets.at(srcOffset);
     }
@@ -51,6 +50,9 @@ public:
         return srcNodeOffsetToRelOffsets;
     }
     inline const offset_to_row_idx_t& getOffsetToRowIdx() const { return offsetToRowIdx; }
+
+    void appendChunkedGroup(
+        ColumnChunk* srcOffsetChunk, std::unique_ptr<ChunkedNodeGroup> chunkedGroup);
 
     bool isEmpty() const { return offsetToRowIdx.empty() && srcNodeOffsetToRelOffsets.empty(); }
     void readValueAtRowIdx(common::row_idx_t rowIdx, common::column_id_t columnID,
@@ -90,7 +92,7 @@ private:
 
 private:
     std::vector<common::LogicalType> dataTypes;
-    storage::ChunkedNodeGroupCollection chunkedGroups;
+    ChunkedNodeGroupCollection chunkedGroups;
     // The offset here can either be nodeOffset ( for node table) or relOffset (for rel table).
     offset_to_row_idx_t offsetToRowIdx;
     common::row_idx_t numRows;
@@ -149,6 +151,10 @@ public:
         common::column_id_t columnID, common::ValueVector* propertyVector) = 0;
     virtual bool delete_(common::ValueVector* IDVector, common::ValueVector* extraVector) = 0;
 
+    const LocalChunkedGroupCollection& getUpdateChunks(common::column_id_t columnID) const {
+        KU_ASSERT(columnID < updateChunks.size());
+        return updateChunks[columnID];
+    }
     LocalChunkedGroupCollection& getUpdateChunks(common::column_id_t columnID) {
         KU_ASSERT(columnID < updateChunks.size());
         return updateChunks[columnID];
@@ -190,20 +196,29 @@ protected:
     std::unordered_map<common::node_group_idx_t, std::unique_ptr<LocalNodeGroup>> nodeGroups;
 };
 
-class Column;
+struct TableInsertState;
+struct TableUpdateState;
+struct TableDeleteState;
+struct TableReadState;
+class Table;
 class LocalTable {
 public:
-    explicit LocalTable(common::TableType tableType) : tableType{tableType} {};
+    virtual ~LocalTable() = default;
 
-    LocalTableData* getOrCreateLocalTableData(const std::vector<std::unique_ptr<Column>>& columns,
-        common::vector_idx_t dataIdx, common::RelMultiplicity multiplicity);
-    inline LocalTableData* getLocalTableData(common::vector_idx_t dataIdx) {
-        KU_ASSERT(dataIdx < localTableDataCollection.size());
-        return localTableDataCollection[dataIdx].get();
-    }
+    virtual bool insert(TableInsertState& insertState) = 0;
+    virtual bool update(TableUpdateState& updateState) = 0;
+    virtual bool delete_(TableDeleteState& deleteState) = 0;
 
-private:
-    common::TableType tableType;
+    virtual void scan(TableReadState& state) = 0;
+    virtual void lookup(TableReadState& state) = 0;
+
+    inline void clear() { localTableDataCollection.clear(); }
+
+protected:
+    explicit LocalTable(Table& table) : table{table} {}
+
+protected:
+    Table& table;
     // For a node table, it should only contain one LocalTableData, while a rel table should contain
     // two, one for each direction.
     std::vector<std::unique_ptr<LocalTableData>> localTableDataCollection;

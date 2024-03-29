@@ -10,7 +10,7 @@ namespace storage {
 using density_range_t = std::pair<double, double>;
 
 class LocalRelNG;
-struct RelDataReadState : public TableReadState {
+struct RelDataReadState : public TableDataReadState {
     common::RelDataDirection direction;
     common::offset_t startNodeOffset;
     common::offset_t numNodes;
@@ -133,21 +133,16 @@ public:
         common::RelDataDirection direction, bool enableCompression);
 
     void initializeReadState(transaction::Transaction* transaction,
-        std::vector<common::column_id_t> columnIDs, common::ValueVector* inNodeIDVector,
-        RelDataReadState* readState);
-    void scan(transaction::Transaction* transaction, TableReadState& readState,
-        common::ValueVector* inNodeIDVector,
+        std::vector<common::column_id_t> columnIDs, const common::ValueVector& inNodeIDVector,
+        RelDataReadState& readState);
+    void scan(transaction::Transaction* transaction, TableDataReadState& readState,
+        const common::ValueVector& inNodeIDVector,
         const std::vector<common::ValueVector*>& outputVectors) override;
-    void lookup(transaction::Transaction* transaction, TableReadState& readState,
-        common::ValueVector* inNodeIDVector,
+    void lookup(transaction::Transaction* transaction, TableDataReadState& readState,
+        const common::ValueVector& inNodeIDVector,
         const std::vector<common::ValueVector*>& outputVectors) override;
 
-    void insert(transaction::Transaction* transaction, common::ValueVector* srcNodeIDVector,
-        common::ValueVector* dstNodeIDVector,
-        const std::vector<common::ValueVector*>& propertyVectors);
-    void update(transaction::Transaction* transaction, common::column_id_t columnID,
-        common::ValueVector* srcNodeIDVector, common::ValueVector* relIDVector,
-        common::ValueVector* propertyVector);
+    // TODO: Should be removed. This is used by detachDelete for now.
     bool delete_(transaction::Transaction* transaction, common::ValueVector* srcNodeIDVector,
         common::ValueVector* relIDVector);
 
@@ -161,9 +156,16 @@ public:
     inline Column* getCSROffsetColumn() const { return csrHeaderColumns.offset.get(); }
     inline Column* getCSRLengthColumn() const { return csrHeaderColumns.length.get(); }
 
+    bool isNewNodeGroup(
+        transaction::Transaction* transaction, common::node_group_idx_t nodeGroupIdx) const;
+
     void prepareLocalTableToCommit(
         transaction::Transaction* transaction, LocalTableData* localTable) override;
 
+    void prepareCommitNodeGroup(transaction::Transaction* transaction,
+        common::node_group_idx_t nodeGroupIdx, LocalRelNG* localRelNG);
+
+    void prepareCommit() override;
     void checkpointInMemory() override;
     void rollbackInMemory() override;
 
@@ -183,9 +185,6 @@ private:
     bool isWithinDensityBound(const ChunkedCSRHeader& headerChunks,
         const std::vector<int64_t>& sizeChangesPerSegment, PackedCSRRegion& region);
     double getHighDensity(uint64_t level) const;
-
-    void prepareCommitNodeGroup(transaction::Transaction* transaction,
-        common::node_group_idx_t nodeGroupIdx, LocalRelNG* localRelNG);
 
     void updateCSRHeader(transaction::Transaction* transaction,
         common::node_group_idx_t nodeGroupIdx, PersistentState& persistentState,

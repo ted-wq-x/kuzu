@@ -12,6 +12,7 @@
 #include "common/exception/binder.h"
 #include "common/keyword/rdf_keyword.h"
 #include "common/string_format.h"
+#include "function/rdf/vector_rdf_functions.h"
 #include "main/client_context.h"
 #include "parser/query/updating_clause/delete_clause.h"
 #include "parser/query/updating_clause/insert_clause.h"
@@ -45,12 +46,16 @@ std::unique_ptr<BoundUpdatingClause> Binder::bindUpdatingClause(
     }
 }
 
-static expression_set populateNodeRelScope(const BinderScope& scope) {
-    expression_set result;
+static std::unordered_set<std::string> populatePatternsScope(const BinderScope& scope) {
+    std::unordered_set<std::string> result;
     for (auto& expression : scope.getExpressions()) {
         if (ExpressionUtil::isNodePattern(*expression) ||
             ExpressionUtil::isRelPattern(*expression)) {
-            result.insert(expression);
+            result.insert(expression->toString());
+        } else if (expression->expressionType == ExpressionType::VARIABLE) {
+            if (scope.hasNodeReplacement(expression->toString())) {
+                result.insert(expression->toString());
+            }
         }
     }
     return result;
@@ -59,21 +64,21 @@ static expression_set populateNodeRelScope(const BinderScope& scope) {
 std::unique_ptr<BoundUpdatingClause> Binder::bindInsertClause(
     const UpdatingClause& updatingClause) {
     auto& insertClause = (InsertClause&)updatingClause;
-    auto nodeRelScope = populateNodeRelScope(*scope);
+    auto patternsScope = populatePatternsScope(scope);
     // bindGraphPattern will update scope.
     auto boundGraphPattern = bindGraphPattern(insertClause.getPatternElementsRef());
-    auto insertInfos = bindInsertInfos(boundGraphPattern.queryGraphCollection, nodeRelScope);
+    auto insertInfos = bindInsertInfos(boundGraphPattern.queryGraphCollection, patternsScope);
     return std::make_unique<BoundInsertClause>(std::move(insertInfos));
 }
 
 std::unique_ptr<BoundUpdatingClause> Binder::bindMergeClause(
     const parser::UpdatingClause& updatingClause) {
     auto& mergeClause = (MergeClause&)updatingClause;
-    auto nodeRelScope = populateNodeRelScope(*scope);
+    auto patternsScope = populatePatternsScope(scope);
     // bindGraphPattern will update scope.
     auto boundGraphPattern = bindGraphPattern(mergeClause.getPatternElementsRef());
     rewriteMatchPattern(boundGraphPattern);
-    auto createInfos = bindInsertInfos(boundGraphPattern.queryGraphCollection, nodeRelScope);
+    auto createInfos = bindInsertInfos(boundGraphPattern.queryGraphCollection, patternsScope);
     auto boundMergeClause =
         std::make_unique<BoundMergeClause>(std::move(boundGraphPattern.queryGraphCollection),
             std::move(boundGraphPattern.where), std::move(createInfos));
@@ -93,8 +98,9 @@ std::unique_ptr<BoundUpdatingClause> Binder::bindMergeClause(
 }
 
 std::vector<BoundInsertInfo> Binder::bindInsertInfos(
-    const QueryGraphCollection& queryGraphCollection, const expression_set& nodeRelScope_) {
-    auto nodeRelScope = nodeRelScope_;
+    const QueryGraphCollection& queryGraphCollection,
+    const std::unordered_set<std::string>& patternsInScope_) {
+    auto patternsInScope = patternsInScope_;
     std::vector<BoundInsertInfo> result;
     auto analyzer = QueryGraphLabelAnalyzer(*clientContext);
     for (auto i = 0u; i < queryGraphCollection.getNumQueryGraphs(); ++i) {
@@ -103,18 +109,26 @@ std::vector<BoundInsertInfo> Binder::bindInsertInfos(
         analyzer.pruneLabel(*queryGraph);
         for (auto j = 0u; j < queryGraph->getNumQueryNodes(); ++j) {
             auto node = queryGraph->getQueryNode(j);
-            if (nodeRelScope.contains(node)) {
+            if (node->getVariableName().empty()) { // Always create anonymous node.
+                bindInsertNode(node, result);
                 continue;
             }
-            nodeRelScope.insert(node);
+            if (patternsInScope.contains(node->getVariableName())) {
+                continue;
+            }
+            patternsInScope.insert(node->getVariableName());
             bindInsertNode(node, result);
         }
         for (auto j = 0u; j < queryGraph->getNumQueryRels(); ++j) {
             auto rel = queryGraph->getQueryRel(j);
-            if (nodeRelScope.contains(rel)) {
+            if (rel->getVariableName().empty()) { // Always create anonymous rel.
+                bindInsertRel(rel, result);
                 continue;
             }
-            nodeRelScope.insert(rel);
+            if (patternsInScope.contains(rel->getVariableName())) {
+                continue;
+            }
+            patternsInScope.insert(rel->getVariableName());
             bindInsertRel(rel, result);
         }
     }
@@ -208,7 +222,7 @@ void Binder::bindInsertRel(
             rel->getVariableName(), std::vector<common::table_id_t>{resourceTableID});
         auto iriData = rel->getPropertyDataExpr(std::string(rdf::IRI));
         iriData = expressionBinder.bindScalarFunctionExpression(
-            expression_vector{std::move(iriData)}, VALIDATE_PREDICATE_FUNC_NAME);
+            expression_vector{std::move(iriData)}, function::ValidatePredicateFunction::name);
         pNode->addPropertyDataExpr(std::string(rdf::IRI), std::move(iriData));
         bindInsertNode(pNode, infos);
         auto nodeInsertInfo = &infos[infos.size() - 1];

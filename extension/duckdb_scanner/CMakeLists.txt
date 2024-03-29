@@ -14,12 +14,6 @@ add_library(duckdb_scanner
         src/duckdb_catalog.cpp
         src/duckdb_table_catalog_entry.cpp)
 
-set_target_properties(duckdb_scanner PROPERTIES
-        OUTPUT_NAME duckdb_scanner
-        PREFIX "lib"
-        SUFFIX ".kuzu_extension"
-)
-
 set_target_properties(duckdb_scanner
     PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build"

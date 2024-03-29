@@ -1,7 +1,6 @@
 #pragma once
 
 #include "column.h"
-#include "var_list_column_chunk.h"
 
 // List is a nested data type which is stored as three chunks:
 // 1. Offset column (type: INT64). Using offset to partition the data column into multiple lists.
@@ -77,6 +76,7 @@ private:
     void scanFiltered(transaction::Transaction* transaction, common::node_group_idx_t nodeGroupIdx,
         common::ValueVector* offsetVector, const ListOffsetSizeInfo& listOffsetInfoInStorage);
 
+    void prepareCommit() final;
     void checkpointInMemory() final;
     void rollbackInMemory() final;
 
@@ -101,8 +101,6 @@ private:
 private:
     std::unique_ptr<Column> sizeColumn;
     std::unique_ptr<Column> dataColumn;
-    // TODO(Guodong): This should be moved to table states.
-    std::unique_ptr<VarListDataColumnChunk> tmpDataColumnChunk;
 };
 
 } // namespace storage

@@ -125,6 +125,13 @@ void StructColumn::rollbackInMemory() {
     }
 }
 
+void StructColumn::prepareCommit() {
+    Column::prepareCommit();
+    for (const auto& childColumn : childColumns) {
+        childColumn->prepareCommit();
+    }
+}
+
 bool StructColumn::canCommitInPlace(Transaction* transaction, node_group_idx_t nodeGroupIdx,
     const ChunkCollection& localInsertChunk, const offset_to_row_idx_t& insertInfo,
     const ChunkCollection& localUpdateChunk, const offset_to_row_idx_t& updateInfo) {
@@ -165,6 +172,13 @@ void StructColumn::prepareCommitForChunk(Transaction* transaction, node_group_id
                 getNullChunkCollection(localInsertChunk), insertInfo,
                 getNullChunkCollection(localUpdateChunk), updateInfo, deleteInfo);
         }
+        auto chunkMeta = metadataDA->get(nodeGroupIdx, transaction->getType());
+        if (nullColumn->getMetadata(nodeGroupIdx, transaction->getType()).numValues !=
+            chunkMeta.numValues) {
+            chunkMeta.numValues =
+                nullColumn->getMetadata(nodeGroupIdx, transaction->getType()).numValues;
+            metadataDA->update(nodeGroupIdx, chunkMeta);
+        }
         // Update each child column separately
         for (auto i = 0u; i < childColumns.size(); i++) {
             const auto& childColumn = childColumns[i];
@@ -194,6 +208,13 @@ void StructColumn::prepareCommitForChunk(Transaction* transaction, node_group_id
         } else {
             nullColumn->commitColumnChunkOutOfPlace(transaction, nodeGroupIdx, isNewNodeGroup,
                 dstOffsets, chunk->getNullChunk(), srcOffset);
+        }
+        auto chunkMeta = metadataDA->get(nodeGroupIdx, transaction->getType());
+        if (nullColumn->getMetadata(nodeGroupIdx, transaction->getType()).numValues !=
+            chunkMeta.numValues) {
+            chunkMeta.numValues =
+                nullColumn->getMetadata(nodeGroupIdx, transaction->getType()).numValues;
+            metadataDA->update(nodeGroupIdx, chunkMeta);
         }
         // Update each child column separately
         for (auto i = 0u; i < childColumns.size(); i++) {

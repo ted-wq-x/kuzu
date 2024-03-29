@@ -1,9 +1,5 @@
 #include "storage/local_storage/local_table.h"
 
-#include "storage/local_storage/local_node_table.h"
-#include "storage/local_storage/local_rel_table.h"
-#include "storage/store/column.h"
-
 using namespace kuzu::common;
 
 namespace kuzu {
@@ -31,6 +27,24 @@ bool LocalNodeGroup::hasUpdatesOrDeletions() const {
         }
     }
     return false;
+}
+
+void LocalChunkedGroupCollection::appendChunkedGroup(
+    ColumnChunk* srcOffsetChunk, std::unique_ptr<ChunkedNodeGroup> chunkedGroup) {
+    KU_ASSERT(chunkedGroup->getNumColumns() == dataTypes.size());
+    for (auto i = 0u; i < chunkedGroup->getNumColumns(); i++) {
+        KU_ASSERT(chunkedGroup->getColumnChunk(i).getDataType() == dataTypes[i]);
+    }
+    auto rowIdx = chunkedGroups.getNumChunkedGroups() * ChunkedNodeGroupCollection::CHUNK_CAPACITY;
+    auto& relOffsetChunk = chunkedGroup->getColumnChunk(REL_ID_COLUMN_ID);
+    for (auto i = 0u; i < srcOffsetChunk->getNumValues(); i++) {
+        auto relOffset = relOffsetChunk.getValue<offset_t>(i);
+        KU_ASSERT(!offsetToRowIdx.contains(relOffset));
+        offsetToRowIdx[relOffset] = rowIdx++;
+        auto srcOffset = srcOffsetChunk->getValue<offset_t>(i);
+        srcNodeOffsetToRelOffsets[srcOffset].push_back(relOffset);
+    }
+    chunkedGroups.merge(std::move(chunkedGroup));
 }
 
 void LocalChunkedGroupCollection::readValueAtRowIdx(row_idx_t rowIdx, column_id_t columnID,
@@ -73,18 +87,19 @@ void LocalChunkedGroupCollection::remove(offset_t srcNodeOffset, offset_t relOff
 
 row_idx_t LocalChunkedGroupCollection::append(std::vector<ValueVector*> vectors) {
     KU_ASSERT(vectors.size() == dataTypes.size());
-    if (chunkedGroups.getNumChunks() == 0 ||
-        chunkedGroups.getChunkedGroup(chunkedGroups.getNumChunks() - 1)->getNumRows() ==
+    if (chunkedGroups.getNumChunkedGroups() == 0 ||
+        chunkedGroups.getChunkedGroup(chunkedGroups.getNumChunkedGroups() - 1)->getNumRows() ==
             ChunkedNodeGroupCollection::CHUNK_CAPACITY) {
-        chunkedGroups.append(std::make_unique<ChunkedNodeGroup>(
+        chunkedGroups.merge(std::make_unique<ChunkedNodeGroup>(
             dataTypes, false /*enableCompression*/, ChunkedNodeGroupCollection::CHUNK_CAPACITY));
     }
-    auto lastChunkGroup = chunkedGroups.getChunkedGroupUnsafe(chunkedGroups.getNumChunks() - 1);
+    auto lastChunkGroup =
+        chunkedGroups.getChunkedGroupUnsafe(chunkedGroups.getNumChunkedGroups() - 1);
     for (auto i = 0u; i < vectors.size(); i++) {
         KU_ASSERT(vectors[i]->state->selVector->selectedSize == 1);
         lastChunkGroup->getColumnChunkUnsafe(i).append(vectors[i], *vectors[i]->state->selVector);
     }
-    lastChunkGroup->setNumValues(lastChunkGroup->getNumRows() + 1);
+    lastChunkGroup->setNumRows(lastChunkGroup->getNumRows() + 1);
     return numRows++;
 }
 
@@ -105,47 +120,6 @@ bool LocalTableData::update(
 bool LocalTableData::delete_(ValueVector* nodeIDVector, ValueVector* extraVector) {
     auto localNodeGroup = getOrCreateLocalNodeGroup(nodeIDVector);
     return localNodeGroup->delete_(nodeIDVector, extraVector);
-}
-
-LocalTableData* LocalTable::getOrCreateLocalTableData(
-    const std::vector<std::unique_ptr<Column>>& columns, vector_idx_t dataIdx,
-    RelMultiplicity multiplicity) {
-    if (localTableDataCollection.empty()) {
-        std::vector<LogicalType> dataTypes;
-        dataTypes.reserve(columns.size());
-        for (auto& column : columns) {
-            dataTypes.push_back(column->getDataType());
-        }
-        switch (tableType) {
-        case TableType::NODE: {
-            localTableDataCollection.reserve(1);
-            localTableDataCollection.push_back(
-                std::make_unique<LocalNodeTableData>(std::move(dataTypes)));
-        } break;
-        case TableType::REL: {
-            KU_ASSERT(dataIdx < 2);
-            localTableDataCollection.resize(2);
-            localTableDataCollection[dataIdx] =
-                std::make_unique<LocalRelTableData>(multiplicity, std::move(dataTypes));
-        } break;
-        default: {
-            KU_UNREACHABLE;
-        }
-        }
-    }
-    KU_ASSERT(dataIdx < localTableDataCollection.size());
-    if (!localTableDataCollection[dataIdx]) {
-        KU_ASSERT(tableType == TableType::REL);
-        std::vector<LogicalType> dataTypes;
-        dataTypes.reserve(columns.size());
-        for (auto& column : columns) {
-            dataTypes.push_back(column->getDataType());
-        }
-        localTableDataCollection[dataIdx] =
-            std::make_unique<LocalRelTableData>(multiplicity, std::move(dataTypes));
-    }
-    KU_ASSERT(localTableDataCollection[dataIdx] != nullptr);
-    return localTableDataCollection[dataIdx].get();
 }
 
 } // namespace storage

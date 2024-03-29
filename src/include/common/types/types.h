@@ -32,6 +32,7 @@ constexpr property_id_t INVALID_PROPERTY_ID = UINT32_MAX;
 using column_id_t = property_id_t;
 constexpr column_id_t INVALID_COLUMN_ID = INVALID_PROPERTY_ID;
 using vector_idx_t = uint32_t;
+using idx_t = uint32_t;
 constexpr vector_idx_t INVALID_VECTOR_IDX = UINT32_MAX;
 using block_idx_t = uint64_t;
 constexpr block_idx_t INVALID_BLOCK_IDX = UINT64_MAX;
@@ -309,6 +310,9 @@ public:
     static std::unique_ptr<LogicalType> BOOL() {
         return std::make_unique<LogicalType>(LogicalTypeID::BOOL);
     }
+    static std::unique_ptr<LogicalType> HASH() {
+        return std::make_unique<LogicalType>(LogicalTypeID::INT64);
+    }
     static std::unique_ptr<LogicalType> INT64() {
         return std::make_unique<LogicalType>(LogicalTypeID::INT64);
     }
@@ -428,7 +432,9 @@ private:
     std::unique_ptr<ExtraTypeInfo> extraTypeInfo;
 };
 
+// TODO: Should remove `logical_types_t`.
 using logical_types_t = std::vector<std::unique_ptr<LogicalType>>;
+using logical_type_vec_t = std::vector<LogicalType>;
 
 struct VarListType {
     static inline LogicalType* getChildType(const LogicalType* type) {

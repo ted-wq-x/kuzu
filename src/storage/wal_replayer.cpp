@@ -1,9 +1,14 @@
 #include "storage/wal_replayer.h"
 
+#include <unordered_map>
+
 #include "catalog/catalog_entry/node_table_catalog_entry.h"
 #include "common/exception/storage.h"
+#include "common/file_system/file_info.h"
 #include "storage/storage_manager.h"
 #include "storage/storage_utils.h"
+#include "storage/store/node_table.h"
+#include "storage/wal/wal_record.h"
 #include "storage/wal_replayer_utils.h"
 #include "transaction/transaction.h"
 
@@ -41,9 +46,10 @@ void WALReplayer::replay() {
     if (!wal->isEmptyWAL()) {
         auto walIterator = wal->getIterator();
         WALRecord walRecord;
+        std::unordered_map<DBFileID, std::unique_ptr<FileInfo>> fileCache;
         while (walIterator->hasNextRecord()) {
             walIterator->getNextRecord(walRecord);
-            replayWALRecord(walRecord);
+            replayWALRecord(walRecord, fileCache);
         }
     }
     // We next perform an in-memory checkpointing or rolling back of node/relTables.
@@ -56,10 +62,11 @@ void WALReplayer::replay() {
     }
 }
 
-void WALReplayer::replayWALRecord(WALRecord& walRecord) {
+void WALReplayer::replayWALRecord(
+    WALRecord& walRecord, std::unordered_map<DBFileID, std::unique_ptr<FileInfo>>& fileCache) {
     switch (walRecord.recordType) {
     case WALRecordType::PAGE_UPDATE_OR_INSERT_RECORD: {
-        replayPageUpdateOrInsertRecord(walRecord);
+        replayPageUpdateOrInsertRecord(walRecord, fileCache);
     } break;
     case WALRecordType::TABLE_STATISTICS_RECORD: {
         replayTableStatisticsRecord(walRecord);
@@ -94,12 +101,18 @@ void WALReplayer::replayWALRecord(WALRecord& walRecord) {
     }
 }
 
-void WALReplayer::replayPageUpdateOrInsertRecord(const WALRecord& walRecord) {
+void WALReplayer::replayPageUpdateOrInsertRecord(const WALRecord& walRecord,
+    std::unordered_map<DBFileID, std::unique_ptr<FileInfo>>& fileCache) {
     // 1. As the first step we copy over the page on disk, regardless of if we are recovering
     // (and checkpointing) or checkpointing while during regular execution.
     auto dbFileID = walRecord.pageInsertOrUpdateRecord.dbFileID;
-    std::unique_ptr<FileInfo> fileInfoOfDBFile =
-        StorageUtils::getFileInfoForReadWrite(wal->getDirectory(), dbFileID, vfs);
+    auto entry = fileCache.find(dbFileID);
+    if (entry == fileCache.end()) {
+        fileCache.insert(std::make_pair(
+            dbFileID, StorageUtils::getFileInfoForReadWrite(wal->getDirectory(), dbFileID, vfs)));
+        entry = fileCache.find(dbFileID);
+    }
+    auto& fileInfoOfDBFile = entry->second;
     if (isCheckpoint) {
         if (!wal->isLastLoggedRecordCommit()) {
             // Nothing to undo.
@@ -201,8 +214,9 @@ void WALReplayer::replayCopyTableRecord(const WALRecord& walRecord) {
             if (catalogEntry->getType() == CatalogEntryType::NODE_TABLE_ENTRY) {
                 auto nodeTableEntry =
                     ku_dynamic_cast<TableCatalogEntry*, NodeTableCatalogEntry*>(catalogEntry);
-                storageManager->getNodeTable(tableID)->initializePKIndex(
-                    nodeTableEntry, false /* readOnly */, vfs);
+                auto nodeTable =
+                    ku_dynamic_cast<Table*, NodeTable*>(storageManager->getTable(tableID));
+                nodeTable->initializePKIndex(nodeTableEntry, false /* readOnly */, vfs);
             }
         } else {
             // RECOVERY.
@@ -272,21 +286,8 @@ void WALReplayer::replayDropPropertyRecord(const WALRecord& walRecord) {
         auto propertyID = walRecord.dropPropertyRecord.propertyID;
         if (!isRecovering) {
             auto tableEntry = catalog->getTableCatalogEntry(&DUMMY_READ_TRANSACTION, tableID);
-            switch (tableEntry->getTableType()) {
-            case TableType::NODE: {
-                storageManager->getNodeTable(tableID)->dropColumn(
-                    tableEntry->getColumnID(propertyID));
-                // TODO(Guodong): Do nothing for now. Should remove metaDA and reclaim free pages.
-            } break;
-            case TableType::REL: {
-                storageManager->getRelTable(tableID)->dropColumn(
-                    tableEntry->getColumnID(propertyID));
-                // TODO(Guodong): Do nothing for now. Should remove metaDA and reclaim free pages.
-            } break;
-            default: {
-                KU_UNREACHABLE;
-            }
-            }
+            storageManager->getTable(tableID)->dropColumn(tableEntry->getColumnID(propertyID));
+            // TODO(Guodong): Do nothing for now. Should remove metaDA and reclaim free pages.
         } else {
             if (!wal->isLastLoggedRecordCommit()) {
                 // Nothing to undo.
@@ -304,17 +305,7 @@ void WALReplayer::replayAddPropertyRecord(const WALRecord& walRecord) {
     auto propertyID = walRecord.addPropertyRecord.propertyID;
     if (!isCheckpoint) {
         auto tableEntry = catalog->getTableCatalogEntry(&DUMMY_READ_TRANSACTION, tableID);
-        switch (tableEntry->getTableType()) {
-        case TableType::NODE: {
-            storageManager->getNodeTable(tableID)->dropColumn(tableEntry->getColumnID(propertyID));
-        } break;
-        case TableType::REL: {
-            storageManager->getRelTable(tableID)->dropColumn(tableEntry->getColumnID(propertyID));
-        } break;
-        default: {
-            KU_UNREACHABLE;
-        }
-        }
+        storageManager->getTable(tableID)->dropColumn(tableEntry->getColumnID(propertyID));
     }
 }
 
