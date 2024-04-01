@@ -146,9 +146,9 @@ RelTableData::RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
         &DUMMY_WRITE_TRANSACTION, tableID, NBR_ID_COLUMN_ID, direction);
     auto nbrIDColName = StorageUtils::getColumnName("NBR_ID", StorageUtils::ColumnType::DEFAULT,
         RelDataDirectionUtils::relDirectionToString(direction));
-    auto nbrIDColumn = ColumnFactory::createColumn(nbrIDColName, *LogicalType::INTERNAL_ID(),
-        *nbrIDMetadataDAHInfo, dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION,
-        RWPropertyStats::empty(), enableCompression);
+    auto nbrIDColumn = std::make_unique<InternalIDColumn>(nbrIDColName, *nbrIDMetadataDAHInfo,
+        dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION, RWPropertyStats::empty(),
+        enableCompression);
     columns.push_back(std::move(nbrIDColumn));
     // Property columns.
     for (auto i = 0u; i < properties.size(); i++) {
@@ -217,7 +217,7 @@ void RelTableData::scan(Transaction* transaction, TableDataReadState& readState,
     }
     auto [startOffset, endOffset] = relReadState.getStartAndEndOffset();
     auto numRowsToRead = endOffset - startOffset;
-    outputVectors[0]->state->selVector->resetSelectorToUnselectedWithSize(numRowsToRead);
+    outputVectors[0]->state->selVector->setToUnfiltered(numRowsToRead);
     outputVectors[0]->state->setOriginalSize(numRowsToRead);
     auto nodeGroupIdx = StorageUtils::getNodeGroupIdx(relReadState.currentNodeOffset);
     auto relIDVectorIdx = INVALID_VECTOR_IDX;
