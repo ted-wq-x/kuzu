@@ -32,6 +32,9 @@ struct CastToDateFunction {
 struct CastToTimestampFunction {
     static constexpr const char* name = "TIMESTAMP";
 
+    //兼容crux
+    static constexpr const char* alias = "LOCALDATETIME";
+
     static function_set getFunctionSet();
 };
 
