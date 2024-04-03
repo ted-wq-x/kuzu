@@ -1,0 +1,56 @@
+image: 172.16.1.99/transwarp/base/compile:stellar_booster
+
+variables:
+  isBuildImage: "Y"
+  imageTag: ""
+
+stages:
+  - deploy
+
+
+before_script:
+  - export DEV_ROOT=$(dirname "$PWD")
+  - export DOCKER_REPO_URL="172.16.1.99"
+  - export COMPONENT_BASE="booster"
+  - export BUILDER="postcommit"
+  - export BASE_IMAGE_BUILDER="postcommit"
+  - export TIME=`date "+%Y-%m-%d-%H-%M-%S"`
+  - if [ "${imageTag}"x == ""x ];then
+  -   export IMAGE_TAG="${CI_COMMIT_REF_NAME}-${TIME}-${CI_COMMIT_SHA}"
+  - else
+  -   export IMAGE_TAG="${imageTag}"
+  - fi
+  - export POSTCOMMIT_IMAGE_TAG="test-${IMAGE_TAG}"
+  - export CUR_RELEASE_BRANCH="master"
+  - if [[ $CUR_RELEASE_BRANCH == "master" ]];then
+  -   export BASE_IMAGE_TAG="develop"
+  - else
+  -   export BASE_IMAGE_TAG="$CUR_RELEASE_BRANCH"
+  - fi
+  - export IMAGE_NAME=${DOCKER_REPO_URL}/${BUILDER}/${COMPONENT_BASE}:${IMAGE_TAG}
+
+deploy:
+  stage: deploy
+  script:
+    - git clone http://gitlab-ci-token:${CI_JOB_TOKEN}@172.16.1.41:10080/InfraTools/base_project.git ../base_project
+    - mkdir -p /root/.m2/
+    - cp ../base_project/settings_postcommit.xml /root/.m2/settings.xml || true
+    - cp ../base_project/settings_gold.xml /root/.m2/settings.xml.pub || true
+    - /bin/bash -x build_script/deploy/deploy_booster.sh
+    - if [ ${isBuildImage} == "Y" ]; then
+    -   startdocker.sh &
+    -   sleep 30s
+    -   trap "kill -9 $(ps aux | grep dockerd | grep -v grep | awk '{print $2}')" ERR
+    -   /bin/bash build_script/image/build_booster.sh
+    -   docker push ${IMAGE_NAME}
+    -   docker tag  ${IMAGE_NAME} ${DOCKER_REPO_URL}/${BUILDER}/${COMPONENT_BASE}:${CI_COMMIT_REF_NAME}
+    -   docker push ${DOCKER_REPO_URL}/${BUILDER}/${COMPONENT_BASE}:${CI_COMMIT_REF_NAME}
+    -   echo "----------${IMAGE_NAME}-------------------"
+    -   ps aux | grep dockerd | grep -v "grep" |  awk '{print $2}' | xargs kill -9
+    - fi
+  only:
+    - master@framework/stellar_booster
+  tags:
+    - k8s
+
+
