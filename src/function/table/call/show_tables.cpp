@@ -1,4 +1,5 @@
 #include "catalog/catalog.h"
+#include "catalog/catalog_entry/table_catalog_entry.h"
 #include "function/table/call_functions.h"
 
 using namespace kuzu::common;
@@ -42,8 +43,8 @@ static common::offset_t tableFunc(TableFuncInput& input, TableFuncOutput& output
     return numTablesToOutput;
 }
 
-static std::unique_ptr<TableFuncBindData> bindFunc(
-    main::ClientContext* context, TableFuncBindInput*) {
+static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* context,
+    TableFuncBindInput*) {
     std::vector<std::string> columnNames;
     std::vector<LogicalType> columnTypes;
     columnNames.emplace_back("name");
@@ -54,14 +55,14 @@ static std::unique_ptr<TableFuncBindData> bindFunc(
     columnTypes.emplace_back(*LogicalType::STRING());
     auto tableEntries = context->getCatalog()->getTableEntries(context->getTx());
     auto numTables = context->getCatalog()->getTableCount(context->getTx());
-    return std::make_unique<ShowTablesBindData>(
-        std::move(tableEntries), std::move(columnTypes), std::move(columnNames), numTables);
+    return std::make_unique<ShowTablesBindData>(std::move(tableEntries), std::move(columnTypes),
+        std::move(columnNames), numTables);
 }
 
 function_set ShowTablesFunction::getFunctionSet() {
     function_set functionSet;
-    functionSet.push_back(std::make_unique<TableFunction>(SHOW_TABLES_FUNC_NAME, tableFunc,
-        bindFunc, initSharedState, initEmptyLocalState, std::vector<LogicalTypeID>{}));
+    functionSet.push_back(std::make_unique<TableFunction>(name, tableFunc, bindFunc,
+        initSharedState, initEmptyLocalState, std::vector<LogicalTypeID>{}));
     return functionSet;
 }
 

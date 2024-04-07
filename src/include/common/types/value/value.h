@@ -152,8 +152,8 @@ public:
      * @param dataType the logical type of the value.
      * @param children a vector of children values.
      */
-    KUZU_API explicit Value(
-        std::unique_ptr<LogicalType> dataType, std::vector<std::unique_ptr<Value>> children);
+    KUZU_API explicit Value(std::unique_ptr<LogicalType> dataType,
+        std::vector<std::unique_ptr<Value>> children);
     /**
      * @param other the value to copy from.
      */
@@ -236,7 +236,7 @@ private:
     Value();
     explicit Value(const LogicalType& dataType);
 
-    void copyFromVarList(ku_list_t& list, const LogicalType& childType);
+    void copyFromList(ku_list_t& list, const LogicalType& childType);
     void copyFromStruct(const uint8_t* kuStruct);
     void copyFromUnion(const uint8_t* kuUnion);
 

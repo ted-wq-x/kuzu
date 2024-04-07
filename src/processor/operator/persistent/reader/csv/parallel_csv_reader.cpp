@@ -153,8 +153,8 @@ static offset_t tableFunc(TableFuncInput& input, TableFuncOutput& output) {
     } while (true);
 }
 
-static std::unique_ptr<TableFuncBindData> bindFunc(
-    main::ClientContext* /*context*/, TableFuncBindInput* input) {
+static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* /*context*/,
+    TableFuncBindInput* input) {
     auto scanInput = ku_dynamic_cast<TableFuncBindInput*, ScanTableFuncBindInput*>(input);
     std::vector<std::string> detectedColumnNames;
     std::vector<LogicalType> detectedColumnTypes;
@@ -207,9 +207,9 @@ static double progressFunc(TableFuncSharedState* sharedState) {
 
 function_set ParallelCSVScan::getFunctionSet() {
     function_set functionSet;
-    functionSet.push_back(std::make_unique<TableFunction>(READ_CSV_PARALLEL_FUNC_NAME, tableFunc,
-        bindFunc, initSharedState, initLocalState, progressFunc,
-        std::vector<LogicalTypeID>{LogicalTypeID::STRING}));
+    functionSet.push_back(
+        std::make_unique<TableFunction>(name, tableFunc, bindFunc, initSharedState, initLocalState,
+            progressFunc, std::vector<LogicalTypeID>{LogicalTypeID::STRING}));
     return functionSet;
 }
 

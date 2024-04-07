@@ -6,6 +6,7 @@
 #include "binder/query/updating_clause/bound_insert_clause.h"
 #include "binder/query/updating_clause/bound_merge_clause.h"
 #include "binder/query/updating_clause/bound_set_clause.h"
+#include "catalog/catalog.h"
 #include "catalog/catalog_entry/node_table_catalog_entry.h"
 #include "catalog/catalog_entry/rdf_graph_catalog_entry.h"
 #include "common/assert.h"
@@ -79,9 +80,10 @@ std::unique_ptr<BoundUpdatingClause> Binder::bindMergeClause(
     auto boundGraphPattern = bindGraphPattern(mergeClause.getPatternElementsRef());
     rewriteMatchPattern(boundGraphPattern);
     auto createInfos = bindInsertInfos(boundGraphPattern.queryGraphCollection, patternsScope);
+    auto distinctMark = createVariable("__distinctMark", *LogicalType::BOOL());
     auto boundMergeClause =
         std::make_unique<BoundMergeClause>(std::move(boundGraphPattern.queryGraphCollection),
-            std::move(boundGraphPattern.where), std::move(createInfos));
+            std::move(boundGraphPattern.where), std::move(createInfos), std::move(distinctMark));
     if (mergeClause.hasOnMatchSetItems()) {
         for (auto& [lhs, rhs] : mergeClause.getOnMatchSetItemsRef()) {
             auto setPropertyInfo = bindSetPropertyInfo(lhs.get(), rhs.get());
@@ -138,8 +140,8 @@ std::vector<BoundInsertInfo> Binder::bindInsertInfos(
     return result;
 }
 
-static void validatePrimaryKeyExistence(
-    const NodeTableCatalogEntry* nodeTableEntry, const NodeExpression& node) {
+static void validatePrimaryKeyExistence(const NodeTableCatalogEntry* nodeTableEntry,
+    const NodeExpression& node) {
     auto primaryKey = nodeTableEntry->getPrimaryKey();
     if (*primaryKey->getDataType() == *LogicalType::SERIAL()) {
         if (node.hasPropertyDataExpr(primaryKey->getName())) {
@@ -157,8 +159,8 @@ static void validatePrimaryKeyExistence(
     }
 }
 
-void Binder::bindInsertNode(
-    std::shared_ptr<NodeExpression> node, std::vector<BoundInsertInfo>& infos) {
+void Binder::bindInsertNode(std::shared_ptr<NodeExpression> node,
+    std::vector<BoundInsertInfo>& infos) {
     if (node->isMultiLabeled()) {
         throw BinderException(
             "Create node " + node->toString() + " with multiple node labels is not supported.");
@@ -187,8 +189,8 @@ void Binder::bindInsertNode(
     infos.push_back(std::move(insertInfo));
 }
 
-void Binder::bindInsertRel(
-    std::shared_ptr<RelExpression> rel, std::vector<BoundInsertInfo>& infos) {
+void Binder::bindInsertRel(std::shared_ptr<RelExpression> rel,
+    std::vector<BoundInsertInfo>& infos) {
     if (rel->isMultiLabeled() || rel->isBoundByMultiLabeledNode()) {
         throw BinderException(
             "Create rel " + rel->toString() +
@@ -218,8 +220,8 @@ void Binder::bindInsertRel(
         }
         // Insert predicate resource node.
         auto resourceTableID = rdfGraphEntry->getResourceTableID();
-        auto pNode = createQueryNode(
-            rel->getVariableName(), std::vector<common::table_id_t>{resourceTableID});
+        auto pNode = createQueryNode(rel->getVariableName(),
+            std::vector<common::table_id_t>{resourceTableID});
         auto iriData = rel->getPropertyDataExpr(std::string(rdf::IRI));
         iriData = expressionBinder.bindScalarFunctionExpression(
             expression_vector{std::move(iriData)}, function::ValidatePredicateFunction::name);
@@ -233,8 +235,8 @@ void Binder::bindInsertRel(
         auto relInsertInfo = BoundInsertInfo(TableType::REL, rel);
         std::unordered_map<std::string, std::shared_ptr<Expression>> relPropertyRhsExpr;
         relPropertyRhsExpr.insert({std::string(rdf::PID), pNode->getInternalID()});
-        relInsertInfo.columnExprs.push_back(expressionBinder.bindNodeOrRelPropertyExpression(
-            *rel, std::string(InternalKeyword::ID)));
+        relInsertInfo.columnExprs.push_back(expressionBinder.bindNodeOrRelPropertyExpression(*rel,
+            std::string(InternalKeyword::ID)));
         relInsertInfo.columnExprs.push_back(
             expressionBinder.bindNodeOrRelPropertyExpression(*rel, std::string(rdf::PID)));
         relInsertInfo.columnDataExprs =
@@ -243,8 +245,8 @@ void Binder::bindInsertRel(
     } else {
         auto insertInfo = BoundInsertInfo(TableType::REL, rel);
         insertInfo.columnExprs = rel->getPropertyExprs();
-        insertInfo.columnDataExprs = bindInsertColumnDataExprs(
-            rel->getPropertyDataExprRef(), tableEntry->getPropertiesRef());
+        insertInfo.columnDataExprs = bindInsertColumnDataExprs(rel->getPropertyDataExprRef(),
+            tableEntry->getPropertiesRef());
         infos.push_back(std::move(insertInfo));
     }
 }
@@ -275,8 +277,8 @@ std::unique_ptr<BoundUpdatingClause> Binder::bindSetClause(const UpdatingClause&
     return boundSetClause;
 }
 
-BoundSetPropertyInfo Binder::bindSetPropertyInfo(
-    parser::ParsedExpression* lhs, parser::ParsedExpression* rhs) {
+BoundSetPropertyInfo Binder::bindSetPropertyInfo(parser::ParsedExpression* lhs,
+    parser::ParsedExpression* rhs) {
     auto pattern = expressionBinder.bindExpression(*lhs->getChild(0));
     auto isNode = ExpressionUtil::isNodePattern(*pattern);
     auto isRel = ExpressionUtil::isRelPattern(*pattern);
@@ -299,8 +301,8 @@ BoundSetPropertyInfo Binder::bindSetPropertyInfo(
             }
         }
     }
-    return BoundSetPropertyInfo(
-        isNode ? UpdateTableType::NODE : UpdateTableType::REL, pattern, std::move(boundSetItem));
+    return BoundSetPropertyInfo(isNode ? UpdateTableType::NODE : UpdateTableType::REL, pattern,
+        std::move(boundSetItem));
 }
 
 expression_pair Binder::bindSetItem(parser::ParsedExpression* lhs, parser::ParsedExpression* rhs) {
@@ -333,8 +335,8 @@ std::unique_ptr<BoundUpdatingClause> Binder::bindDeleteClause(
         auto nodeOrRel = expressionBinder.bindExpression(*deleteClause.getExpression(i));
         if (ExpressionUtil::isNodePattern(*nodeOrRel)) {
             validateRdfResourceDeletion(nodeOrRel.get(), clientContext);
-            auto deleteNodeInfo = BoundDeleteInfo(
-                UpdateTableType::NODE, nodeOrRel, deleteClause.getDeleteClauseType());
+            auto deleteNodeInfo = BoundDeleteInfo(UpdateTableType::NODE, nodeOrRel,
+                deleteClause.getDeleteClauseType());
             boundDeleteClause->addInfo(std::move(deleteNodeInfo));
         } else if (ExpressionUtil::isRelPattern(*nodeOrRel)) {
             if (deleteClause.getDeleteClauseType() == DeleteClauseType::DETACH_DELETE) {

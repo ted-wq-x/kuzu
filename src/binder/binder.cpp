@@ -1,17 +1,24 @@
 #include "binder/binder.h"
 
 #include "binder/bound_statement_rewriter.h"
+#include "catalog/catalog.h"
+#include "catalog/catalog_entry/table_catalog_entry.h"
 #include "common/copier_config/csv_reader_config.h"
 #include "common/exception/binder.h"
 #include "common/keyword/rdf_keyword.h"
 #include "common/string_format.h"
 #include "common/string_utils.h"
+#include "function/built_in_function_utils.h"
 #include "function/table_functions.h"
-#include "main/client_context.h"
+#include "processor/operator/persistent/reader/csv/parallel_csv_reader.h"
+#include "processor/operator/persistent/reader/csv/serial_csv_reader.h"
+#include "processor/operator/persistent/reader/npy/npy_reader.h"
+#include "processor/operator/persistent/reader/parquet/parquet_reader.h"
 
 using namespace kuzu::catalog;
 using namespace kuzu::common;
 using namespace kuzu::parser;
+using namespace kuzu::processor;
 
 namespace kuzu {
 namespace binder {
@@ -89,18 +96,18 @@ common::table_id_t Binder::bindTableID(const std::string& tableName) const {
     return catalog->getTableID(clientContext->getTx(), tableName);
 }
 
-std::shared_ptr<Expression> Binder::createVariable(
-    std::string_view name, common::LogicalTypeID typeID) {
+std::shared_ptr<Expression> Binder::createVariable(std::string_view name,
+    common::LogicalTypeID typeID) {
     return createVariable(std::string(name), LogicalType{typeID});
 }
 
-std::shared_ptr<Expression> Binder::createVariable(
-    const std::string& name, LogicalTypeID logicalTypeID) {
+std::shared_ptr<Expression> Binder::createVariable(const std::string& name,
+    LogicalTypeID logicalTypeID) {
     return createVariable(name, LogicalType{logicalTypeID});
 }
 
-std::shared_ptr<Expression> Binder::createVariable(
-    const std::string& name, const LogicalType& dataType) {
+std::shared_ptr<Expression> Binder::createVariable(const std::string& name,
+    const LogicalType& dataType) {
     if (scope.contains(name)) {
         throw BinderException("Variable " + name + " already exists.");
     }
@@ -198,18 +205,18 @@ function::TableFunction Binder::getScanFunction(FileType fileType, const ReaderC
     auto functions = clientContext->getCatalog()->getFunctions(clientContext->getTx());
     switch (fileType) {
     case FileType::PARQUET: {
-        func = function::BuiltInFunctionsUtils::matchFunction(
-            READ_PARQUET_FUNC_NAME, inputTypes, functions);
+        func = function::BuiltInFunctionsUtils::matchFunction(ParquetScanFunction::name, inputTypes,
+            functions);
     } break;
     case FileType::NPY: {
-        func = function::BuiltInFunctionsUtils::matchFunction(
-            READ_NPY_FUNC_NAME, inputTypes, functions);
+        func = function::BuiltInFunctionsUtils::matchFunction(NpyScanFunction::name, inputTypes,
+            functions);
     } break;
     case FileType::CSV: {
         auto csvConfig = CSVReaderConfig::construct(config.options);
         func = function::BuiltInFunctionsUtils::matchFunction(
-            csvConfig.parallel ? READ_CSV_PARALLEL_FUNC_NAME : READ_CSV_SERIAL_FUNC_NAME,
-            inputTypes, functions);
+            csvConfig.parallel ? ParallelCSVScan::name : SerialCSVScan::name, inputTypes,
+            functions);
     } break;
     default:
         KU_UNREACHABLE;

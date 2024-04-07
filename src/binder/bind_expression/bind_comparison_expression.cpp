@@ -1,7 +1,9 @@
 #include "binder/binder.h"
 #include "binder/expression/function_expression.h"
 #include "binder/expression_binder.h"
+#include "catalog/catalog.h"
 #include "common/exception/binder.h"
+#include "function/built_in_function_utils.h"
 #include "main/client_context.h"
 
 using namespace kuzu::common;
@@ -66,8 +68,8 @@ std::shared_ptr<Expression> ExpressionBinder::bindComparisonExpression(
 
 std::shared_ptr<Expression> ExpressionBinder::createEqualityComparisonExpression(
     std::shared_ptr<Expression> left, std::shared_ptr<Expression> right) {
-    return bindComparisonExpression(
-        ExpressionType::EQUALS, expression_vector{std::move(left), std::move(right)});
+    return bindComparisonExpression(ExpressionType::EQUALS,
+        expression_vector{std::move(left), std::move(right)});
 }
 
 } // namespace binder

@@ -71,8 +71,8 @@ PropertyStatistics& TablesStatistics::getPropertyStatisticsForTable(
     }
 }
 
-void TablesStatistics::setPropertyStatisticsForTable(
-    table_id_t tableID, property_id_t propertyID, PropertyStatistics stats) {
+void TablesStatistics::setPropertyStatisticsForTable(table_id_t tableID, property_id_t propertyID,
+    PropertyStatistics stats) {
     initTableStatisticsForWriteTrx();
     KU_ASSERT(readWriteVersion && readWriteVersion->tableStatisticPerTable.contains(tableID));
     setToUpdated();
@@ -96,11 +96,11 @@ std::unique_ptr<MetadataDAHInfo> TablesStatistics::createMetadataDAHInfo(
                 createMetadataDAHInfo(*fields[i]->getType(), metadataFH, bm, wal);
         }
     } break;
-    case PhysicalTypeID::VAR_LIST: {
+    case PhysicalTypeID::LIST: {
         metadataDAHInfo->childrenInfos.push_back(
             createMetadataDAHInfo(*LogicalType::UINT32(), metadataFH, bm, wal));
         metadataDAHInfo->childrenInfos.push_back(
-            createMetadataDAHInfo(*VarListType::getChildType(&dataType), metadataFH, bm, wal));
+            createMetadataDAHInfo(*ListType::getChildType(&dataType), metadataFH, bm, wal));
     } break;
     case PhysicalTypeID::STRING: {
         auto dataMetadataDAHInfo = std::make_unique<MetadataDAHInfo>();

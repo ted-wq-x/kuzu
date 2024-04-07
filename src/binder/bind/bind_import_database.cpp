@@ -2,9 +2,11 @@
 
 #include "binder/binder.h"
 #include "binder/copy/bound_import_database.h"
+#include "common/cast.h"
 #include "common/copier_config/csv_reader_config.h"
 #include "common/exception/binder.h"
 #include "common/file_system/virtual_file_system.h"
+#include "main/client_context.h"
 #include "parser/copy.h"
 #include "parser/parser.h"
 #include "parser/port_db.h"
@@ -15,8 +17,8 @@ using namespace kuzu::parser;
 namespace kuzu {
 namespace binder {
 
-static std::string getQueryFromFile(
-    common::VirtualFileSystem* vfs, const std::string boundFilePath, const std::string fileName) {
+static std::string getQueryFromFile(common::VirtualFileSystem* vfs, const std::string boundFilePath,
+    const std::string fileName) {
     auto filePath = vfs->joinPath(boundFilePath, fileName);
     if (!vfs->fileOrPathExists(filePath)) {
         throw BinderException(stringFormat("File {} does not exist.", filePath));

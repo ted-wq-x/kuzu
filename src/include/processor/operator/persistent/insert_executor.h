@@ -17,9 +17,9 @@ public:
         std::vector<DataPos> columnVectorsPos,
         std::vector<std::unique_ptr<evaluator::ExpressionEvaluator>> columnDataEvaluators,
         common::ConflictAction conflictAction)
-        : table{table}, fwdRelTables{std::move(fwdRelTables)}, bwdRelTables{std::move(
-                                                                   bwdRelTables)},
-          nodeIDVectorPos{nodeIDVectorPos}, columnVectorsPos{std::move(columnVectorsPos)},
+        : table{table}, fwdRelTables{std::move(fwdRelTables)},
+          bwdRelTables{std::move(bwdRelTables)}, nodeIDVectorPos{nodeIDVectorPos},
+          columnVectorsPos{std::move(columnVectorsPos)},
           columnDataEvaluators{std::move(columnDataEvaluators)}, conflictAction{conflictAction},
           nodeIDVector{nullptr} {}
     EXPLICIT_COPY_DEFAULT_MOVE(NodeInsertExecutor);
@@ -28,11 +28,14 @@ public:
 
     void insert(transaction::Transaction* transaction, ExecutionContext* context);
 
+    void evaluateResult(ExecutionContext* context);
+
+    void writeResult();
+
 private:
     NodeInsertExecutor(const NodeInsertExecutor& other);
 
     bool checkConfict(transaction::Transaction* transaction);
-    void writeResult();
 
 private:
     // Node table to insert.
@@ -69,10 +72,10 @@ public:
 
     void insert(transaction::Transaction* transaction, ExecutionContext* context);
 
+    void writeResult();
+
 private:
     RelInsertExecutor(const RelInsertExecutor& other);
-
-    void writeResult();
 
 private:
     storage::RelsStoreStats* relsStatistics;

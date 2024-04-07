@@ -4,6 +4,7 @@
 #include "binder/expression/literal_expression.h"
 #include "common/exception/binder.h"
 #include "common/exception/conversion.h"
+#include "function/built_in_function_utils.h"
 #include "function/cast/functions/cast_array.h"
 #include "function/cast/functions/cast_from_string_functions.h"
 #include "function/cast/functions/cast_functions.h"
@@ -20,8 +21,8 @@ static void resolveNestedVector(std::shared_ptr<ValueVector> inputVector, ValueV
     auto inputType = &inputVector->dataType;
     auto resultType = &resultVector->dataType;
     while (true) {
-        if (inputType->getPhysicalType() == PhysicalTypeID::VAR_LIST &&
-            resultType->getPhysicalType() == PhysicalTypeID::VAR_LIST) {
+        if (inputType->getPhysicalType() == PhysicalTypeID::LIST &&
+            resultType->getPhysicalType() == PhysicalTypeID::LIST) {
             // copy data and nullmask from input
             memcpy(resultVector->getData(), inputVector->getData(),
                 numOfEntries * resultVector->getNumBytesPerValue());
@@ -58,8 +59,8 @@ static void resolveNestedVector(std::shared_ptr<ValueVector> inputVector, ValueV
             auto inputFieldVectors = StructVector::getFieldVectors(inputVector.get());
             auto resultFieldVectors = StructVector::getFieldVectors(resultVector);
             for (auto i = 0u; i < inputFieldVectors.size(); i++) {
-                resolveNestedVector(
-                    inputFieldVectors[i], resultFieldVectors[i].get(), numOfEntries, dataPtr);
+                resolveNestedVector(inputFieldVectors[i], resultFieldVectors[i].get(), numOfEntries,
+                    dataPtr);
             }
             return;
         } else {
@@ -68,16 +69,16 @@ static void resolveNestedVector(std::shared_ptr<ValueVector> inputVector, ValueV
     }
 
     // non-nested types
-    scalar_func_exec_t func = CastFunction::bindCastFunction<CastChildFunctionExecutor>(
-        "CAST", inputType->getLogicalTypeID(), resultType->getLogicalTypeID())
+    scalar_func_exec_t func = CastFunction::bindCastFunction<CastChildFunctionExecutor>("CAST",
+        inputType->getLogicalTypeID(), resultType->getLogicalTypeID())
                                   ->execFunc;
     std::vector<std::shared_ptr<ValueVector>> childParams{inputVector};
     dataPtr->numOfEntries = numOfEntries;
     func(childParams, *resultVector, (void*)dataPtr);
 }
 
-static void nestedTypesCastExecFunction(
-    const std::vector<std::shared_ptr<ValueVector>>& params, ValueVector& result, void* dataPtr) {
+static void nestedTypesCastExecFunction(const std::vector<std::shared_ptr<ValueVector>>& params,
+    ValueVector& result, void* dataPtr) {
     KU_ASSERT(params.size() == 1);
     result.resetAuxiliaryBuffer();
     const auto& inputVector = params[0];
@@ -93,18 +94,18 @@ static void nestedTypesCastExecFunction(
     auto numOfEntries = inputVector->state->selVector
                             ->selectedPositions[inputVector->state->selVector->selectedSize - 1] +
                         1;
-    resolveNestedVector(
-        inputVector, &result, numOfEntries, reinterpret_cast<CastFunctionBindData*>(dataPtr));
+    resolveNestedVector(inputVector, &result, numOfEntries,
+        reinterpret_cast<CastFunctionBindData*>(dataPtr));
 }
 
 bool CastFunction::hasImplicitCast(const LogicalType& srcType, const LogicalType& dstType) {
     // TODO(Jiamin): should remove after support list implicit cast
-    if (srcType.getLogicalTypeID() == LogicalTypeID::VAR_LIST &&
-        dstType.getLogicalTypeID() == LogicalTypeID::VAR_LIST) {
+    if (srcType.getLogicalTypeID() == LogicalTypeID::LIST &&
+        dstType.getLogicalTypeID() == LogicalTypeID::LIST) {
         return false;
     }
-    if (BuiltInFunctionsUtils::getCastCost(
-            srcType.getLogicalTypeID(), dstType.getLogicalTypeID()) != UNDEFINED_CAST_COST) {
+    if (BuiltInFunctionsUtils::getCastCost(srcType.getLogicalTypeID(),
+            dstType.getLogicalTypeID()) != UNDEFINED_CAST_COST) {
         return true;
     }
     // TODO(Jiamin): there are still other special cases
@@ -116,8 +117,8 @@ bool CastFunction::hasImplicitCast(const LogicalType& srcType, const LogicalType
 }
 
 template<typename EXECUTOR = UnaryFunctionExecutor>
-static std::unique_ptr<ScalarFunction> bindCastFromStringFunction(
-    const std::string& functionName, LogicalTypeID targetTypeID) {
+static std::unique_ptr<ScalarFunction> bindCastFromStringFunction(const std::string& functionName,
+    LogicalTypeID targetTypeID) {
     scalar_func_exec_t execFunc;
     switch (targetTypeID) {
     case LogicalTypeID::DATE: {
@@ -210,7 +211,7 @@ static std::unique_ptr<ScalarFunction> bindCastFromStringFunction(
             ScalarFunction::UnaryCastStringExecFunction<ku_string_t, uint8_t, CastString, EXECUTOR>;
     } break;
     case LogicalTypeID::ARRAY:
-    case LogicalTypeID::VAR_LIST: {
+    case LogicalTypeID::LIST: {
         execFunc = ScalarFunction::UnaryCastStringExecFunction<ku_string_t, list_entry_t,
             CastString, EXECUTOR>;
     } break;
@@ -234,8 +235,8 @@ static std::unique_ptr<ScalarFunction> bindCastFromStringFunction(
         throw ConversionException{stringFormat("Unsupported casting function from STRING to {}.",
             LogicalTypeUtils::toString(targetTypeID))};
     }
-    return std::make_unique<ScalarFunction>(
-        functionName, std::vector<LogicalTypeID>{LogicalTypeID::STRING}, targetTypeID, execFunc);
+    return std::make_unique<ScalarFunction>(functionName,
+        std::vector<LogicalTypeID>{LogicalTypeID::STRING}, targetTypeID, execFunc);
 }
 
 static std::unique_ptr<ScalarFunction> bindCastFromRdfVariantFunction(
@@ -323,8 +324,8 @@ static std::unique_ptr<ScalarFunction> bindCastFromRdfVariantFunction(
 }
 
 template<typename EXECUTOR = UnaryFunctionExecutor>
-static std::unique_ptr<ScalarFunction> bindCastToStringFunction(
-    const std::string& functionName, LogicalTypeID sourceTypeID) {
+static std::unique_ptr<ScalarFunction> bindCastToStringFunction(const std::string& functionName,
+    LogicalTypeID sourceTypeID) {
     scalar_func_exec_t func;
     switch (sourceTypeID) {
     case LogicalTypeID::BOOL: {
@@ -403,7 +404,7 @@ static std::unique_ptr<ScalarFunction> bindCastToStringFunction(
             ScalarFunction::UnaryCastExecFunction<ku_uuid_t, ku_string_t, CastToString, EXECUTOR>;
     } break;
     case LogicalTypeID::ARRAY:
-    case LogicalTypeID::VAR_LIST: {
+    case LogicalTypeID::LIST: {
         func = ScalarFunction::UnaryCastExecFunction<list_entry_t, ku_string_t, CastToString,
             EXECUTOR>;
     } break;
@@ -431,12 +432,12 @@ static std::unique_ptr<ScalarFunction> bindCastToStringFunction(
     default:
         KU_UNREACHABLE;
     }
-    return std::make_unique<ScalarFunction>(
-        functionName, std::vector<LogicalTypeID>{sourceTypeID}, LogicalTypeID::STRING, func);
+    return std::make_unique<ScalarFunction>(functionName, std::vector<LogicalTypeID>{sourceTypeID},
+        LogicalTypeID::STRING, func);
 }
 
-static std::unique_ptr<ScalarFunction> bindCastToRdfVariantFunction(
-    const std::string& functionName, LogicalTypeID sourceTypeID) {
+static std::unique_ptr<ScalarFunction> bindCastToRdfVariantFunction(const std::string& functionName,
+    LogicalTypeID sourceTypeID) {
     scalar_func_exec_t execFunc;
     switch (sourceTypeID) {
     case LogicalTypeID::DATE: {
@@ -519,8 +520,8 @@ static std::unique_ptr<ScalarFunction> bindCastToRdfVariantFunction(
 }
 
 template<typename DST_TYPE, typename OP, typename EXECUTOR = UnaryFunctionExecutor>
-static std::unique_ptr<ScalarFunction> bindCastToNumericFunction(
-    const std::string& functionName, LogicalTypeID sourceTypeID, LogicalTypeID targetTypeID) {
+static std::unique_ptr<ScalarFunction> bindCastToNumericFunction(const std::string& functionName,
+    LogicalTypeID sourceTypeID, LogicalTypeID targetTypeID) {
     scalar_func_exec_t func;
     switch (sourceTypeID) {
     case LogicalTypeID::INT8: {
@@ -561,15 +562,15 @@ static std::unique_ptr<ScalarFunction> bindCastToNumericFunction(
         throw ConversionException{stringFormat("Unsupported casting function from {} to {}.",
             LogicalTypeUtils::toString(sourceTypeID), LogicalTypeUtils::toString(targetTypeID))};
     }
-    return std::make_unique<ScalarFunction>(
-        functionName, std::vector<LogicalTypeID>{sourceTypeID}, targetTypeID, func);
+    return std::make_unique<ScalarFunction>(functionName, std::vector<LogicalTypeID>{sourceTypeID},
+        targetTypeID, func);
 }
 
 template<typename EXECUTOR = UnaryFunctionExecutor>
-static std::unique_ptr<ScalarFunction> bindCastBetweenNested(
-    const std::string& functionName, LogicalTypeID sourceTypeID, LogicalTypeID targetTypeID) {
+static std::unique_ptr<ScalarFunction> bindCastBetweenNested(const std::string& functionName,
+    LogicalTypeID sourceTypeID, LogicalTypeID targetTypeID) {
     switch (sourceTypeID) {
-    case LogicalTypeID::VAR_LIST:
+    case LogicalTypeID::LIST:
     case LogicalTypeID::MAP:
     case LogicalTypeID::STRUCT:
     case LogicalTypeID::ARRAY: {
@@ -586,8 +587,8 @@ static std::unique_ptr<ScalarFunction> bindCastBetweenNested(
 }
 
 template<typename EXECUTOR = UnaryFunctionExecutor, typename DST_TYPE>
-static std::unique_ptr<ScalarFunction> bindCastToTimestampFunction(
-    const std::string& functionName, LogicalTypeID sourceTypeID, LogicalTypeID dstTypeID) {
+static std::unique_ptr<ScalarFunction> bindCastToTimestampFunction(const std::string& functionName,
+    LogicalTypeID sourceTypeID, LogicalTypeID dstTypeID) {
     scalar_func_exec_t func;
     switch (sourceTypeID) {
     case LogicalTypeID::DATE: {
@@ -614,13 +615,13 @@ static std::unique_ptr<ScalarFunction> bindCastToTimestampFunction(
         throw ConversionException{stringFormat("Unsupported casting function from {} to {}.",
             LogicalTypeUtils::toString(sourceTypeID), LogicalTypeUtils::toString(dstTypeID))};
     }
-    return std::make_unique<ScalarFunction>(
-        functionName, std::vector<LogicalTypeID>{sourceTypeID}, LogicalTypeID::TIMESTAMP, func);
+    return std::make_unique<ScalarFunction>(functionName, std::vector<LogicalTypeID>{sourceTypeID},
+        LogicalTypeID::TIMESTAMP, func);
 }
 
 template<typename EXECUTOR>
-std::unique_ptr<ScalarFunction> CastFunction::bindCastFunction(
-    const std::string& functionName, LogicalTypeID sourceTypeID, LogicalTypeID targetTypeID) {
+std::unique_ptr<ScalarFunction> CastFunction::bindCastFunction(const std::string& functionName,
+    LogicalTypeID sourceTypeID, LogicalTypeID targetTypeID) {
     if (sourceTypeID == LogicalTypeID::STRING) {
         return bindCastFromStringFunction<EXECUTOR>(functionName, targetTypeID);
     }
@@ -635,71 +636,71 @@ std::unique_ptr<ScalarFunction> CastFunction::bindCastFunction(
         return bindCastToRdfVariantFunction(functionName, sourceTypeID);
     }
     case LogicalTypeID::DOUBLE: {
-        return bindCastToNumericFunction<double, CastToDouble, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<double, CastToDouble, EXECUTOR>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::FLOAT: {
-        return bindCastToNumericFunction<float, CastToFloat, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<float, CastToFloat, EXECUTOR>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::INT128: {
-        return bindCastToNumericFunction<int128_t, CastToInt128, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<int128_t, CastToInt128, EXECUTOR>(functionName,
+            sourceTypeID, targetTypeID);
     }
     case LogicalTypeID::SERIAL: {
-        return bindCastToNumericFunction<int64_t, CastToSerial, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<int64_t, CastToSerial, EXECUTOR>(functionName,
+            sourceTypeID, targetTypeID);
     }
     case LogicalTypeID::INT64: {
-        return bindCastToNumericFunction<int64_t, CastToInt64, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<int64_t, CastToInt64, EXECUTOR>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::INT32: {
-        return bindCastToNumericFunction<int32_t, CastToInt32, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<int32_t, CastToInt32, EXECUTOR>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::INT16: {
-        return bindCastToNumericFunction<int16_t, CastToInt16, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<int16_t, CastToInt16, EXECUTOR>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::INT8: {
-        return bindCastToNumericFunction<int8_t, CastToInt8, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<int8_t, CastToInt8, EXECUTOR>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::UINT64: {
-        return bindCastToNumericFunction<uint64_t, CastToUInt64, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<uint64_t, CastToUInt64, EXECUTOR>(functionName,
+            sourceTypeID, targetTypeID);
     }
     case LogicalTypeID::UINT32: {
-        return bindCastToNumericFunction<uint32_t, CastToUInt32, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<uint32_t, CastToUInt32, EXECUTOR>(functionName,
+            sourceTypeID, targetTypeID);
     }
     case LogicalTypeID::UINT16: {
-        return bindCastToNumericFunction<uint16_t, CastToUInt16, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<uint16_t, CastToUInt16, EXECUTOR>(functionName,
+            sourceTypeID, targetTypeID);
     }
     case LogicalTypeID::UINT8: {
-        return bindCastToNumericFunction<uint8_t, CastToUInt8, EXECUTOR>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToNumericFunction<uint8_t, CastToUInt8, EXECUTOR>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::TIMESTAMP_NS: {
-        return bindCastToTimestampFunction<EXECUTOR, timestamp_ns_t>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToTimestampFunction<EXECUTOR, timestamp_ns_t>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::TIMESTAMP_MS: {
-        return bindCastToTimestampFunction<EXECUTOR, timestamp_ms_t>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToTimestampFunction<EXECUTOR, timestamp_ms_t>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::TIMESTAMP_SEC: {
-        return bindCastToTimestampFunction<EXECUTOR, timestamp_sec_t>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToTimestampFunction<EXECUTOR, timestamp_sec_t>(functionName, sourceTypeID,
+            targetTypeID);
     }
     case LogicalTypeID::TIMESTAMP_TZ:
     case LogicalTypeID::TIMESTAMP: {
-        return bindCastToTimestampFunction<EXECUTOR, timestamp_t>(
-            functionName, sourceTypeID, targetTypeID);
+        return bindCastToTimestampFunction<EXECUTOR, timestamp_t>(functionName, sourceTypeID,
+            targetTypeID);
     }
-    case LogicalTypeID::VAR_LIST:
+    case LogicalTypeID::LIST:
     case LogicalTypeID::ARRAY:
     case LogicalTypeID::MAP:
     case LogicalTypeID::STRUCT: {
@@ -915,8 +916,8 @@ function_set CastToUInt8Function::getFunctionSet() {
     return result;
 }
 
-static std::unique_ptr<FunctionBindData> castBindFunc(
-    const binder::expression_vector& arguments, Function* function) {
+static std::unique_ptr<FunctionBindData> castBindFunc(const binder::expression_vector& arguments,
+    Function* function) {
     KU_ASSERT(arguments.size() == 2);
     // Bind target type.
     if (arguments[1]->expressionType != ExpressionType::LITERAL) {

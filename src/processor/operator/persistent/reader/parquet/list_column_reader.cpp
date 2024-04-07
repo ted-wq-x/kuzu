@@ -15,7 +15,7 @@ ListColumnReader::ListColumnReader(ParquetReader& reader, std::unique_ptr<common
     childRepeatsPtr = (uint8_t*)childRepeats.ptr;
     childFilter.set();
     vectorToRead = std::make_unique<common::ValueVector>(
-        *common::VarListType::getChildType(this->type.get()), memoryManager);
+        *common::ListType::getChildType(this->type.get()), memoryManager);
 }
 
 void ListColumnReader::applyPendingSkips(uint64_t numValues) {
@@ -62,8 +62,8 @@ uint64_t ListColumnReader::read(uint64_t numValues, parquet_filter_t& /*filter*/
             // see if we have read enough if we have not read enough, we read another vector if we
             // have read enough, we leave any unhandled elements in the overflow vector for a
             // subsequent read
-            auto childReqNumValues = std::min<uint64_t>(
-                common::DEFAULT_VECTOR_CAPACITY, childColumnReader->getGroupRowsAvailable());
+            auto childReqNumValues = std::min<uint64_t>(common::DEFAULT_VECTOR_CAPACITY,
+                childColumnReader->getGroupRowsAvailable());
             childActualNumValues = childColumnReader->read(childReqNumValues, childFilter,
                 childDefinesPtr, childRepeatsPtr, vectorToRead.get());
         } else {

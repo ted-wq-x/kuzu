@@ -25,13 +25,13 @@ static std::unique_ptr<TableFuncBindData> bindFunc(ClientContext*, TableFuncBind
     std::vector<LogicalType> returnTypes;
     returnColumnNames.emplace_back("version");
     returnTypes.emplace_back(*LogicalType::STRING());
-    return std::make_unique<CallTableFuncBindData>(
-        std::move(returnTypes), std::move(returnColumnNames), 1 /* one row result */);
+    return std::make_unique<CallTableFuncBindData>(std::move(returnTypes),
+        std::move(returnColumnNames), 1 /* one row result */);
 }
 
 function_set DBVersionFunction::getFunctionSet() {
     function_set functionSet;
-    functionSet.push_back(std::make_unique<TableFunction>(DB_VERSION_FUNC_NAME, tableFunc, bindFunc,
+    functionSet.push_back(std::make_unique<TableFunction>(name, tableFunc, bindFunc,
         initSharedState, initEmptyLocalState, std::vector<LogicalTypeID>{}));
     return functionSet;
 }

@@ -121,7 +121,7 @@ static double progressFunc(TableFuncSharedState* sharedState) {
 }
 
 static TableFunction getFunction() {
-    return TableFunction(READ_PANDAS_FUNC_NAME, tableFunc, bindFunc, initSharedState,
+    return TableFunction(PandasScanFunction::name, tableFunc, bindFunc, initSharedState,
         initLocalState, progressFunc, std::vector<LogicalTypeID>{LogicalTypeID::POINTER});
 }
 
@@ -168,9 +168,9 @@ static std::unique_ptr<ScanReplacementData> tryReplacePD(py::dict& dict, py::str
 }
 
 std::unique_ptr<ScanReplacementData> replacePD(const std::string& objectName) {
+    py::gil_scoped_acquire acquire;
     auto pyTableName = py::str(objectName);
     // Here we do an exhaustive search on the frame lineage.
-    py::gil_scoped_acquire acquire;
     auto currentFrame = importCache->inspect.currentframe()();
     while (hasattr(currentFrame, "f_locals")) {
         auto localDict = py::reinterpret_borrow<py::dict>(currentFrame.attr("f_locals"));

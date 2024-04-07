@@ -23,8 +23,8 @@ using namespace kuzu::common;
 namespace kuzu {
 namespace function {
 
-void BaseLowerUpperFunction::operation(
-    ku_string_t& input, ku_string_t& result, ValueVector& resultValueVector, bool isUpper) {
+void BaseLowerUpperFunction::operation(ku_string_t& input, ku_string_t& result,
+    ValueVector& resultValueVector, bool isUpper) {
     uint32_t resultLen = getResultLen((char*)input.getData(), input.len, isUpper);
     result.len = resultLen;
     if (resultLen <= ku_string_t::SHORT_STR_LENGTH) {
@@ -52,8 +52,8 @@ void BaseStrOperation::operation(ku_string_t& input, ku_string_t& result,
     }
 }
 
-void Repeat::operation(
-    ku_string_t& left, int64_t& right, ku_string_t& result, ValueVector& resultValueVector) {
+void Repeat::operation(ku_string_t& left, int64_t& right, ku_string_t& result,
+    ValueVector& resultValueVector) {
     result.len = left.len * right;
     if (result.len <= ku_string_t::SHORT_STR_LENGTH) {
         repeatStr((char*)result.prefix, left.getAsString(), right);
@@ -84,8 +84,8 @@ void Reverse::operation(ku_string_t& input, ku_string_t& result, ValueVector& re
         auto resultBuffer = result.len <= ku_string_t::SHORT_STR_LENGTH ?
                                 reinterpret_cast<char*>(result.prefix) :
                                 reinterpret_cast<char*>(result.overflowPtr);
-        utf8proc::utf8proc_grapheme_callback(
-            inputStr.c_str(), input.len, [&](size_t start, size_t end) {
+        utf8proc::utf8proc_grapheme_callback(inputStr.c_str(), input.len,
+            [&](size_t start, size_t end) {
                 memcpy(resultBuffer + input.len - end, input.getData() + start, end - start);
                 return true;
             });
@@ -182,8 +182,8 @@ function_set LeftFunction::getFunctionSet() {
 function_set LpadFunction::getFunctionSet() {
     function_set functionSet;
     functionSet.emplace_back(make_unique<ScalarFunction>(name,
-        std::vector<LogicalTypeID>{
-            LogicalTypeID::STRING, LogicalTypeID::INT64, LogicalTypeID::STRING},
+        std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::INT64,
+            LogicalTypeID::STRING},
         LogicalTypeID::STRING,
         ScalarFunction::TernaryStringExecFunction<ku_string_t, int64_t, ku_string_t, ku_string_t,
             Lpad>,
@@ -214,8 +214,8 @@ function_set RightFunction::getFunctionSet() {
 function_set RpadFunction::getFunctionSet() {
     function_set functionSet;
     functionSet.emplace_back(make_unique<ScalarFunction>(name,
-        std::vector<LogicalTypeID>{
-            LogicalTypeID::STRING, LogicalTypeID::INT64, LogicalTypeID::STRING},
+        std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::INT64,
+            LogicalTypeID::STRING},
         LogicalTypeID::STRING,
         ScalarFunction::TernaryStringExecFunction<ku_string_t, int64_t, ku_string_t, ku_string_t,
             Rpad>,
@@ -237,8 +237,8 @@ function_set StartsWithFunction::getFunctionSet() {
 function_set SubStrFunction::getFunctionSet() {
     function_set functionSet;
     functionSet.emplace_back(make_unique<ScalarFunction>(name,
-        std::vector<LogicalTypeID>{
-            LogicalTypeID::STRING, LogicalTypeID::INT64, LogicalTypeID::INT64},
+        std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::INT64,
+            LogicalTypeID::INT64},
         LogicalTypeID::STRING,
         ScalarFunction::TernaryStringExecFunction<ku_string_t, int64_t, int64_t, ku_string_t,
             SubStr>,
@@ -273,8 +273,8 @@ function_set RegexpReplaceFunction::getFunctionSet() {
     // Todo: Implement a function with modifiers
     //  regexp_replace(string, regex, replacement, modifiers)
     functionSet.emplace_back(make_unique<ScalarFunction>(name,
-        std::vector<LogicalTypeID>{
-            LogicalTypeID::STRING, LogicalTypeID::STRING, LogicalTypeID::STRING},
+        std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::STRING,
+            LogicalTypeID::STRING},
         LogicalTypeID::STRING,
         ScalarFunction::TernaryStringExecFunction<ku_string_t, ku_string_t, ku_string_t,
             ku_string_t, RegexpReplace>,
@@ -291,8 +291,8 @@ function_set RegexpExtractFunction::getFunctionSet() {
             RegexpExtract>,
         false /* isVarLength */));
     functionSet.emplace_back(make_unique<ScalarFunction>(name,
-        std::vector<LogicalTypeID>{
-            LogicalTypeID::STRING, LogicalTypeID::STRING, LogicalTypeID::INT64},
+        std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::STRING,
+            LogicalTypeID::INT64},
         LogicalTypeID::STRING,
         ScalarFunction::TernaryStringExecFunction<ku_string_t, ku_string_t, int64_t, ku_string_t,
             RegexpExtract>,
@@ -304,14 +304,14 @@ function_set RegexpExtractAllFunction::getFunctionSet() {
     function_set functionSet;
     functionSet.emplace_back(make_unique<ScalarFunction>(name,
         std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::STRING},
-        LogicalTypeID::VAR_LIST,
+        LogicalTypeID::LIST,
         ScalarFunction::BinaryStringExecFunction<ku_string_t, ku_string_t, list_entry_t,
             RegexpExtractAll>,
         nullptr, bindFunc, false /* isVarLength */));
     functionSet.emplace_back(make_unique<ScalarFunction>(name,
-        std::vector<LogicalTypeID>{
-            LogicalTypeID::STRING, LogicalTypeID::STRING, LogicalTypeID::INT64},
-        LogicalTypeID::VAR_LIST,
+        std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::STRING,
+            LogicalTypeID::INT64},
+        LogicalTypeID::LIST,
         ScalarFunction::TernaryStringExecFunction<ku_string_t, ku_string_t, int64_t, list_entry_t,
             RegexpExtractAll>,
         nullptr, bindFunc, false /* isVarLength */));
@@ -320,7 +320,7 @@ function_set RegexpExtractAllFunction::getFunctionSet() {
 
 std::unique_ptr<FunctionBindData> RegexpExtractAllFunction::bindFunc(
     const binder::expression_vector& /*arguments*/, Function* /*definition*/) {
-    return std::make_unique<FunctionBindData>(LogicalType::VAR_LIST(LogicalType::STRING()));
+    return std::make_unique<FunctionBindData>(LogicalType::LIST(LogicalType::STRING()));
 }
 
 function_set LevenshteinFunction::getFunctionSet() {

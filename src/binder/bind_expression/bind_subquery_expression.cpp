@@ -2,8 +2,10 @@
 #include "binder/expression/function_expression.h"
 #include "binder/expression/subquery_expression.h"
 #include "binder/expression_binder.h"
+#include "catalog/catalog.h"
 #include "common/types/value/value.h"
 #include "function/aggregate/count_star.h"
+#include "function/built_in_function_utils.h"
 #include "parser/expression/parsed_subquery_expression.h"
 
 using namespace kuzu::parser;
@@ -33,8 +35,8 @@ std::shared_ptr<Expression> ExpressionBinder::bindSubqueryExpression(
     boundSubqueryExpr->setWhereExpression(boundGraphPattern.where);
     // Bind projection
     auto functions = context->getCatalog()->getFunctions(context->getTx());
-    auto function = BuiltInFunctionsUtils::matchAggregateFunction(
-        CountStarFunction::name, std::vector<LogicalType>{}, false, functions);
+    auto function = BuiltInFunctionsUtils::matchAggregateFunction(CountStarFunction::name,
+        std::vector<LogicalType>{}, false, functions);
     auto bindData =
         std::make_unique<FunctionBindData>(std::make_unique<LogicalType>(function->returnTypeID));
     auto countStarExpr = std::make_shared<AggregateFunctionExpression>(CountStarFunction::name,
@@ -50,8 +52,8 @@ std::shared_ptr<Expression> ExpressionBinder::bindSubqueryExpression(
     case SubqueryType::EXISTS: {
         // Rewrite EXISTS subquery as COUNT(*) > 0
         auto literalExpr = createLiteralExpression(std::make_unique<Value>((int64_t)0));
-        projectionExpr = bindComparisonExpression(
-            ExpressionType::GREATER_THAN, expression_vector{countStarExpr, literalExpr});
+        projectionExpr = bindComparisonExpression(ExpressionType::GREATER_THAN,
+            expression_vector{countStarExpr, literalExpr});
     } break;
     default:
         KU_UNREACHABLE;

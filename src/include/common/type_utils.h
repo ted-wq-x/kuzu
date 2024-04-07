@@ -37,13 +37,13 @@ public:
     static std::string nodeToString(const struct_entry_t& val, ValueVector* vector);
     static std::string relToString(const struct_entry_t& val, ValueVector* vector);
 
-    static inline void encodeOverflowPtr(
-        uint64_t& overflowPtr, page_idx_t pageIdx, uint16_t pageOffset) {
+    static inline void encodeOverflowPtr(uint64_t& overflowPtr, page_idx_t pageIdx,
+        uint16_t pageOffset) {
         memcpy(&overflowPtr, &pageIdx, 4);
         memcpy(((uint8_t*)&overflowPtr) + 4, &pageOffset, 2);
     }
-    static inline void decodeOverflowPtr(
-        uint64_t overflowPtr, page_idx_t& pageIdx, uint16_t& pageOffset) {
+    static inline void decodeOverflowPtr(uint64_t overflowPtr, page_idx_t& pageIdx,
+        uint16_t& pageOffset) {
         pageIdx = 0;
         memcpy(&pageIdx, &overflowPtr, 4);
         memcpy(&pageOffset, ((uint8_t*)&overflowPtr) + 4, 2);
@@ -174,7 +174,7 @@ public:
         case LogicalTypeID::UUID:
             return func(ku_uuid_t());
         case LogicalTypeID::ARRAY:
-        case LogicalTypeID::VAR_LIST:
+        case LogicalTypeID::LIST:
             return func(list_entry_t());
         case LogicalTypeID::MAP:
             return func(map_entry_t());
@@ -230,7 +230,7 @@ public:
             return func(internalID_t());
         case PhysicalTypeID::STRING:
             return func(ku_string_t());
-        case PhysicalTypeID::VAR_LIST:
+        case PhysicalTypeID::LIST:
             return func(list_entry_t());
         case PhysicalTypeID::STRUCT:
             return func(struct_entry_t());

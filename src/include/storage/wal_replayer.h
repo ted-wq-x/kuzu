@@ -6,10 +6,6 @@
 #include "storage/wal/wal.h"
 #include "storage/wal/wal_record.h"
 
-namespace spdlog {
-class logger;
-}
-
 namespace kuzu {
 namespace storage {
 
@@ -40,10 +36,10 @@ private:
     void replayDropPropertyRecord(const WALRecord& walRecord);
     void replayAddPropertyRecord(const WALRecord& walRecord);
 
-    void checkpointOrRollbackVersionedFileHandleAndBufferManager(
-        const WALRecord& walRecord, const DBFileID& dbFileID);
-    void truncateFileIfInsertion(
-        BMFileHandle* fileHandle, const PageUpdateOrInsertRecord& pageInsertOrUpdateRecord);
+    void checkpointOrRollbackVersionedFileHandleAndBufferManager(const WALRecord& walRecord,
+        const DBFileID& dbFileID);
+    void truncateFileIfInsertion(BMFileHandle* fileHandle,
+        const PageUpdateOrInsertRecord& pageInsertOrUpdateRecord);
     BMFileHandle* getVersionedFileHandleIfWALVersionAndBMShouldBeCleared(const DBFileID& dbFileID);
     std::unique_ptr<catalog::Catalog> getCatalogForRecovery(common::FileVersionType dbFileType);
 

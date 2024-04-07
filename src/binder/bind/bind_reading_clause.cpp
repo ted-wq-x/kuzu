@@ -4,10 +4,13 @@
 #include "binder/query/reading_clause/bound_load_from.h"
 #include "binder/query/reading_clause/bound_match_clause.h"
 #include "binder/query/reading_clause/bound_unwind_clause.h"
+#include "catalog/catalog.h"
+#include "catalog/catalog_entry/table_catalog_entry.h"
 #include "common/exception/binder.h"
 #include "common/exception/message.h"
 #include "common/string_format.h"
 #include "common/string_utils.h"
+#include "function/built_in_function_utils.h"
 #include "function/table/bind_input.h"
 #include "main/attached_database.h"
 #include "main/database.h"
@@ -93,8 +96,8 @@ void Binder::rewriteMatchPattern(BoundGraphPattern& boundGraphPattern) {
                     expressionBinder.bindNodeOrRelPropertyExpression(*pattern, propertyName);
                 auto predicate =
                     expressionBinder.createEqualityComparisonExpression(propertyExpr, rhs);
-                where = expressionBinder.combineBooleanExpressions(
-                    ExpressionType::AND, predicate, where);
+                where = expressionBinder.combineBooleanExpressions(ExpressionType::AND, predicate,
+                    where);
             }
         }
     }
@@ -104,9 +107,9 @@ void Binder::rewriteMatchPattern(BoundGraphPattern& boundGraphPattern) {
 std::unique_ptr<BoundReadingClause> Binder::bindUnwindClause(const ReadingClause& readingClause) {
     auto& unwindClause = ku_dynamic_cast<const ReadingClause&, const UnwindClause&>(readingClause);
     auto boundExpression = expressionBinder.bindExpression(*unwindClause.getExpression());
-    ExpressionBinder::validateDataType(*boundExpression, LogicalTypeID::VAR_LIST);
+    ExpressionBinder::validateDataType(*boundExpression, LogicalTypeID::LIST);
     auto aliasName = unwindClause.getAlias();
-    auto alias = createVariable(aliasName, *VarListType::getChildType(&boundExpression->dataType));
+    auto alias = createVariable(aliasName, *ListType::getChildType(&boundExpression->dataType));
     std::shared_ptr<Expression> idExpr = nullptr;
     if (scope.hasMemorizedTableIDs(boundExpression->getAlias())) {
         auto tableIDs = scope.getMemorizedTableIDs(boundExpression->getAlias());
@@ -114,8 +117,8 @@ std::unique_ptr<BoundReadingClause> Binder::bindUnwindClause(const ReadingClause
         idExpr = node->getInternalID();
         scope.addNodeReplacement(node);
     }
-    return make_unique<BoundUnwindClause>(
-        std::move(boundExpression), std::move(alias), std::move(idExpr));
+    return make_unique<BoundUnwindClause>(std::move(boundExpression), std::move(alias),
+        std::move(idExpr));
 }
 
 std::unique_ptr<BoundReadingClause> Binder::bindInQueryCall(const ReadingClause& readingClause) {
@@ -162,8 +165,8 @@ std::unique_ptr<BoundReadingClause> Binder::bindInQueryCall(const ReadingClause&
             inputValues.push_back(*literalExpr->getValue());
         }
         auto functions = clientContext->getCatalog()->getFunctions(clientContext->getTx());
-        auto func = BuiltInFunctionsUtils::matchFunction(
-            functionExpr->getFunctionName(), inputTypes, functions);
+        auto func = BuiltInFunctionsUtils::matchFunction(functionExpr->getFunctionName(),
+            inputTypes, functions);
         tableFunction = *ku_dynamic_cast<function::Function*, function::TableFunction*>(func);
         auto bindInput = function::TableFuncBindInput();
         bindInput.inputs = std::move(inputValues);
@@ -173,10 +176,10 @@ std::unique_ptr<BoundReadingClause> Binder::bindInQueryCall(const ReadingClause&
     for (auto i = 0u; i < bindData->columnTypes.size(); i++) {
         columns.push_back(createVariable(bindData->columnNames[i], bindData->columnTypes[i]));
     }
-    auto offset = expressionBinder.createVariableExpression(
-        *LogicalType::INT64(), std::string(InternalKeyword::ROW_OFFSET));
-    auto boundInQueryCall = std::make_unique<BoundInQueryCall>(
-        tableFunction, std::move(bindData), std::move(columns), offset);
+    auto offset = expressionBinder.createVariableExpression(*LogicalType::INT64(),
+        std::string(InternalKeyword::ROW_OFFSET));
+    auto boundInQueryCall = std::make_unique<BoundInQueryCall>(tableFunction, std::move(bindData),
+        std::move(columns), offset);
     if (call.hasWherePredicate()) {
         auto wherePredicate = expressionBinder.bindExpression(*call.getWherePredicate());
         boundInQueryCall->setPredicate(std::move(wherePredicate));

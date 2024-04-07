@@ -8,7 +8,7 @@ namespace kuzu {
 namespace function {
 
 static std::unique_ptr<ValueVector> computeDataVecHash(ValueVector* operand) {
-    auto hashVector = std::make_unique<ValueVector>(*LogicalType::VAR_LIST(LogicalType::HASH()));
+    auto hashVector = std::make_unique<ValueVector>(*LogicalType::LIST(LogicalType::HASH()));
     auto numValuesInDataVec = ListVector::getDataVectorSize(operand);
     ListVector::resizeDataVector(hashVector.get(), numValuesInDataVec);
     auto selectionState = std::make_shared<DataChunkState>();
@@ -20,8 +20,8 @@ static std::unique_ptr<ValueVector> computeDataVecHash(ValueVector* operand) {
             selectionState->selVector->selectedPositions[i] = numValuesComputed;
             numValuesComputed++;
         }
-        VectorHashFunction::computeHash(
-            ListVector::getDataVector(operand), ListVector::getDataVector(hashVector.get()));
+        VectorHashFunction::computeHash(ListVector::getDataVector(operand),
+            ListVector::getDataVector(hashVector.get()));
     }
     return hashVector;
 }
@@ -61,8 +61,8 @@ static void computeStructVecHash(ValueVector* operand, ValueVector* result) {
             *StructVector::getFieldVector(operand, 3), *result);
     } break;
     case LogicalTypeID::STRUCT: {
-        VectorHashFunction::computeHash(
-            StructVector::getFieldVector(operand, 0 /* idx */).get(), result);
+        VectorHashFunction::computeHash(StructVector::getFieldVector(operand, 0 /* idx */).get(),
+            result);
         auto tmpHashVector = std::make_unique<ValueVector>(LogicalTypeID::INT64);
         for (auto i = 1u; i < StructType::getNumFields(&operand->dataType); i++) {
             auto fieldVector = StructVector::getFieldVector(operand, i);
@@ -127,7 +127,7 @@ void VectorHashFunction::computeHash(ValueVector* operand, ValueVector* result) 
     case PhysicalTypeID::STRUCT: {
         computeStructVecHash(operand, result);
     } break;
-    case PhysicalTypeID::VAR_LIST: {
+    case PhysicalTypeID::LIST: {
         computeListVectorHash(operand, result);
     } break;
         // LCOV_EXCL_START

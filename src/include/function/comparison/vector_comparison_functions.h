@@ -15,14 +15,14 @@ struct ComparisonFunction {
         for (auto& comparableType : common::LogicalTypeUtils::getAllValidComparableLogicalTypes()) {
             functionSet.push_back(getFunction<OP>(name, comparableType, comparableType));
         }
-        functionSet.push_back(getFunction<OP>(
-            name, common::LogicalTypeID::VAR_LIST, common::LogicalTypeID::VAR_LIST));
+        functionSet.push_back(
+            getFunction<OP>(name, common::LogicalTypeID::LIST, common::LogicalTypeID::LIST));
         functionSet.push_back(
             getFunction<OP>(name, common::LogicalTypeID::STRUCT, common::LogicalTypeID::STRUCT));
         // We can only check whether two internal ids are equal or not. So INTERNAL_ID is not
         // part of the comparable logical types.
-        functionSet.push_back(getFunction<OP>(
-            name, common::LogicalTypeID::INTERNAL_ID, common::LogicalTypeID::INTERNAL_ID));
+        functionSet.push_back(getFunction<OP>(name, common::LogicalTypeID::INTERNAL_ID,
+            common::LogicalTypeID::INTERNAL_ID));
         return functionSet;
     }
 
@@ -41,13 +41,13 @@ private:
         const std::vector<std::shared_ptr<common::ValueVector>>& params,
         common::SelectionVector& selVector) {
         KU_ASSERT(params.size() == 2);
-        return BinaryFunctionExecutor::selectComparison<LEFT_TYPE, RIGHT_TYPE, FUNC>(
-            *params[0], *params[1], selVector);
+        return BinaryFunctionExecutor::selectComparison<LEFT_TYPE, RIGHT_TYPE, FUNC>(*params[0],
+            *params[1], selVector);
     }
 
     template<typename FUNC>
-    static std::unique_ptr<ScalarFunction> getFunction(
-        const std::string& name, common::LogicalTypeID leftType, common::LogicalTypeID rightType) {
+    static std::unique_ptr<ScalarFunction> getFunction(const std::string& name,
+        common::LogicalTypeID leftType, common::LogicalTypeID rightType) {
         auto leftPhysical = common::LogicalType::getPhysicalType(leftType);
         auto rightPhysical = common::LogicalType::getPhysicalType(rightType);
         scalar_func_exec_t execFunc;
@@ -112,7 +112,7 @@ private:
             func =
                 BinaryComparisonExecFunction<common::interval_t, common::interval_t, uint8_t, FUNC>;
         } break;
-        case common::PhysicalTypeID::VAR_LIST: {
+        case common::PhysicalTypeID::LIST: {
             func = BinaryComparisonExecFunction<common::list_entry_t, common::list_entry_t, uint8_t,
                 FUNC>;
         } break;
@@ -178,7 +178,7 @@ private:
         case common::PhysicalTypeID::INTERVAL: {
             func = BinaryComparisonSelectFunction<common::interval_t, common::interval_t, FUNC>;
         } break;
-        case common::PhysicalTypeID::VAR_LIST: {
+        case common::PhysicalTypeID::LIST: {
             func = BinaryComparisonSelectFunction<common::list_entry_t, common::list_entry_t, FUNC>;
         } break;
         case common::PhysicalTypeID::STRUCT: {

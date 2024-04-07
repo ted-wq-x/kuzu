@@ -1,5 +1,6 @@
 #include "binder/copy/bound_export_database.h"
 #include "binder/query/bound_regular_query.h"
+#include "catalog/catalog.h"
 #include "catalog/catalog_entry/node_table_catalog_entry.h"
 #include "catalog/catalog_entry/rel_table_catalog_entry.h"
 #include "common/exception/binder.h"
@@ -25,8 +26,8 @@ static std::string getPrimaryKeyName(table_id_t tableId, const Catalog& catalog,
     return primaryProperty->getName();
 }
 
-static std::vector<ExportedTableData> getExportInfo(
-    const Catalog& catalog, Transaction* tx, Binder* binder) {
+static std::vector<ExportedTableData> getExportInfo(const Catalog& catalog, Transaction* tx,
+    Binder* binder) {
     std::vector<ExportedTableData> exportData;
     for (auto& nodeTableEntry : catalog.getNodeTableEntries(tx)) {
         auto tableName = nodeTableEntry->getName();
@@ -92,8 +93,8 @@ std::unique_ptr<BoundStatement> Binder::bindExportDatabaseClause(const Statement
     if (fileType != FileType::CSV && parsedOptions.size() != 0) {
         throw BinderException{"Only export to csv can have options."};
     }
-    return std::make_unique<BoundExportDatabase>(
-        boundFilePath, fileType, std::move(exportData), std::move(parsedOptions));
+    return std::make_unique<BoundExportDatabase>(boundFilePath, fileType, std::move(exportData),
+        std::move(parsedOptions));
 }
 } // namespace binder
 } // namespace kuzu

@@ -36,8 +36,8 @@ struct CallTableFuncBindData : public TableFuncBindData {
 
     CallTableFuncBindData(std::vector<common::LogicalType> columnTypes,
         std::vector<std::string> returnColumnNames, common::offset_t maxOffset)
-        : TableFuncBindData{std::move(columnTypes), std::move(returnColumnNames)}, maxOffset{
-                                                                                       maxOffset} {}
+        : TableFuncBindData{std::move(columnTypes), std::move(returnColumnNames)},
+          maxOffset{maxOffset} {}
 
     inline std::unique_ptr<TableFuncBindData> copy() const override {
         return std::make_unique<CallTableFuncBindData>(columnTypes, columnNames, maxOffset);
@@ -46,31 +46,43 @@ struct CallTableFuncBindData : public TableFuncBindData {
 
 struct CallFunction {
     static std::unique_ptr<TableFuncSharedState> initSharedState(TableFunctionInitInput& input);
-    static std::unique_ptr<TableFuncLocalState> initEmptyLocalState(
-        TableFunctionInitInput& input, TableFuncSharedState* state, storage::MemoryManager* mm);
+    static std::unique_ptr<TableFuncLocalState> initEmptyLocalState(TableFunctionInitInput& input,
+        TableFuncSharedState* state, storage::MemoryManager* mm);
 };
 
 struct CurrentSettingFunction : public CallFunction {
+    static constexpr const char* name = "CURRENT_SETTING";
+
     static function_set getFunctionSet();
 };
 
 struct DBVersionFunction : public CallFunction {
+    static constexpr const char* name = "DB_VERSION";
+
     static function_set getFunctionSet();
 };
 
 struct ShowTablesFunction : public CallFunction {
+    static constexpr const char* name = "SHOW_TABLES";
+
     static function_set getFunctionSet();
 };
 
 struct TableInfoFunction : public CallFunction {
+    static constexpr const char* name = "TABLE_INFO";
+
     static function_set getFunctionSet();
 };
 
 struct ShowConnectionFunction final : public CallFunction {
+    static constexpr const char* name = "SHOW_CONNECTION";
+
     static function_set getFunctionSet();
 };
 
 struct StorageInfoFunction final : public CallFunction {
+    static constexpr const char* name = "STORAGE_INFO";
+
     static function_set getFunctionSet();
 };
 

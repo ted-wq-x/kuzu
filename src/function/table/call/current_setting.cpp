@@ -16,8 +16,8 @@ struct CurrentSettingBindData final : public CallTableFuncBindData {
           result{std::move(result)} {}
 
     std::unique_ptr<TableFuncBindData> copy() const override {
-        return std::make_unique<CurrentSettingBindData>(
-            result, columnTypes, columnNames, maxOffset);
+        return std::make_unique<CurrentSettingBindData>(result, columnTypes, columnNames,
+            maxOffset);
     }
 };
 
@@ -37,8 +37,8 @@ static common::offset_t tableFunc(TableFuncInput& data, TableFuncOutput& output)
     return 1;
 }
 
-static std::unique_ptr<TableFuncBindData> bindFunc(
-    ClientContext* context, TableFuncBindInput* input) {
+static std::unique_ptr<TableFuncBindData> bindFunc(ClientContext* context,
+    TableFuncBindInput* input) {
     auto optionName = input->inputs[0].getValue<std::string>();
     std::vector<std::string> columnNames;
     std::vector<LogicalType> columnTypes;
@@ -51,9 +51,8 @@ static std::unique_ptr<TableFuncBindData> bindFunc(
 
 function_set CurrentSettingFunction::getFunctionSet() {
     function_set functionSet;
-    functionSet.push_back(std::make_unique<TableFunction>(CURRENT_SETTING_FUNC_NAME, tableFunc,
-        bindFunc, initSharedState, initEmptyLocalState,
-        std::vector<LogicalTypeID>{LogicalTypeID::STRING}));
+    functionSet.push_back(std::make_unique<TableFunction>(name, tableFunc, bindFunc,
+        initSharedState, initEmptyLocalState, std::vector<LogicalTypeID>{LogicalTypeID::STRING}));
     return functionSet;
 }
 

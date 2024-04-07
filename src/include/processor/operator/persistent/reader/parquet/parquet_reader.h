@@ -91,8 +91,8 @@ private:
 };
 
 struct ParquetScanSharedState final : public function::ScanFileSharedState {
-    explicit ParquetScanSharedState(
-        const common::ReaderConfig readerConfig, uint64_t numRows, main::ClientContext* context);
+    explicit ParquetScanSharedState(const common::ReaderConfig readerConfig, uint64_t numRows,
+        main::ClientContext* context);
 
     std::vector<std::unique_ptr<ParquetReader>> readers;
     uint64_t totalRowsGroups;
@@ -107,6 +107,8 @@ struct ParquetScanLocalState final : public function::TableFuncLocalState {
 };
 
 struct ParquetScanFunction {
+    static constexpr const char* name = "READ_PARQUET";
+
     static function::function_set getFunctionSet();
 };
 

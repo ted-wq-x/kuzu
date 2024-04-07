@@ -3,12 +3,15 @@
 #include "binder/expression/function_expression.h"
 #include "binder/expression/property_expression.h"
 #include "binder/expression_binder.h"
+#include "catalog/catalog.h"
 #include "common/exception/binder.h"
 #include "function/aggregate/collect.h"
 #include "function/arithmetic/vector_arithmetic_functions.h"
+#include "function/built_in_function_utils.h"
 #include "function/cast/vector_cast_functions.h"
 #include "function/path/vector_path_functions.h"
 #include "function/rewrite_function.h"
+#include "function/scalar_macro_function.h"
 #include "function/schema/vector_label_functions.h"
 #include "function/schema/vector_node_rel_functions.h"
 #include "main/client_context.h"
@@ -113,8 +116,8 @@ std::shared_ptr<Expression> ExpressionBinder::bindRewriteFunctionExpression(
     }
     auto childrenTypes = getTypes(children);
     auto functions = context->getCatalog()->getFunctions(context->getTx());
-    auto match = BuiltInFunctionsUtils::matchFunction(
-        funcExpr.getNormalizedFunctionName(), childrenTypes, functions);
+    auto match = BuiltInFunctionsUtils::matchFunction(funcExpr.getNormalizedFunctionName(),
+        childrenTypes, functions);
     auto function = ku_dynamic_cast<Function*, RewriteFunction*>(match);
     KU_ASSERT(function->rewriteFunc != nullptr);
     return function->rewriteFunc(children, this);
@@ -135,8 +138,8 @@ std::shared_ptr<Expression> ExpressionBinder::bindAggregateFunctionExpression(
         children.push_back(std::move(child));
     }
     auto functions = context->getCatalog()->getFunctions(context->getTx());
-    auto function = function::BuiltInFunctionsUtils::matchAggregateFunction(
-        functionName, childrenTypes, isDistinct, functions)
+    auto function = function::BuiltInFunctionsUtils::matchAggregateFunction(functionName,
+        childrenTypes, isDistinct, functions)
                         ->clone();
     if (function->paramRewriteFunc) {
         function->paramRewriteFunc(children);
@@ -199,8 +202,8 @@ std::shared_ptr<Expression> ExpressionBinder::rewriteFunctionExpression(
     const parser::ParsedExpression& parsedExpression, const std::string& functionName) {
     if (functionName == LabelFunction::name) {
         auto child = bindExpression(*parsedExpression.getChild(0));
-        validateExpectedDataType(
-            *child, std::vector<LogicalTypeID>{LogicalTypeID::NODE, LogicalTypeID::REL});
+        validateExpectedDataType(*child,
+            std::vector<LogicalTypeID>{LogicalTypeID::NODE, LogicalTypeID::REL});
         return bindLabelFunction(*child);
     } else if (functionName == LengthFunction::name) {
         auto child = bindExpression(*parsedExpression.getChild(0));
@@ -247,7 +250,7 @@ static std::vector<std::unique_ptr<Value>> populateLabelValues(std::vector<table
 
 std::shared_ptr<Expression> ExpressionBinder::bindLabelFunction(const Expression& expression) {
     auto catalog = context->getCatalog();
-    auto listType = LogicalType::VAR_LIST(LogicalType::STRING());
+    auto listType = LogicalType::LIST(LogicalType::STRING());
     expression_vector children;
     switch (expression.getDataType().getLogicalTypeID()) {
     case LogicalTypeID::NODE: {
@@ -259,8 +262,8 @@ std::shared_ptr<Expression> ExpressionBinder::bindLabelFunction(const Expression
         }
         auto nodeTableIDs = catalog->getNodeTableIDs(context->getTx());
         children.push_back(node.getInternalID());
-        auto labelsValue = std::make_unique<Value>(
-            std::move(listType), populateLabelValues(nodeTableIDs, *catalog, context->getTx()));
+        auto labelsValue = std::make_unique<Value>(std::move(listType),
+            populateLabelValues(nodeTableIDs, *catalog, context->getTx()));
         children.push_back(createLiteralExpression(std::move(labelsValue)));
     } break;
     case LogicalTypeID::REL: {
@@ -272,8 +275,8 @@ std::shared_ptr<Expression> ExpressionBinder::bindLabelFunction(const Expression
         }
         auto relTableIDs = catalog->getRelTableIDs(context->getTx());
         children.push_back(rel.getInternalIDProperty());
-        auto labelsValue = std::make_unique<Value>(
-            std::move(listType), populateLabelValues(relTableIDs, *catalog, context->getTx()));
+        auto labelsValue = std::make_unique<Value>(std::move(listType),
+            populateLabelValues(relTableIDs, *catalog, context->getTx()));
         children.push_back(createLiteralExpression(std::move(labelsValue)));
     } break;
     default:

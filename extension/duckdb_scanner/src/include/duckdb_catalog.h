@@ -1,9 +1,8 @@
 #pragma once
 
+#include "binder/ddl/bound_create_table_info.h"
 #include "catalog/catalog_content.h"
-#include "catalog/catalog_entry/table_catalog_entry.h"
 #include "duckdb_scan.h"
-#include "duckdb_table_catalog_entry.h"
 
 namespace kuzu {
 namespace duckdb_scanner {
@@ -30,8 +29,8 @@ class DuckDBCatalogContent : public catalog::CatalogContent {
 public:
     DuckDBCatalogContent() : catalog::CatalogContent{nullptr /* vfs */} {}
 
-    virtual void init(
-        const std::string& dbPath, const std::string& catalogName, main::ClientContext* context);
+    virtual void init(const std::string& dbPath, const std::string& catalogName,
+        main::ClientContext* context);
 
 protected:
     bool bindPropertyInfos(duckdb::Connection& con, const std::string& tableName,

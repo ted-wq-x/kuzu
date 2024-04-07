@@ -5,9 +5,9 @@
 namespace kuzu {
 namespace processor {
 
-class VarListColumnWriter : public ColumnWriter {
+class ListColumnWriter : public ColumnWriter {
 public:
-    VarListColumnWriter(ParquetWriter& writer, uint64_t schemaIdx, std::vector<std::string> schema,
+    ListColumnWriter(ParquetWriter& writer, uint64_t schemaIdx, std::vector<std::string> schema,
         uint64_t maxRepeat, uint64_t maxDefine, std::unique_ptr<ColumnWriter> childWriter,
         bool canHaveNulls)
         : ColumnWriter(writer, schemaIdx, std::move(schema), maxRepeat, maxDefine, canHaveNulls),
@@ -22,8 +22,8 @@ public:
     void prepare(ColumnWriterState& writerState, ColumnWriterState* parent,
         common::ValueVector* vector, uint64_t count) override;
     void beginWrite(ColumnWriterState& state) override;
-    void write(
-        ColumnWriterState& writerState, common::ValueVector* vector, uint64_t count) override;
+    void write(ColumnWriterState& writerState, common::ValueVector* vector,
+        uint64_t count) override;
     void finalizeWrite(ColumnWriterState& writerState) override;
 
 private:

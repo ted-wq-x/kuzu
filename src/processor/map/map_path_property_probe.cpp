@@ -65,7 +65,7 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapPathPropertyProbe(
             std::move(nodeBuildInfo), std::move(nodeBuildPrevOperator), getOperatorID(), "");
         auto relDataType = rel->getDataType();
         auto nodesField = StructType::getField(&relDataType, InternalKeyword::NODES);
-        auto nodeStructType = VarListType::getChildType(nodesField->getType());
+        auto nodeStructType = ListType::getChildType(nodesField->getType());
         auto [fieldIndices, columnIndices] =
             getColIdxToScan(nodePayloads, nodeKeys.size(), *nodeStructType);
         nodeFieldIndices = std::move(fieldIndices);
@@ -92,7 +92,7 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapPathPropertyProbe(
             std::move(relBuildInfo), std::move(relBuildPrvOperator), getOperatorID(), "");
         auto relDataType = rel->getDataType();
         auto relsField = StructType::getField(&relDataType, InternalKeyword::RELS);
-        auto relStructType = VarListType::getChildType(relsField->getType());
+        auto relStructType = ListType::getChildType(relsField->getType());
         auto [fieldIndices, columnIndices] =
             getColIdxToScan(relPayloads, relKeys.size(), *relStructType);
         relFieldIndices = std::move(fieldIndices);
@@ -115,8 +115,8 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapPathPropertyProbe(
     if (relBuild != nullptr) {
         children.push_back(std::move(relBuild));
     }
-    auto pathPropertyProbe = std::make_unique<PathPropertyProbe>(
-        std::move(pathProbeInfo), pathProbeSharedState, std::move(children), getOperatorID(), "");
+    auto pathPropertyProbe = std::make_unique<PathPropertyProbe>(std::move(pathProbeInfo),
+        pathProbeSharedState, std::move(children), getOperatorID(), "");
     if (logicalProbe->getSIP() == planner::SidewaysInfoPassing::PROBE_TO_BUILD) {
         mapSIPJoin(pathPropertyProbe.get());
     }

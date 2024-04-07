@@ -1,6 +1,6 @@
 #include "function/built_in_function_utils.h"
 
-#include "catalog/catalog_entry/table_function_catalog_entry.h"
+#include "catalog/catalog_entry/function_catalog_entry.h"
 #include "catalog/catalog_set.h"
 #include "common/exception/binder.h"
 #include "common/exception/catalog.h"
@@ -8,13 +8,6 @@
 #include "function/arithmetic/vector_arithmetic_functions.h"
 #include "function/function_collection.h"
 #include "function/scalar_function.h"
-#include "function/table/call_functions.h"
-#include "processor/operator/persistent/reader/csv/parallel_csv_reader.h"
-#include "processor/operator/persistent/reader/csv/serial_csv_reader.h"
-#include "processor/operator/persistent/reader/npy/npy_reader.h"
-#include "processor/operator/persistent/reader/parquet/parquet_reader.h"
-#include "processor/operator/persistent/reader/rdf/rdf_scan.h"
-#include "processor/operator/table_scan/ftable_scan_function.h"
 
 using namespace kuzu::common;
 using namespace kuzu::catalog;
@@ -31,9 +24,12 @@ static void validateNonEmptyCandidateFunctions(std::vector<Function*>& candidate
     function::function_set& set);
 
 void BuiltInFunctionsUtils::createFunctions(CatalogSet* catalogSet) {
-    registerTableFunctions(catalogSet);
-
-    registerFunctions(catalogSet);
+    auto functions = FunctionCollection::getFunctions();
+    for (auto i = 0u; functions[i].name != nullptr; ++i) {
+        auto functionSet = functions[i].getFunctionSetFunc();
+        catalogSet->createEntry(std::make_unique<FunctionCatalogEntry>(
+            functions[i].catalogEntryType, functions[i].name, std::move(functionSet)));
+    }
 }
 
 Function* BuiltInFunctionsUtils::matchFunction(const std::string& name, CatalogSet* catalogSet) {
@@ -85,8 +81,8 @@ AggregateFunction* BuiltInFunctionsUtils::matchAggregateFunction(const std::stri
         }
         candidateFunctions.push_back(aggregateFunction);
     }
-    validateNonEmptyCandidateFunctions(
-        candidateFunctions, name, inputTypes, isDistinct, functionSet);
+    validateNonEmptyCandidateFunctions(candidateFunctions, name, inputTypes, isDistinct,
+        functionSet);
     KU_ASSERT(candidateFunctions.size() == 1);
     return candidateFunctions[0];
 }
@@ -164,7 +160,7 @@ uint32_t BuiltInFunctionsUtils::getTargetTypeCost(LogicalTypeID typeID) {
     case LogicalTypeID::STRUCT:
     case LogicalTypeID::MAP:
     case LogicalTypeID::ARRAY:
-    case LogicalTypeID::VAR_LIST:
+    case LogicalTypeID::LIST:
     case LogicalTypeID::UNION:
         return 160;
     case LogicalTypeID::RDF_VARIANT:
@@ -358,7 +354,7 @@ uint32_t BuiltInFunctionsUtils::castFromString(LogicalTypeID inputTypeID) {
 uint32_t BuiltInFunctionsUtils::castFromRDFVariant(LogicalTypeID inputTypeID) {
     switch (inputTypeID) {
     case LogicalTypeID::STRUCT:
-    case LogicalTypeID::VAR_LIST:
+    case LogicalTypeID::LIST:
     case LogicalTypeID::ARRAY:
     case LogicalTypeID::UNION:
     case LogicalTypeID::MAP:
@@ -401,8 +397,8 @@ Function* BuiltInFunctionsUtils::getBestMatch(std::vector<Function*>& functionsT
     return result;
 }
 
-uint32_t BuiltInFunctionsUtils::getFunctionCost(
-    const std::vector<LogicalType>& inputTypes, Function* function, bool isOverload) {
+uint32_t BuiltInFunctionsUtils::getFunctionCost(const std::vector<LogicalType>& inputTypes,
+    Function* function, bool isOverload) {
     switch (function->type) {
     case FunctionType::SCALAR: {
         auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(function);
@@ -418,8 +414,8 @@ uint32_t BuiltInFunctionsUtils::getFunctionCost(
     }
 }
 
-uint32_t BuiltInFunctionsUtils::getAggregateFunctionCost(
-    const std::vector<LogicalType>& inputTypes, bool isDistinct, AggregateFunction* function) {
+uint32_t BuiltInFunctionsUtils::getAggregateFunctionCost(const std::vector<LogicalType>& inputTypes,
+    bool isDistinct, AggregateFunction* function) {
     if (inputTypes.size() != function->parameterTypeIDs.size() ||
         isDistinct != function->isDistinct) {
         return UINT32_MAX;
@@ -450,8 +446,8 @@ uint32_t BuiltInFunctionsUtils::matchParameters(const std::vector<LogicalType>& 
     return cost;
 }
 
-uint32_t BuiltInFunctionsUtils::matchVarLengthParameters(
-    const std::vector<LogicalType>& inputTypes, LogicalTypeID targetTypeID, bool /*isOverload*/) {
+uint32_t BuiltInFunctionsUtils::matchVarLengthParameters(const std::vector<LogicalType>& inputTypes,
+    LogicalTypeID targetTypeID, bool /*isOverload*/) {
     auto cost = 0u;
     for (auto inputType : inputTypes) {
         auto castCost = getCastCost(inputType.getLogicalTypeID(), targetTypeID);
@@ -486,59 +482,6 @@ void BuiltInFunctionsUtils::validateSpecialCases(std::vector<Function*>& candida
                                   LogicalTypeUtils::toString(inputTypes) +
                                   ". Supported inputs are\n" + supportedInputsString);
         }
-    }
-}
-
-void BuiltInFunctionsUtils::registerTableFunctions(CatalogSet* catalogSet) {
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        CURRENT_SETTING_FUNC_NAME, CurrentSettingFunction::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        DB_VERSION_FUNC_NAME, DBVersionFunction::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        SHOW_TABLES_FUNC_NAME, ShowTablesFunction::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        TABLE_INFO_FUNC_NAME, TableInfoFunction::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        SHOW_CONNECTION_FUNC_NAME, ShowConnectionFunction::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        STORAGE_INFO_FUNC_NAME, StorageInfoFunction::getFunctionSet()));
-    // Read functions
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_PARQUET_FUNC_NAME, ParquetScanFunction::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_NPY_FUNC_NAME, NpyScanFunction::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_CSV_SERIAL_FUNC_NAME, SerialCSVScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_CSV_PARALLEL_FUNC_NAME, ParallelCSVScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_RDF_RESOURCE_FUNC_NAME, RdfResourceScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_RDF_LITERAL_FUNC_NAME, RdfLiteralScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_RDF_RESOURCE_TRIPLE_FUNC_NAME, RdfResourceTripleScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_RDF_LITERAL_TRIPLE_FUNC_NAME, RdfLiteralTripleScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_RDF_ALL_TRIPLE_FUNC_NAME, RdfAllTripleScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        IN_MEM_READ_RDF_RESOURCE_FUNC_NAME, RdfResourceInMemScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        IN_MEM_READ_RDF_LITERAL_FUNC_NAME, RdfLiteralInMemScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        IN_MEM_READ_RDF_RESOURCE_TRIPLE_FUNC_NAME, RdfResourceTripleInMemScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        IN_MEM_READ_RDF_LITERAL_TRIPLE_FUNC_NAME, RdfLiteralTripleInMemScan::getFunctionSet()));
-    catalogSet->createEntry(std::make_unique<TableFunctionCatalogEntry>(
-        READ_FTABLE_FUNC_NAME, FTableScan::getFunctionSet()));
-}
-
-void BuiltInFunctionsUtils::registerFunctions(catalog::CatalogSet* catalogSet) {
-    auto functions = FunctionCollection::getFunctions();
-    for (auto i = 0u; functions[i].name != nullptr; ++i) {
-        auto functionSet = functions[i].getFunctionSetFunc();
-        catalogSet->createEntry(std::make_unique<FunctionCatalogEntry>(
-            functions[i].catalogEntryType, functions[i].name, std::move(functionSet)));
     }
 }
 
