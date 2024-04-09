@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(Kuzu VERSION 0.3.2.5 LANGUAGES CXX C)
+project(Kuzu VERSION 0.3.2.6 LANGUAGES CXX C)
 
 find_package(Threads REQUIRED)
 
@@ -204,6 +204,7 @@ include_directories(src/include)
 include_directories(third_party/antlr4_cypher/include)
 include_directories(third_party/antlr4_runtime/src)
 include_directories(third_party/fast_float/include)
+include_directories(third_party/mbedtls/include)
 include_directories(third_party/miniparquet/src)
 include_directories(third_party/miniz)
 include_directories(third_party/nlohmann_json)
