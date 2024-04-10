@@ -20,6 +20,33 @@ using namespace kuzu::function;
 namespace kuzu {
 namespace binder {
 
+std::unique_ptr<BoundStatement> Binder::bindCopyToClause(const Statement& statement) {
+    auto& copyToStatement = ku_dynamic_cast<const Statement&, const CopyTo&>(statement);
+    auto boundFilePath = copyToStatement.getFilePath();
+    auto fileType = bindFileType(boundFilePath);
+    std::vector<std::string> columnNames;
+    std::vector<LogicalType> columnTypes;
+    auto parsedQuery =
+        ku_dynamic_cast<const Statement*, const RegularQuery*>(copyToStatement.getStatement());
+    auto query = bindQuery(*parsedQuery);
+    auto columns = query->getStatementResult()->getColumns();
+    for (auto& column : columns) {
+        auto columnName = column->hasAlias() ? column->getAlias() : column->toString();
+        columnNames.push_back(columnName);
+        columnTypes.push_back(column->getDataType());
+    }
+    if (fileType != FileType::CSV && fileType != FileType::PARQUET) {
+        throw BinderException("COPY TO currently only supports csv and parquet files.");
+    }
+    if (fileType != FileType::CSV && copyToStatement.getParsingOptionsRef().size() != 0) {
+        throw BinderException{"Only copy to csv can have options."};
+    }
+    auto csvConfig =
+        CSVReaderConfig::construct(bindParsingOptions(copyToStatement.getParsingOptionsRef()));
+    return std::make_unique<BoundCopyTo>(
+        boundFilePath, fileType, std::move(query), csvConfig.option.copy());
+}
+
 std::unique_ptr<BoundStatement> Binder::bindCopyFromClause(const Statement& statement) {
     auto& copyStatement = ku_dynamic_cast<const Statement&, const CopyFrom&>(statement);
     auto tableName = copyStatement.getTableName();
@@ -29,17 +56,26 @@ std::unique_ptr<BoundStatement> Binder::bindCopyFromClause(const Statement& stat
     auto tableID = catalog->getTableID(clientContext->getTx(), tableName);
     auto tableEntry = catalog->getTableCatalogEntry(clientContext->getTx(), tableID);
     switch (tableEntry->getTableType()) {
-    case TableType::REL_GROUP: {
-        throw BinderException(stringFormat("Cannot copy into {} table with type {}.", tableName,
-            TableTypeUtils::toString(tableEntry->getTableType())));
-    }
-    default:
+    case TableType::REL_GROUP:{
+        auto opt = bindParsingOptions(copyStatement.getParsingOptionsRef());
+        if(opt.find("_FROM") == opt.end() || opt.find("_TO") == opt.end()){
+            throw BinderException(stringFormat("Cannot copy into {} table with type {} like this.", tableName,
+                TableTypeUtils::toString(tableEntry->getTableType())));
+        }
+        std::string valueA = opt.find("_FROM")->second.strVal;
+        std::string valueB = opt.find("_TO")->second.strVal;
+        tableName = tableName + "_" + valueA + "_" + valueB;
+        validateTableExist(tableName);
+        tableID = catalog->getTableID(clientContext->getTx(), tableName);
+        tableEntry = catalog->getTableCatalogEntry(clientContext->getTx(), tableID);
         break;
     }
+    default: break;
+    }
+
     switch (tableEntry->getTableType()) {
     case TableType::NODE: {
-        auto nodeTableEntry =
-            ku_dynamic_cast<TableCatalogEntry*, NodeTableCatalogEntry*>(tableEntry);
+        auto nodeTableEntry = ku_dynamic_cast<TableCatalogEntry*, NodeTableCatalogEntry*>(tableEntry);
         return bindCopyNodeFrom(statement, nodeTableEntry);
     }
     case TableType::REL: {
@@ -63,14 +99,14 @@ static void bindExpectedRelColumns(RelTableCatalogEntry* relTableEntry,
     const std::vector<std::string>& inputColumnNames, std::vector<std::string>& columnNames,
     std::vector<LogicalType>& columnTypes, main::ClientContext* context);
 
-std::unique_ptr<BoundStatement> Binder::bindCopyNodeFrom(const Statement& statement,
-    NodeTableCatalogEntry* nodeTableEntry) {
+std::unique_ptr<BoundStatement> Binder::bindCopyNodeFrom(
+    const Statement& statement, NodeTableCatalogEntry* nodeTableEntry) {
     auto& copyStatement = ku_dynamic_cast<const Statement&, const CopyFrom&>(statement);
     // Bind expected columns based on catalog information.
     std::vector<std::string> expectedColumnNames;
     std::vector<LogicalType> expectedColumnTypes;
-    bindExpectedNodeColumns(nodeTableEntry, copyStatement.getColumnNames(), expectedColumnNames,
-        expectedColumnTypes);
+    bindExpectedNodeColumns(
+        nodeTableEntry, copyStatement.getColumnNames(), expectedColumnNames, expectedColumnTypes);
     auto boundSource = bindScanSource(copyStatement.getSource(),
         copyStatement.getParsingOptionsRef(), expectedColumnNames, expectedColumnTypes);
     if (boundSource->type == ScanSourceType::FILE) {
@@ -83,15 +119,15 @@ std::unique_ptr<BoundStatement> Binder::bindCopyNodeFrom(const Statement& statem
                 FileTypeUtils::toString(bindData->config.fileType)));
         }
     }
-    auto offset = expressionBinder.createVariableExpression(*LogicalType::INT64(),
-        std::string(InternalKeyword::ANONYMOUS));
+    auto offset = expressionBinder.createVariableExpression(
+        *LogicalType::INT64(), std::string(InternalKeyword::ANONYMOUS));
     auto boundCopyFromInfo =
         BoundCopyFromInfo(nodeTableEntry, std::move(boundSource), offset, nullptr /* extraInfo */);
     return std::make_unique<BoundCopyFrom>(std::move(boundCopyFromInfo));
 }
 
-std::unique_ptr<BoundStatement> Binder::bindCopyRelFrom(const parser::Statement& statement,
-    RelTableCatalogEntry* relTableEntry) {
+std::unique_ptr<BoundStatement> Binder::bindCopyRelFrom(
+    const parser::Statement& statement, RelTableCatalogEntry* relTableEntry) {
     auto& copyStatement = ku_dynamic_cast<const Statement&, const CopyFrom&>(statement);
     if (copyStatement.byColumn()) {
         throw BinderException(
@@ -105,8 +141,8 @@ std::unique_ptr<BoundStatement> Binder::bindCopyRelFrom(const parser::Statement&
     auto boundSource = bindScanSource(copyStatement.getSource(),
         copyStatement.getParsingOptionsRef(), expectedColumnNames, expectedColumnTypes);
     auto columns = boundSource->getColumns();
-    auto offset = expressionBinder.createVariableExpression(*LogicalType::INT64(),
-        std::string(InternalKeyword::ROW_OFFSET));
+    auto offset = expressionBinder.createVariableExpression(
+        *LogicalType::INT64(), std::string(InternalKeyword::ROW_OFFSET));
     auto srcTableID = relTableEntry->getSrcTableID();
     auto dstTableID = relTableEntry->getDstTableID();
     auto catalog = clientContext->getCatalog();
@@ -162,8 +198,8 @@ static void bindExpectedColumns(TableCatalogEntry* tableEntry,
         // Search column data type for each input column.
         for (auto& columnName : inputColumnNames) {
             if (!tableEntry->containProperty(columnName)) {
-                throw BinderException(stringFormat("Table {} does not contain column {}.",
-                    tableEntry->getName(), columnName));
+                throw BinderException(stringFormat(
+                    "Table {} does not contain column {}.", tableEntry->getName(), columnName));
             }
             auto propertyID = tableEntry->getPropertyID(columnName);
             auto property = tableEntry->getProperty(propertyID);
