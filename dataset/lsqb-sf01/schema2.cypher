@@ -1,0 +1,16 @@
+create node table City (id int64, PRIMARY KEY (id));
+create node table Comment (id int64, PRIMARY KEY (id));
+create node table Company (id int64, PRIMARY KEY (id));
+create node table Continent (id int64, PRIMARY KEY (id));
+create node table Country (id int64, PRIMARY KEY (id));
+create node table Forum (id int64, PRIMARY KEY (id));
+create node table Person (id int64, PRIMARY KEY (id));
+create node table Post (id int64, PRIMARY KEY (id));
+create node table Tag (id int64, PRIMARY KEY (id));
+create node table TagClass (id int64, PRIMARY KEY (id));
+create node table University (id int64, PRIMARY KEY (id));
+create rel table group hasCreator(FROM Comment TO Person, FROM Post TO Person);
+create rel table group replyOf(FROM Comment TO Comment, FROM Comment TO Post);
+create rel table group likes(FROM Person TO Comment, FROM Person TO Post);
+create rel table group hasTag(FROM Comment TO Tag, FROM Forum TO Tag, FROM Post TO Tag);
+create rel table group isLocatedIn(FROM Comment TO Country, FROM Company TO Country, FROM Person TO City, FROM Post TO Country, FROM University TO City);

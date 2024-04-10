@@ -198,6 +198,8 @@ void Binder::restoreScope(BinderScope prevScope) {
 }
 
 function::TableFunction Binder::getScanFunction(FileType fileType, const ReaderConfig& config) {
+    auto & opt = const_cast<ReaderConfig&>(config);
+    opt.options.erase("_FROM"), opt.options.erase("_TO");
     function::Function* func;
     auto stringType = LogicalType(LogicalTypeID::STRING);
     std::vector<LogicalType> inputTypes;
