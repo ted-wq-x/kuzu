@@ -1,8 +1,10 @@
 add_subdirectory(aggregate)
+add_subdirectory(algorithm)
 add_subdirectory(arithmetic)
 add_subdirectory(array)
 add_subdirectory(cast)
 add_subdirectory(date)
+add_subdirectory(graph)
 add_subdirectory(list)
 add_subdirectory(map)
 add_subdirectory(path)
@@ -16,6 +18,7 @@ add_subdirectory(utility)
 add_library(kuzu_function
         OBJECT
         aggregate_function.cpp
+        algorithm_function.cpp
         base_lower_upper_operation.cpp
         built_in_function_utils.cpp
         cast_string_non_nested_functions.cpp

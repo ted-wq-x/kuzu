@@ -10,6 +10,7 @@ namespace planner {
 enum class LogicalOperatorType : uint8_t {
     ACCUMULATE,
     AGGREGATE,
+    ALGORITHM,
     ALTER,
     ATTACH_DATABASE,
     COMMENT_ON,

@@ -47,6 +47,8 @@ public:
 
 private:
     std::unique_ptr<PhysicalOperator> mapOperator(planner::LogicalOperator* logicalOperator);
+    std::unique_ptr<PhysicalOperator> mapAlgorithm(planner::LogicalOperator* logicalOperator);
+
     std::unique_ptr<PhysicalOperator> mapScanFile(planner::LogicalOperator* logicalOperator);
     std::unique_ptr<PhysicalOperator> mapScanFrontier(planner::LogicalOperator* logicalOperator);
     std::unique_ptr<PhysicalOperator> mapScanInternalID(planner::LogicalOperator* logicalOperator);

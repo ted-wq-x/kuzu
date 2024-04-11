@@ -110,6 +110,9 @@ public:
     std::shared_ptr<Expression> forceCast(const std::shared_ptr<Expression>& expression,
         const common::LogicalType& targetType);
 
+    std::string getUniqueName(const std::string& name) const;
+    main::ClientContext* getClientContext();
+
 private:
     Binder* binder;
     main::ClientContext* context;

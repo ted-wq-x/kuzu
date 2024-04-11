@@ -1,0 +1,25 @@
+-DATASET CSV tinysnb
+
+--
+
+-CASE BasicAlgorithm
+
+-STATEMENT RETURN demo_avg_degree(graph());
+---- error
+Binder exception: DEMO_AVG_DEGREE is a ALGORITHM_FUNCTION_ENTRY. Scalar function, aggregate function or macro was expected.
+-STATEMENT CALL demo_avg_degree(graph(1)) RETURN DEGREE;
+---- error
+Binder exception: 1 has data type INT64 but STRING was expected.
+-STATEMENT CALL demo_avg_degree(graph("a")) RETURN DEGREE;
+---- error
+Catalog exception: a does not exist in catalog.
+-STATEMENT CALL demo_avg_degree(graph("a"), 1) RETURN DEGREE;
+---- error
+Binder exception: Cannot match a built-in function for given function demo_avg_degree(ANY,INT64). Supported inputs are
+(ANY)
+-STATEMENT CALL demo_avg_degree(graph("person", "knows")) RETURN DEGREE;
+---- 1
+1.750000
+-STATEMENT CALL demo_avg_degree(graph()) RETURN DEGREE;
+---- 1
+2.142857

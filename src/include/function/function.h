@@ -42,6 +42,7 @@ struct Function {
     bool isVarLength;
 
     Function() : isVarLength{false} {};
+    Function(std::string name) : name{std::move(name)} {}
     Function(std::string name, std::vector<common::LogicalTypeID> parameterTypeIDs)
         : name{std::move(name)}, parameterTypeIDs{std::move(parameterTypeIDs)}, isVarLength{false} {
     }

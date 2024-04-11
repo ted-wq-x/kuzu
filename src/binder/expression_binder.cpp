@@ -121,5 +121,13 @@ void validateAggregationExpressionIsNotNested(const Expression& expression) {
     }
 }
 
+std::string ExpressionBinder::getUniqueName(const std::string& name) const {
+    return binder->getUniqueExpressionName(name);
+}
+
+main::ClientContext* ExpressionBinder::getClientContext() {
+    return context;
+}
+
 } // namespace binder
 } // namespace kuzu

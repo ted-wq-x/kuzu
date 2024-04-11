@@ -10,6 +10,8 @@ namespace processor {
 // LCOV_EXCL_START
 std::string PhysicalOperatorUtils::operatorTypeToString(PhysicalOperatorType operatorType) {
     switch (operatorType) {
+    case PhysicalOperatorType::ALGORITHM:
+        return "ALGORITHM";
     case PhysicalOperatorType::ALTER:
         return "ALTER";
     case PhysicalOperatorType::AGGREGATE:

@@ -121,7 +121,7 @@ enum class LogicalTypeID : uint8_t {
     RECURSIVE_REL = 12,
     // SERIAL is a special data type that is used to represent a sequence of INT64 values that are
     // incremented by 1 starting from 0.
-    SERIAL = 13,
+    SERIAL = 20,
 
     BOOL = 22,
     INT64 = 23,
@@ -156,7 +156,7 @@ enum class LogicalTypeID : uint8_t {
     RDF_VARIANT = 57,
     POINTER = 58,
 
-    UUID = 59
+    UUID = 59,
 };
 
 enum class PhysicalTypeID : uint8_t {

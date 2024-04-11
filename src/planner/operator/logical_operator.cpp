@@ -14,6 +14,8 @@ std::string LogicalOperatorUtils::logicalOperatorTypeToString(LogicalOperatorTyp
         return "ACCUMULATE";
     case LogicalOperatorType::AGGREGATE:
         return "AGGREGATE";
+    case LogicalOperatorType::ALGORITHM:
+        return "ALGORITHM";
     case LogicalOperatorType::ALTER:
         return "ALTER";
     case LogicalOperatorType::ATTACH_DATABASE:
