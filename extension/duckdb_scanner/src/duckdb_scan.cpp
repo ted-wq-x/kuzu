@@ -1,5 +1,6 @@
 #include "duckdb_scan.h"
 
+#include "common/exception/runtime.h"
 #include "common/types/types.h"
 #include "function/table/bind_input.h"
 
@@ -143,6 +144,7 @@ void getDuckDBVectorConversionFunc(PhysicalTypeID physicalTypeID,
     case PhysicalTypeID::INTERVAL: {
         conversion_func = convertDuckDBVectorToVector<interval_t>;
     } break;
+    case PhysicalTypeID::ARRAY:
     case PhysicalTypeID::LIST: {
         conversion_func = convertDuckDBVectorToVector<list_entry_t>;
     } break;
