@@ -16,7 +16,7 @@ namespace storage {
 RelDataReadState::RelDataReadState()
     : startNodeOffset{0}, numNodes{0}, currentNodeOffset{0}, posInCurrentCSR{0},
       readFromLocalStorage{false}, localNodeGroup{nullptr} {
-    csrListEntries.resize(StorageConstants::NODE_GROUP_SIZE, {0, 0});
+    csrListEntries.resize(2048, {0, 0});
 }
 
 bool RelDataReadState::hasMoreToReadFromLocalStorage() const {
@@ -54,6 +54,9 @@ bool RelDataReadState::hasMoreToRead(Transaction* transaction) {
 }
 
 void RelDataReadState::populateCSRListEntries() {
+    if (csrListEntries.capacity() < numNodes) {
+        csrListEntries.resize(std::bit_ceil(numNodes));
+    }
     for (auto i = 0u; i < numNodes; i++) {
         csrListEntries[i].size = csrHeaderChunks.getCSRLength(i);
         KU_ASSERT(csrListEntries[i].size <=

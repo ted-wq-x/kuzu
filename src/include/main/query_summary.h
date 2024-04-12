@@ -11,6 +11,7 @@ namespace main {
  */
 struct PreparedSummary {
     double compilingTime = 0;
+    double parsingTime = 0;
     common::StatementType statementType;
 };
 
@@ -26,6 +27,8 @@ public:
      * @return query compiling time in milliseconds.
      */
     KUZU_API double getCompilingTime() const;
+
+    KUZU_API double getParsingTime() const;
     /**
      * @return query execution time in milliseconds.
      */

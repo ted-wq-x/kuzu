@@ -5,6 +5,7 @@ package io.transwarp.stellardb_booster;
  */
 public class BoosterQuerySummary {
 
+    double parTime;
     double cmpTime;
     double exeTime;
 
@@ -13,9 +14,10 @@ public class BoosterQuerySummary {
      * @param cmpTime: The compiling time of the query.
      * @param exeTime: The execution time of the query.
      */
-    public BoosterQuerySummary(double cmpTime, double exeTime) {
+    public BoosterQuerySummary(double cmpTime, double exeTime, double parTime) {
         this.cmpTime = cmpTime;
         this.exeTime = exeTime;
+        this.parTime = parTime;
     }
 
     /**
@@ -32,5 +34,18 @@ public class BoosterQuerySummary {
      */
     public double getExecutionTime() {
         return exeTime;
+    }
+
+    public double getParsingTime() {
+        return parTime;
+    }
+
+    @Override
+    public String toString() {
+        return "[" +
+                "parTime=" + parTime +
+                ", cmpTime=" + cmpTime +
+                ", exeTime=" + exeTime +
+                ']';
     }
 }

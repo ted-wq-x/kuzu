@@ -240,12 +240,15 @@ std::unique_ptr<QueryResult> ClientContext::query(std::string_view query,
     if (query.empty()) {
         return queryResultWithError("Connection Exception: Query is empty.");
     }
+    auto parsingTimer = TimeMetric(true /* enable */);
+    parsingTimer.start();
     auto parsedStatements = std::vector<std::shared_ptr<Statement>>();
     try {
         parsedStatements = Parser::parseQuery(query);
     } catch (std::exception& exception) {
         return queryResultWithError(exception.what());
     }
+    parsingTimer.stop();
     std::unique_ptr<QueryResult> queryResult;
     QueryResult* lastResult = nullptr;
     for (auto& statement : parsedStatements) {
@@ -261,6 +264,10 @@ std::unique_ptr<QueryResult> ClientContext::query(std::string_view query,
             lastResult->nextQueryResult = std::move(currentQueryResult);
             lastResult = lastResult->nextQueryResult.get();
         }
+    }
+    if (queryResult->isSuccess()) {
+        queryResult->getQuerySummary()->preparedSummary.parsingTime =
+            parsingTimer.getElapsedTimeMS();
     }
     return queryResult;
 }

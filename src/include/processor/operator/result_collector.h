@@ -65,8 +65,9 @@ public:
             children[0]->clone(), id, paramsString);
     }
 
-private:
     void initLocalStateInternal(ResultSet* resultSet, ExecutionContext* context) final;
+
+    bool IsOptional();
 
 private:
     std::unique_ptr<ResultCollectorInfo> info;

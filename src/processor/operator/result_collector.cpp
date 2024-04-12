@@ -37,6 +37,10 @@ void ResultCollector::executeInternal(ExecutionContext* context) {
     }
 }
 
+bool ResultCollector::IsOptional(){
+    return info->accumulateType == AccumulateType::OPTIONAL_;
+}
+
 void ResultCollector::finalize(ExecutionContext* /*context*/) {
     switch (info->accumulateType) {
     case AccumulateType::OPTIONAL_: {

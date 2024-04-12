@@ -11,6 +11,10 @@ double QuerySummary::getCompilingTime() const {
     return preparedSummary.compilingTime;
 }
 
+double QuerySummary::getParsingTime() const {
+    return preparedSummary.parsingTime;
+}
+
 double QuerySummary::getExecutionTime() const {
     return executionTime;
 }

@@ -591,6 +591,11 @@ JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_get
 JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_get_1storage_1version
   (JNIEnv *, jclass);
 
+
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved);
+
+JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,6 +1,7 @@
 #include "processor/processor_task.h"
 
 #include "main/settings.h"
+#include "processor/operator/result_collector.h"
 
 using namespace kuzu::common;
 
@@ -29,10 +30,16 @@ void ProcessorTask::run() {
 }
 
 void ProcessorTask::finalizeIfNecessary() {
-    auto resultSet = populateResultSet(sink, executionContext->clientContext->getMemoryManager());
-    sink->initLocalState(resultSet.get(), executionContext);
+    ResultCollector* collector = dynamic_cast<ResultCollector*>(sink);
+    if (collector && collector->IsOptional()) {
+        auto resultSet =
+            populateResultSet(sink, executionContext->clientContext->getMemoryManager());
+        collector->initLocalStateInternal(resultSet.get(), executionContext);
+        collector->finalize(executionContext);
+    } else {
+        sink->finalize(executionContext);
+    }
     executionContext->clientContext->getProgressBar()->finishPipeline();
-    sink->finalize(executionContext);
 }
 
 std::unique_ptr<ResultSet> ProcessorTask::populateResultSet(Sink* op,
