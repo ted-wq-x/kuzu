@@ -519,7 +519,7 @@ oC_ComparisonExpression
         | kU_BitwiseOrOperatorExpression SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )+ { notifyNonBinaryComparison($ctx->start); }
         ;
 
-kU_ComparisonOperator : '=' | '<>' | '<' | '<=' | '>' | '>=' ;
+kU_ComparisonOperator : '=' | '<>' | '<' | '<=' | '>' | '>='| '!=' ;
 
 INVALID_NOT_EQUAL : '!=' ;
 
