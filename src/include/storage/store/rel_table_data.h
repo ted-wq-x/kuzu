@@ -16,7 +16,7 @@ struct RelDataReadState : public TableDataReadState {
     common::offset_t posInCurrentCSR;
     std::vector<common::list_entry_t> csrListEntries;
     // Temp auxiliary data structure to scan the offset of each CSR node in the offset column chunk.
-    ChunkedCSRHeader csrHeaderChunks = ChunkedCSRHeader(false /*enableCompression*/,2048);
+    ChunkedCSRHeader csrHeaderChunks = ChunkedCSRHeader(false /*enableCompression*/);
 
     // Following fields are used for local storage.
     bool readFromLocalStorage;
