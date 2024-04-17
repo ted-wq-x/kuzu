@@ -1768,6 +1768,7 @@ public:
   public:
     KU_ComparisonOperatorContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *INVALID_NOT_EQUAL();
 
    
   };

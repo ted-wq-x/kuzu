@@ -99,7 +99,7 @@ std::unique_ptr<ParsedExpression> Transformer::transformComparisonExpression(
     if (comparisonOperator == "=") {
         return std::make_unique<ParsedExpression>(ExpressionType::EQUALS, std::move(left),
             std::move(right), ctx.getText());
-    } else if (comparisonOperator == "<>") {
+    } else if (comparisonOperator == "<>" || comparisonOperator == "!=") {
         return std::make_unique<ParsedExpression>(ExpressionType::NOT_EQUALS, std::move(left),
             std::move(right), ctx.getText());
     } else if (comparisonOperator == ">") {
