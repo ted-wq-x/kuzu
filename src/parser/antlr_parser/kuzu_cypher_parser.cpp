@@ -17,12 +17,6 @@ void KuzuCypherParser::notifyNodePatternWithoutParentheses(std::string nodeName,
     notifyErrorListeners(startToken, errorMsg, nullptr);
 }
 
-void KuzuCypherParser::notifyInvalidNotEqualOperator(antlr4::Token* startToken) {
-    auto errorMsg = "Unknown operation '!=' (you probably meant to use '<>', which is the operator "
-                    "for inequality testing.)";
-    notifyErrorListeners(startToken, errorMsg, nullptr);
-}
-
 void KuzuCypherParser::notifyEmptyToken(antlr4::Token* startToken) {
     auto errorMsg =
         "'' is not a valid token name. Token names cannot be empty or contain any null-bytes";

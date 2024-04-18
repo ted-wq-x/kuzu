@@ -10,13 +10,6 @@ Parser exception: Query must conclude with RETURN clause (line: 1, offset: 0)
 "MATCH (a:person);"
  ^^^^^
 
--CASE InvalidNotEqualOperator)
--STATEMENT MATCH (a) WHERE a.age != 1 RETURN *;
----- error
-Parser exception: Unknown operation '!=' (you probably meant to use '<>', which is the operator for inequality testing.) (line: 1, offset: 22)
-"MATCH (a) WHERE a.age != 1 RETURN *;"
-                       ^^
-
 -CASE EmptyTable
 -STATEMENT MATCH (a:``) RETURN *;
 ---- error

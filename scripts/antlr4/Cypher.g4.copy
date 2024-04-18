@@ -7,7 +7,6 @@ grammar Cypher;
 @parser::declarations {
     virtual void notifyQueryNotConcludeWithReturn(antlr4::Token* startToken) {};
     virtual void notifyNodePatternWithoutParentheses(std::string nodeName, antlr4::Token* startToken) {};
-    virtual void notifyInvalidNotEqualOperator(antlr4::Token* startToken) {};
     virtual void notifyEmptyToken(antlr4::Token* startToken) {};
     virtual void notifyReturnNotAtEnd(antlr4::Token* startToken) {};
     virtual void notifyNonBinaryComparison(antlr4::Token* startToken) {};
@@ -522,13 +521,10 @@ NOT : ( 'N' | 'n' ) ( 'O' | 'o' ) ( 'T' | 't' ) ;
 
 oC_ComparisonExpression
     : kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )?
-        | kU_BitwiseOrOperatorExpression ( SP? INVALID_NOT_EQUAL SP? kU_BitwiseOrOperatorExpression ) { notifyInvalidNotEqualOperator($INVALID_NOT_EQUAL); }
         | kU_BitwiseOrOperatorExpression SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )+ { notifyNonBinaryComparison($ctx->start); }
         ;
 
 kU_ComparisonOperator : '=' | '<>' | '<' | '<=' | '>' | '>='| '!=' ;
-
-INVALID_NOT_EQUAL : '!=' ;
 
 kU_BitwiseOrOperatorExpression
     : kU_BitwiseAndOperatorExpression ( SP? '|' SP? kU_BitwiseAndOperatorExpression )* ;

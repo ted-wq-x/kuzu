@@ -19,19 +19,19 @@ public:
     T__26 = 27, T__27 = 28, T__28 = 29, T__29 = 30, T__30 = 31, T__31 = 32, 
     T__32 = 33, T__33 = 34, T__34 = 35, T__35 = 36, T__36 = 37, T__37 = 38, 
     T__38 = 39, T__39 = 40, T__40 = 41, T__41 = 42, T__42 = 43, T__43 = 44, 
-    T__44 = 45, ATTACH = 46, DBTYPE = 47, USE = 48, CALL = 49, COMMENT_ = 50, 
-    MACRO = 51, GLOB = 52, COPY = 53, FROM = 54, COLUMN = 55, EXPORT = 56, 
-    IMPORT = 57, DATABASE = 58, NODE = 59, TABLE = 60, GROUP = 61, RDFGRAPH = 62, 
-    DROP = 63, ALTER = 64, DEFAULT = 65, RENAME = 66, ADD = 67, PRIMARY = 68, 
-    KEY = 69, REL = 70, TO = 71, EXPLAIN = 72, PROFILE = 73, BEGIN = 74, 
-    TRANSACTION = 75, READ = 76, ONLY = 77, WRITE = 78, COMMIT = 79, COMMIT_SKIP_CHECKPOINT = 80, 
-    ROLLBACK = 81, ROLLBACK_SKIP_CHECKPOINT = 82, INSTALL = 83, EXTENSION = 84, 
-    UNION = 85, ALL = 86, LOAD = 87, HEADERS = 88, OPTIONAL = 89, MATCH = 90, 
-    UNWIND = 91, CREATE = 92, MERGE = 93, ON = 94, SET = 95, DETACH = 96, 
-    DELETE = 97, WITH = 98, RETURN = 99, DISTINCT = 100, STAR = 101, AS = 102, 
-    ORDER = 103, BY = 104, L_SKIP = 105, LIMIT = 106, ASCENDING = 107, ASC = 108, 
-    DESCENDING = 109, DESC = 110, WHERE = 111, SHORTEST = 112, OR = 113, 
-    XOR = 114, AND = 115, NOT = 116, INVALID_NOT_EQUAL = 117, MINUS = 118, 
+    T__44 = 45, T__45 = 46, ATTACH = 47, DBTYPE = 48, USE = 49, CALL = 50, 
+    COMMENT_ = 51, MACRO = 52, GLOB = 53, COPY = 54, FROM = 55, COLUMN = 56, 
+    EXPORT = 57, IMPORT = 58, DATABASE = 59, NODE = 60, TABLE = 61, GROUP = 62, 
+    RDFGRAPH = 63, DROP = 64, ALTER = 65, DEFAULT = 66, RENAME = 67, ADD = 68, 
+    PRIMARY = 69, KEY = 70, REL = 71, TO = 72, EXPLAIN = 73, PROFILE = 74, 
+    BEGIN = 75, TRANSACTION = 76, READ = 77, ONLY = 78, WRITE = 79, COMMIT = 80, 
+    COMMIT_SKIP_CHECKPOINT = 81, ROLLBACK = 82, ROLLBACK_SKIP_CHECKPOINT = 83, 
+    INSTALL = 84, EXTENSION = 85, UNION = 86, ALL = 87, LOAD = 88, HEADERS = 89, 
+    OPTIONAL = 90, MATCH = 91, UNWIND = 92, CREATE = 93, MERGE = 94, ON = 95, 
+    SET = 96, DETACH = 97, DELETE = 98, WITH = 99, RETURN = 100, DISTINCT = 101, 
+    STAR = 102, AS = 103, ORDER = 104, BY = 105, L_SKIP = 106, LIMIT = 107, 
+    ASCENDING = 108, ASC = 109, DESCENDING = 110, DESC = 111, WHERE = 112, 
+    SHORTEST = 113, OR = 114, XOR = 115, AND = 116, NOT = 117, MINUS = 118, 
     FACTORIAL = 119, COLON = 120, IN = 121, STARTS = 122, ENDS = 123, CONTAINS = 124, 
     IS = 125, NULL_ = 126, TRUE = 127, FALSE = 128, COUNT = 129, EXISTS = 130, 
     CASE = 131, ELSE = 132, END = 133, WHEN = 134, THEN = 135, StringLiteral = 136, 
@@ -1763,7 +1763,6 @@ public:
 
   class  OC_ComparisonExpressionContext : public antlr4::ParserRuleContext {
   public:
-    antlr4::Token *invalid_not_equalToken = nullptr;
     OC_ComparisonExpressionContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     std::vector<KU_BitwiseOrOperatorExpressionContext *> kU_BitwiseOrOperatorExpression();
@@ -1772,7 +1771,6 @@ public:
     KU_ComparisonOperatorContext* kU_ComparisonOperator(size_t i);
     std::vector<antlr4::tree::TerminalNode *> SP();
     antlr4::tree::TerminalNode* SP(size_t i);
-    antlr4::tree::TerminalNode *INVALID_NOT_EQUAL();
 
    
   };
@@ -1783,7 +1781,6 @@ public:
   public:
     KU_ComparisonOperatorContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode *INVALID_NOT_EQUAL();
 
    
   };
@@ -2448,7 +2445,6 @@ private:
 
       virtual void notifyQueryNotConcludeWithReturn(antlr4::Token* startToken) {};
       virtual void notifyNodePatternWithoutParentheses(std::string nodeName, antlr4::Token* startToken) {};
-      virtual void notifyInvalidNotEqualOperator(antlr4::Token* startToken) {};
       virtual void notifyEmptyToken(antlr4::Token* startToken) {};
       virtual void notifyReturnNotAtEnd(antlr4::Token* startToken) {};
       virtual void notifyNonBinaryComparison(antlr4::Token* startToken) {};

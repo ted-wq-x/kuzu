@@ -19,8 +19,6 @@ public:
     void notifyNodePatternWithoutParentheses(std::string nodeName,
         antlr4::Token* startToken) override;
 
-    void notifyInvalidNotEqualOperator(antlr4::Token* startToken) override;
-
     void notifyEmptyToken(antlr4::Token* startToken) override;
 
     void notifyReturnNotAtEnd(antlr4::Token* startToken) override;
