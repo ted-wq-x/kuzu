@@ -109,7 +109,7 @@ HashIndex<T>::HashIndex(const DBFileIDAndName& dbFileIDAndName,
     // TODO: Handle data not existing
     headerArray = std::make_unique<BaseDiskArray<HashIndexHeader>>(*fileHandle,
         dbFileIDAndName.dbFileID, NUM_HEADER_PAGES * indexPos + INDEX_HEADER_ARRAY_HEADER_PAGE_IDX,
-        &bm, wal, Transaction::getDummyReadOnlyTrx().get(), true /*bypassWAL*/);
+        &bm, wal, Transaction::getDummyReadOnlyTrx().get(), false /*readOnly*/, true /*bypassWAL*/);
     // Read indexHeader from the headerArray, which contains only one element.
     this->indexHeaderForReadTrx = std::make_unique<HashIndexHeader>(
         headerArray->get(INDEX_HEADER_IDX_IN_ARRAY, TransactionType::READ_ONLY));
@@ -118,10 +118,10 @@ HashIndex<T>::HashIndex(const DBFileIDAndName& dbFileIDAndName,
         this->indexHeaderForReadTrx->keyDataTypeID == TypeUtils::getPhysicalTypeIDForType<T>());
     pSlots = std::make_unique<BaseDiskArray<Slot<T>>>(*fileHandle, dbFileIDAndName.dbFileID,
         NUM_HEADER_PAGES * indexPos + P_SLOTS_HEADER_PAGE_IDX, &bm, wal,
-        Transaction::getDummyReadOnlyTrx().get(), true /*bypassWAL*/);
+        Transaction::getDummyReadOnlyTrx().get(), false /*readOnly*/, true /*bypassWAL*/);
     oSlots = std::make_unique<BaseDiskArray<Slot<T>>>(*fileHandle, dbFileIDAndName.dbFileID,
         NUM_HEADER_PAGES * indexPos + O_SLOTS_HEADER_PAGE_IDX, &bm, wal,
-        Transaction::getDummyReadOnlyTrx().get(), true /*bypassWAL*/);
+        Transaction::getDummyReadOnlyTrx().get(), false /*readOnly*/, true /*bypassWAL*/);
     // Initialize functions.
     localStorage = std::make_unique<HashIndexLocalStorage<BufferKeyType>>();
 }

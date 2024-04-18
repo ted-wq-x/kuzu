@@ -40,14 +40,14 @@ PIPWrapper::PIPWrapper(FileHandle& fileHandle, page_idx_t pipPageIdx) : pipPageI
 
 BaseDiskArrayInternal::BaseDiskArrayInternal(FileHandle& fileHandle, page_idx_t headerPageIdx,
     uint64_t elementSize)
-    : header{elementSize}, fileHandle{fileHandle}, headerPageIdx{headerPageIdx},
+    : header{elementSize}, readOnly{false}, fileHandle{fileHandle}, headerPageIdx{headerPageIdx},
       headerForWriteTrx{header}, hasTransactionalUpdates{false}, bufferManager{nullptr},
       wal{nullptr}, lastAPPageIdx{INVALID_PAGE_IDX} {}
 
 BaseDiskArrayInternal::BaseDiskArrayInternal(FileHandle& fileHandle, DBFileID dbFileID,
     page_idx_t headerPageIdx, BufferManager* bufferManager, WAL* wal,
-    transaction::Transaction* transaction, bool bypassWAL)
-    : fileHandle{fileHandle}, dbFileID{dbFileID}, headerPageIdx{headerPageIdx},
+    transaction::Transaction* transaction, bool readOnly, bool bypassWAL)
+    : readOnly{readOnly}, fileHandle{fileHandle}, dbFileID{dbFileID}, headerPageIdx{headerPageIdx},
       hasTransactionalUpdates{false}, bufferManager{bufferManager}, wal{wal},
       lastAPPageIdx{INVALID_PAGE_IDX}, lastPageOnDisk{INVALID_PAGE_IDX} {
     auto [fileHandleToPin, pageIdxToPin] = DBFileUtils::getFileHandleAndPhysicalPageIdxToPin(
@@ -80,8 +80,12 @@ void BaseDiskArrayInternal::updateLastPageOnDisk() {
 }
 
 uint64_t BaseDiskArrayInternal::getNumElements(TransactionType trxType) {
-    std::shared_lock sLck{diskArraySharedMtx};
-    return getNumElementsNoLock(trxType);
+    if (readOnly) {
+        return getNumElementsNoLock(trxType);
+    } else {
+        std::shared_lock sLck{diskArraySharedMtx};
+        return getNumElementsNoLock(trxType);
+    }
 }
 
 bool BaseDiskArrayInternal::checkOutOfBoundAccess(TransactionType trxType, uint64_t idx) {
@@ -96,8 +100,18 @@ bool BaseDiskArrayInternal::checkOutOfBoundAccess(TransactionType trxType, uint6
     return true;
 }
 
-void BaseDiskArrayInternal::get(uint64_t idx, TransactionType trxType, std::span<uint8_t> val) {
-    std::shared_lock sLck{diskArraySharedMtx};
+void BaseDiskArrayInternal::get(uint64_t idx, transaction::TransactionType trxType,
+    std::span<uint8_t> val) {
+    if (readOnly) {
+        getNoLock(idx, trxType, val);
+    } else {
+        std::shared_lock sLck{diskArraySharedMtx};
+        getNoLock(idx, trxType, val);
+    }
+}
+
+void BaseDiskArrayInternal::getNoLock(uint64_t idx, TransactionType trxType,
+    std::span<uint8_t> val) {
     KU_ASSERT(checkOutOfBoundAccess(trxType, idx));
     auto apCursor = getAPIdxAndOffsetInAP(idx);
     page_idx_t apPageIdx = getAPPageIdxNoLock(apCursor.pageIdx, trxType);
@@ -138,6 +152,9 @@ void BaseDiskArrayInternal::updatePage(uint64_t pageIdx, bool isNewPage,
 }
 
 void BaseDiskArrayInternal::update(uint64_t idx, std::span<uint8_t> val) {
+    if (readOnly) {
+        throw Exception("Cannot exec update operation under READ ONLY mode.");
+    }
     std::unique_lock xLck{diskArraySharedMtx};
     hasTransactionalUpdates = true;
     KU_ASSERT(checkOutOfBoundAccess(TransactionType::WRITE, idx));
@@ -158,6 +175,9 @@ void BaseDiskArrayInternal::update(uint64_t idx, std::span<uint8_t> val) {
 }
 
 uint64_t BaseDiskArrayInternal::pushBack(std::span<uint8_t> val) {
+    if (readOnly) {
+        throw Exception("Cannot exec pushBack operation under READ ONLY mode.");
+    }
     std::unique_lock xLck{diskArraySharedMtx};
     hasTransactionalUpdates = true;
     return pushBackNoLock(val);
@@ -406,14 +426,18 @@ void BaseDiskArrayInternal::WriteIterator::getPage(common::page_idx_t newPageIdx
 }
 
 BaseDiskArrayInternal::WriteIterator BaseDiskArrayInternal::iter_mut(uint64_t valueSize) {
+    if (readOnly) {
+        throw Exception("Cannot exec iter_mut operation under READ ONLY mode.");
+    }
     std::unique_lock xLck{diskArraySharedMtx};
     return BaseDiskArrayInternal::WriteIterator(valueSize, *this, std::move(xLck));
 }
 
 BaseInMemDiskArray::BaseInMemDiskArray(FileHandle& fileHandle, DBFileID dbFileID,
     page_idx_t headerPageIdx, BufferManager* bufferManager, WAL* wal,
-    transaction::Transaction* transaction)
-    : BaseDiskArrayInternal(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction) {
+    transaction::Transaction* transaction, bool readOnly)
+    : BaseDiskArrayInternal(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction,
+          readOnly) {
     for (page_idx_t apIdx = 0; apIdx < this->header.numAPs; ++apIdx) {
         addInMemoryArrayPageAndReadFromFile(this->getAPPageIdxNoLock(apIdx));
     }

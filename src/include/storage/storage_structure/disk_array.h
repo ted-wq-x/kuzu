@@ -108,7 +108,7 @@ public:
     // Used when loading from file
     BaseDiskArrayInternal(FileHandle& fileHandle, DBFileID dbFileID,
         common::page_idx_t headerPageIdx, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, bool bypassWAL = false);
+        transaction::Transaction* transaction, bool readOnly, bool bypassWAL = false);
 
     virtual ~BaseDiskArrayInternal() = default;
 
@@ -233,6 +233,8 @@ private:
     bool checkOutOfBoundAccess(transaction::TransactionType trxType, uint64_t idx);
     bool hasPIPUpdatesNoLock(uint64_t pipIdx);
 
+    void getNoLock(uint64_t idx, transaction::TransactionType trxType, std::span<uint8_t> val);
+
     inline const DiskArrayHeader& getDiskArrayHeader(transaction::TransactionType trxType) {
         if (trxType == transaction::TransactionType::READ_ONLY) {
             return header;
@@ -250,6 +252,7 @@ public:
     DiskArrayHeader header;
 
 protected:
+    bool readOnly;
     FileHandle& fileHandle;
     DBFileID dbFileID;
     common::page_idx_t headerPageIdx;
@@ -281,9 +284,9 @@ public:
     // original file, but does not handle flushing them. BufferManager::flushAllDirtyPagesInFrames
     // should be called on this file handle exactly once during prepare commit.
     BaseDiskArray(FileHandle& fileHandle, DBFileID dbFileID, common::page_idx_t headerPageIdx,
-        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
+        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,bool readOnly,
         bool bypassWAL = false)
-        : diskArray(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction,
+        : diskArray(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction, readOnly,
               bypassWAL) {}
 
     // Note: This function is to be used only by the WRITE trx.
@@ -352,7 +355,8 @@ protected:
     BaseInMemDiskArray(FileHandle& fileHandle, common::page_idx_t headerPageIdx,
         uint64_t elementSize);
     BaseInMemDiskArray(FileHandle& fileHandle, DBFileID dbFileID, common::page_idx_t headerPageIdx,
-        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction);
+        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
+        bool readOnly);
 
 public:
     // [] operator can be used to update elements, e.g., diskArray[5] = 4, when building an
@@ -384,8 +388,10 @@ class InMemDiskArray : public BaseDiskArray<U> {
 public:
     // Used when loading from file
     InMemDiskArray(FileHandle& fileHandle, DBFileID dbFileID, common::page_idx_t headerPageIdx,
-        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction)
-        : BaseDiskArray<U>(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction) {}
+        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
+        bool readOnly)
+        : BaseDiskArray<U>(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction,
+              readOnly) {}
     static inline common::page_idx_t addDAHPageToFile(BMFileHandle& fileHandle,
         BufferManager* bufferManager, WAL* wal) {
         DiskArrayHeader daHeader(sizeof(U));

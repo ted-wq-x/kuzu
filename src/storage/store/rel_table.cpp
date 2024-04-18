@@ -23,12 +23,12 @@ RelDetachDeleteState::RelDetachDeleteState() {
 
 RelTable::RelTable(BMFileHandle* dataFH, BMFileHandle* metadataFH, RelsStoreStats* relsStoreStats,
     MemoryManager* memoryManager, RelTableCatalogEntry* relTableEntry, WAL* wal,
-    bool enableCompression)
-    : Table{relTableEntry, relsStoreStats, memoryManager, wal} {
+    bool enableCompression, bool readOnly)
+    : Table{relTableEntry, relsStoreStats, memoryManager, wal, readOnly} {
     fwdRelTableData = std::make_unique<RelTableData>(dataFH, metadataFH, bufferManager, wal,
-        relTableEntry, relsStoreStats, RelDataDirection::FWD, enableCompression);
+        relTableEntry, relsStoreStats, RelDataDirection::FWD, enableCompression, readOnly);
     bwdRelTableData = std::make_unique<RelTableData>(dataFH, metadataFH, bufferManager, wal,
-        relTableEntry, relsStoreStats, RelDataDirection::BWD, enableCompression);
+        relTableEntry, relsStoreStats, RelDataDirection::BWD, enableCompression, readOnly);
 }
 
 void RelTable::read(Transaction* transaction, TableReadState& readState) {

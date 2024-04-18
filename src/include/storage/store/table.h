@@ -48,11 +48,11 @@ class LocalTable;
 class Table {
 public:
     Table(catalog::TableCatalogEntry* tableEntry, TablesStatistics* tablesStatistics,
-        MemoryManager* memoryManager, WAL* wal)
+        MemoryManager* memoryManager, WAL* wal, bool readOnly)
         : tableType{tableEntry->getTableType()}, tableID{tableEntry->getTableID()},
           tableName{tableEntry->getName()}, tablesStatistics{tablesStatistics},
-          memoryManager{memoryManager}, bufferManager{memoryManager->getBufferManager()}, wal{wal} {
-    }
+          memoryManager{memoryManager}, bufferManager{memoryManager->getBufferManager()}, wal{wal},
+          readOnly{readOnly} {}
     virtual ~Table() = default;
 
     inline common::TableType getTableType() const { return tableType; }
@@ -89,6 +89,7 @@ protected:
     MemoryManager* memoryManager;
     BufferManager* bufferManager;
     WAL* wal;
+    bool readOnly;
 };
 
 } // namespace storage

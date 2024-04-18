@@ -15,8 +15,8 @@ namespace storage {
 NodeTableData::NodeTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
     TableCatalogEntry* tableEntry, BufferManager* bufferManager, WAL* wal,
     const std::vector<Property>& properties, TablesStatistics* tablesStatistics,
-    bool enableCompression)
-    : TableData{dataFH, metadataFH, tableEntry, bufferManager, wal, enableCompression} {
+    bool enableCompression, bool readOnly)
+    : TableData{dataFH, metadataFH, tableEntry, bufferManager, wal, enableCompression, readOnly} {
     columns.reserve(properties.size());
     for (auto i = 0u; i < properties.size(); i++) {
         auto& property = properties[i];
@@ -27,7 +27,7 @@ NodeTableData::NodeTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
         columns.push_back(ColumnFactory::createColumn(columnName, *property.getDataType()->copy(),
             *metadataDAHInfo, dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION,
             RWPropertyStats(tablesStatistics, tableID, property.getPropertyID()),
-            enableCompression));
+            enableCompression, readOnly));
     }
 }
 

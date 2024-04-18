@@ -58,7 +58,7 @@ public:
 protected:
     TableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
         catalog::TableCatalogEntry* tableEntry, BufferManager* bufferManager, WAL* wal,
-        bool enableCompression);
+        bool enableCompression, bool readOnly);
 
 protected:
     BMFileHandle* dataFH;
@@ -69,6 +69,7 @@ protected:
     WAL* wal;
     bool enableCompression;
     std::vector<std::unique_ptr<Column>> columns;
+    bool readOnly;
 };
 
 } // namespace storage

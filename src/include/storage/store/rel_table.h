@@ -71,7 +71,7 @@ class RelTable final : public Table {
 public:
     RelTable(BMFileHandle* dataFH, BMFileHandle* metadataFH, RelsStoreStats* relsStoreStats,
         MemoryManager* memoryManager, catalog::RelTableCatalogEntry* relTableEntry, WAL* wal,
-        bool enableCompression);
+        bool enableCompression, bool readOnly);
 
     inline void initializeReadState(transaction::Transaction* transaction,
         common::RelDataDirection direction, const std::vector<common::column_id_t>& columnIDs,

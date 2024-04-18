@@ -128,7 +128,7 @@ public:
 
     RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager,
         WAL* wal, catalog::TableCatalogEntry* tableEntry, RelsStoreStats* relsStoreStats,
-        common::RelDataDirection direction, bool enableCompression);
+        common::RelDataDirection direction, bool enableCompression, bool readOnly);
 
     void initializeReadState(transaction::Transaction* transaction,
         std::vector<common::column_id_t> columnIDs, const common::ValueVector& inNodeIDVector,

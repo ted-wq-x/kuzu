@@ -19,11 +19,11 @@ using string_offset_t = DictionaryChunk::string_offset_t;
 StringColumn::StringColumn(std::string name, LogicalType dataType,
     const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, BMFileHandle* metadataFH,
     BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
-    RWPropertyStats stats, bool enableCompression)
+    RWPropertyStats stats, bool enableCompression, bool readOnly)
     : Column{name, std::move(dataType), metaDAHeaderInfo, dataFH, metadataFH, bufferManager, wal,
-          transaction, stats, enableCompression, true /* requireNullColumn */},
+          transaction, stats, enableCompression, readOnly, true /* requireNullColumn */},
       dictionary{name, metaDAHeaderInfo, dataFH, metadataFH, bufferManager, wal, transaction, stats,
-          enableCompression} {}
+          enableCompression, readOnly} {}
 
 void StringColumn::scan(Transaction* transaction, node_group_idx_t nodeGroupIdx,
     offset_t startOffsetInGroup, offset_t endOffsetInGroup, ValueVector* resultVector,

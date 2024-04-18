@@ -12,7 +12,7 @@ public:
     NodeTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
         catalog::TableCatalogEntry* tableEntry, BufferManager* bufferManager, WAL* wal,
         const std::vector<catalog::Property>& properties, TablesStatistics* tablesStatistics,
-        bool enableCompression);
+        bool enableCompression, bool readOnly);
 
     // This interface is node table specific, as rel table requires also relDataDirection.
     inline virtual void initializeReadState(transaction::Transaction* /*transaction*/,

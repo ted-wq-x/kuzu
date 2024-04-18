@@ -44,7 +44,7 @@ public:
     Column(std::string name, common::LogicalType dataType, const MetadataDAHInfo& metaDAHeaderInfo,
         BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
         transaction::Transaction* transaction, RWPropertyStats propertyStatistics,
-        bool enableCompression, bool requireNullColumn = true);
+        bool enableCompression, bool readOnly, bool requireNullColumn = true);
     virtual ~Column();
 
     // Expose for feature store
@@ -222,18 +222,24 @@ protected:
     batch_lookup_func_t batchLookupFunc;
     RWPropertyStats propertyStatistics;
     bool enableCompression;
+    bool readOnly;
 };
 
 class InternalIDColumn : public Column {
 public:
     InternalIDColumn(std::string name, const MetadataDAHInfo& metaDAHeaderInfo,
         BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, RWPropertyStats stats, bool enableCompression);
+        transaction::Transaction* transaction, RWPropertyStats stats, bool enableCompression,
+        bool readOnly);
 
     inline void scan(transaction::Transaction* transaction, common::ValueVector* nodeIDVector,
         common::ValueVector* resultVector) override {
         Column::scan(transaction, nodeIDVector, resultVector);
-        populateCommonTableID(resultVector);
+        if (nodeIDVector->state->selVector->isUnfiltered()) {
+            populateCommonTableIDUnfiltered(resultVector);
+        } else {
+            populateCommonTableIDFiltered(resultVector);
+        }
     }
 
     inline void scan(transaction::Transaction* transaction, common::node_group_idx_t nodeGroupIdx,
@@ -241,20 +247,25 @@ public:
         common::ValueVector* resultVector, uint64_t offsetInVector) override {
         Column::scan(transaction, nodeGroupIdx, startOffsetInGroup, endOffsetInGroup, resultVector,
             offsetInVector);
-        populateCommonTableID(resultVector);
+        populateCommonTableIDUnfiltered(resultVector);
     }
 
     inline void lookup(transaction::Transaction* transaction, common::ValueVector* nodeIDVector,
         common::ValueVector* resultVector) override {
         Column::lookup(transaction, nodeIDVector, resultVector);
-        populateCommonTableID(resultVector);
+        if (nodeIDVector->state->selVector->isUnfiltered()) {
+            populateCommonTableIDUnfiltered(resultVector);
+        } else {
+            populateCommonTableIDFiltered(resultVector);
+        }
     }
 
     // TODO(Guodong): This function should be removed through rewritting INTERNAL_ID as STRUCT.
     inline void setCommonTableID(common::table_id_t tableID) { commonTableID = tableID; }
 
 private:
-    void populateCommonTableID(common::ValueVector* resultVector) const;
+    void populateCommonTableIDFiltered(common::ValueVector* resultVector) const;
+    void populateCommonTableIDUnfiltered(common::ValueVector* resultVector) const;
 
 private:
     common::table_id_t commonTableID;
@@ -264,7 +275,7 @@ struct ColumnFactory {
     static std::unique_ptr<Column> createColumn(std::string name, common::LogicalType dataType,
         const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, BMFileHandle* metadataFH,
         BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
-        RWPropertyStats propertyStatistics, bool enableCompression);
+        RWPropertyStats propertyStatistics, bool enableCompression, bool readOnly);
 };
 
 } // namespace storage

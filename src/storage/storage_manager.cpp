@@ -62,7 +62,7 @@ void StorageManager::loadTables(bool readOnly, const Catalog& catalog) {
     for (auto relTableEntry : catalog.getRelTableEntries(&DUMMY_READ_TRANSACTION)) {
         KU_ASSERT(!tables.contains(relTableEntry->getTableID()));
         auto relTable = std::make_unique<RelTable>(dataFH.get(), metadataFH.get(),
-            relsStatistics.get(), &memoryManager, relTableEntry, wal, enableCompression);
+            relsStatistics.get(), &memoryManager, relTableEntry, wal, enableCompression, readOnly);
         setCommonTableIDToRdfRelTable(relTable.get(), rdfGraphSchemas);
         tables[relTableEntry->getTableID()] = std::move(relTable);
     }
@@ -80,7 +80,7 @@ void StorageManager::createRelTable(table_id_t tableID, RelTableCatalogEntry* re
     Catalog* catalog, Transaction* transaction) {
     relsStatistics->addTableStatistic(relTableEntry);
     auto relTable = std::make_unique<RelTable>(dataFH.get(), metadataFH.get(), relsStatistics.get(),
-        &memoryManager, relTableEntry, wal, enableCompression);
+        &memoryManager, relTableEntry, wal, enableCompression, false /* readOnly */);
     setCommonTableIDToRdfRelTable(relTable.get(), catalog->getRdfGraphEntries(transaction));
     tables[tableID] = std::move(relTable);
 }

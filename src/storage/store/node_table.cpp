@@ -20,10 +20,11 @@ NodeTable::NodeTable(BMFileHandle* dataFH, BMFileHandle* metadataFH,
     NodeTableCatalogEntry* nodeTableEntry,
     NodesStoreStatsAndDeletedIDs* nodesStatisticsAndDeletedIDs, MemoryManager* memoryManager,
     WAL* wal, bool readOnly, bool enableCompression, VirtualFileSystem* vfs)
-    : Table{nodeTableEntry, nodesStatisticsAndDeletedIDs, memoryManager, wal},
+    : Table{nodeTableEntry, nodesStatisticsAndDeletedIDs, memoryManager, wal, readOnly},
       pkColumnID{nodeTableEntry->getColumnID(nodeTableEntry->getPrimaryKeyPID())} {
     tableData = std::make_unique<NodeTableData>(dataFH, metadataFH, nodeTableEntry, bufferManager,
-        wal, nodeTableEntry->getPropertiesRef(), nodesStatisticsAndDeletedIDs, enableCompression);
+        wal, nodeTableEntry->getPropertiesRef(), nodesStatisticsAndDeletedIDs, enableCompression,
+        readOnly);
     initializePKIndex(nodeTableEntry, readOnly, vfs);
 }
 

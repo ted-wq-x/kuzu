@@ -119,8 +119,8 @@ void PackedCSRRegion::setSizeChange(const std::vector<int64_t>& sizeChangesPerSe
 
 RelTableData::RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
     BufferManager* bufferManager, WAL* wal, TableCatalogEntry* tableEntry,
-    RelsStoreStats* relsStoreStats, RelDataDirection direction, bool enableCompression)
-    : TableData{dataFH, metadataFH, tableEntry, bufferManager, wal, enableCompression},
+    RelsStoreStats* relsStoreStats, RelDataDirection direction, bool enableCompression, bool readOnly)
+    : TableData{dataFH, metadataFH, tableEntry, bufferManager, wal, enableCompression, readOnly},
       direction{direction} {
     multiplicity = ku_dynamic_cast<TableCatalogEntry*, RelTableCatalogEntry*>(tableEntry)
                        ->getMultiplicity(direction);
@@ -148,7 +148,7 @@ RelTableData::RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
         RelDataDirectionUtils::relDirectionToString(direction));
     auto nbrIDColumn = std::make_unique<InternalIDColumn>(nbrIDColName, *nbrIDMetadataDAHInfo,
         dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION, RWPropertyStats::empty(),
-        enableCompression);
+        enableCompression, readOnly);
     columns.push_back(std::move(nbrIDColumn));
     // Property columns.
     for (auto i = 0u; i < properties.size(); i++) {
@@ -161,7 +161,8 @@ RelTableData::RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
                 RelDataDirectionUtils::relDirectionToString(direction));
         columns.push_back(ColumnFactory::createColumn(colName, *property.getDataType()->copy(),
             *metadataDAHInfo, dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION,
-            RWPropertyStats(relsStoreStats, tableID, property.getPropertyID()), enableCompression));
+            RWPropertyStats(relsStoreStats, tableID, property.getPropertyID()), enableCompression,
+            readOnly));
     }
     // Set common tableID for nbrIDColumn and relIDColumn.
     auto nbrTableID = ku_dynamic_cast<TableCatalogEntry*, RelTableCatalogEntry*>(tableEntry)

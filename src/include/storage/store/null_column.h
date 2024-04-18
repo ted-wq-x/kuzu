@@ -18,7 +18,7 @@ public:
 
     NullColumn(std::string name, page_idx_t metaDAHPageIdx, BMFileHandle* dataFH,
         BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal, Transaction* transaction,
-        RWPropertyStats propertyStatistics, bool enableCompression);
+        RWPropertyStats propertyStatistics, bool enableCompression, bool readOnly);
 
     void scan(Transaction* transaction, ValueVector* nodeIDVector,
         ValueVector* resultVector) override;
