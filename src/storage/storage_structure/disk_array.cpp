@@ -178,33 +178,19 @@ uint64_t BaseDiskArrayInternal::pushBack(std::span<uint8_t> val) {
     if (readOnly) {
         throw Exception("Cannot exec pushBack operation under READ ONLY mode.");
     }
-    std::unique_lock xLck{diskArraySharedMtx};
-    hasTransactionalUpdates = true;
-    return pushBackNoLock(val);
+    auto it = iter_mut(val.size());
+    auto originalNumElements = getNumElementsNoLock(TransactionType::WRITE);
+    it.pushBack(val);
+    return originalNumElements;
 }
 
 uint64_t BaseDiskArrayInternal::resize(uint64_t newNumElements, std::span<uint8_t> defaultVal) {
     auto it = iter_mut(defaultVal.size());
     auto originalNumElements = getNumElementsNoLock(TransactionType::WRITE);
-    hasTransactionalUpdates = true;
     while (it.size() < newNumElements) {
         it.pushBack(defaultVal);
     }
     return originalNumElements;
-}
-
-uint64_t BaseDiskArrayInternal::pushBackNoLock(std::span<uint8_t> val) {
-    uint64_t elementIdx = headerForWriteTrx.numElements;
-    auto apCursor = getAPIdxAndOffsetInAP(elementIdx);
-    auto [apPageIdx, isNewlyAdded] =
-        getAPPageIdxAndAddAPToPIPIfNecessaryForWriteTrxNoLock(&headerForWriteTrx, apCursor.pageIdx);
-    // Now do the push back.
-    lastAPPageIdx = apPageIdx;
-    updatePage(apPageIdx, isNewlyAdded, [&apCursor, &val](uint8_t* frame) -> void {
-        memcpy(frame + apCursor.elemPosInPage, val.data(), val.size());
-    });
-    headerForWriteTrx.numElements++;
-    return elementIdx;
 }
 
 void BaseDiskArrayInternal::setNextPIPPageIDxOfPIPNoLock(DiskArrayHeader* updatedDiskArrayHeader,
