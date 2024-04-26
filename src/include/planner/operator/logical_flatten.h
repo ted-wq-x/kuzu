@@ -13,7 +13,9 @@ public:
     void computeFactorizedSchema() override;
     void computeFlatSchema() override;
 
-    inline std::string getExpressionsForPrinting() const override { return std::string{}; }
+    inline std::string getExpressionsForPrinting() const override {
+        return "(" + std::to_string(groupPos) + ")";
+    }
 
     inline f_group_pos getGroupPos() const { return groupPos; }
 

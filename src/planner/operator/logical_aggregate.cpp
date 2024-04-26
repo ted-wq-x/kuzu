@@ -1,5 +1,6 @@
 #include "planner/operator/logical_aggregate.h"
 
+#include "binder/expression/expression_util.h"
 #include "binder/expression/function_expression.h"
 #include "planner/operator/factorization/flatten_resolver.h"
 
@@ -49,17 +50,15 @@ f_group_pos_set LogicalAggregate::getGroupsPosToFlattenForAggregate() {
 }
 
 std::string LogicalAggregate::getExpressionsForPrinting() const {
-    std::string result = "Group By [";
-    for (auto& expression : keys) {
-        result += expression->toString() + ", ";
-    }
-    for (auto& expression : dependentKeys) {
-        result += expression->toString() + ", ";
+    std::string  result = "Group By [";;
+    binder::expression_vector groupExpr;
+    groupExpr.insert(groupExpr.end(), keys.begin(), keys.end());
+    groupExpr.insert(groupExpr.end(), dependentKeys.begin(), dependentKeys.end());
+    if (!groupExpr.empty()) {
+        result += binder::ExpressionUtil::toString(groupExpr);
     }
     result += "], Aggregate [";
-    for (auto& expression : aggregates) {
-        result += expression->toString() + ", ";
-    }
+    result += binder::ExpressionUtil::toString(aggregates);
     result += "]";
     return result;
 }

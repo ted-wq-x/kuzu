@@ -30,6 +30,9 @@ OpProfileBox::OpProfileBox(std::string opName, const std::string& paramsName,
             paramStr += "," + subStr;
             continue;
         } else if (subParam) {
+            if (!subStr.empty()) {
+                paramStr += "," + subStr;
+            }
             subStr = paramStr + ")";
             paramStr = "";
             subParam = false;

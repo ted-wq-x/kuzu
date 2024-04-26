@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
     args::ValueFlag<std::string> historyPathFlag(parser, "", "Path to directory for shell history",
         {'p'});
     args::Flag version(parser, "version", "Display current database version", {'v', "version"});
+    args::ValueFlag<std::string> explainQuery(parser, "", "Explain Query", {"eq"});
     try {
         parser.ParseCLI(argc, argv);
     } catch (std::exception& e) {
@@ -33,6 +34,7 @@ int main(int argc, char* argv[]) {
     }
     auto databasePath = args::get(inputDirFlag);
     auto pathToHistory = args::get(historyPathFlag);
+    auto explainQueryCypher = args::get(explainQuery);
     uint64_t bpSizeInMB = args::get(bpSizeInMBFlag);
     uint64_t bpSizeInBytes = -1u;
     if (bpSizeInMB != -1u) {
@@ -55,6 +57,22 @@ int main(int argc, char* argv[]) {
             return 0;
         } else {
             std::cerr << "Unable to find current database version" << '\n';
+            return 1;
+        }
+    }
+    if (!explainQueryCypher.empty()) {
+        std::unique_ptr<Database> database = std::make_unique<Database>(databasePath, systemConfig);
+        std::unique_ptr<Connection> conn = std::make_unique<Connection>(database.get());
+        auto queryResult = conn->query(explainQueryCypher);
+        if (queryResult->isSuccess()) {
+            if (queryResult->getQuerySummary()->isExplain()) {
+                printf("%s", queryResult->getNext()->toString().c_str());
+            } else {
+                std::cerr << "Is not explain query" << '\n';
+            }
+            return 0;
+        } else {
+            std::cerr << "Error:" << queryResult->getErrorMessage() << '\n';
             return 1;
         }
     }

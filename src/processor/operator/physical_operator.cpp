@@ -1,6 +1,7 @@
 #include "processor/operator/physical_operator.h"
 
 #include "common/exception/interrupt.h"
+#include "processor/operator/sink.h"
 
 using namespace kuzu::common;
 
@@ -212,8 +213,27 @@ uint64_t PhysicalOperator::getNumOutputTuples(Profiler& profiler) const {
 std::unordered_map<std::string, std::string> PhysicalOperator::getProfilerKeyValAttributes(
     Profiler& profiler) const {
     std::unordered_map<std::string, std::string> result;
-    result.insert({"ExecutionTime", std::to_string(getExecutionTime(profiler))});
-    result.insert({"NumOutputTuples", std::to_string(getNumOutputTuples(profiler))});
+    if (profiler.enabled) {
+        result.insert({"ExecutionTime", std::to_string(getExecutionTime(profiler))});
+        result.insert({"NumOutputTuples", std::to_string(getNumOutputTuples(profiler))});
+    }
+    if (isSink()) {
+        const Sink* sink = ku_dynamic_cast<const PhysicalOperator*, const Sink*>(this);
+        Sink* pSink = const_cast<Sink*>(sink);
+        ResultSetDescriptor* pDescriptor = pSink->getResultSetDescriptor();
+        std::vector<std::unique_ptr<DataChunkDescriptor>>& dataChunkDescriptors =
+            pDescriptor->dataChunkDescriptors;
+        std::string desc;
+        auto size = dataChunkDescriptors.size() - 1;
+        for (auto i = 0u; i <= size; ++i) {
+            auto dcd = dataChunkDescriptors.at(i).get()->toString();
+            desc += dcd;
+            if (i != size) {
+                desc += ",";
+            }
+        }
+        result.insert({"Out", desc});
+    }
     return result;
 }
 

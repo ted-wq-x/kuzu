@@ -18,7 +18,12 @@ public:
     void computeFlatSchema() override;
 
     inline std::string getExpressionsForPrinting() const override {
-        return binder::ExpressionUtil::toString(expressions);
+        std::string str = binder::ExpressionUtil::toString(expressions) + ",";
+        for (const auto& item : expressions) {
+            auto pair = getSchema()->getExpressionPos(*item);
+            str += "(" + std::to_string(pair.first) + "_" + std::to_string(pair.second) + ")";
+        }
+        return str;
     }
 
     inline binder::expression_vector getExpressionsToProject() const { return expressions; }

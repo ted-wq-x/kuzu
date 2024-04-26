@@ -1,7 +1,7 @@
 #pragma once
 
 #include "planner/operator/extend/base_logical_extend.h"
-
+#include "processor/data_pos.h"
 namespace kuzu {
 namespace planner {
 
@@ -21,6 +21,22 @@ public:
     void computeFlatSchema() override;
 
     inline binder::expression_vector getProperties() const { return properties; }
+
+    std::string getExpressionsForPrinting() const override{
+        auto str = BaseLogicalExtend::getExpressionsForPrinting();
+        auto outNodeVectorPos = processor::DataPos(getSchema()->getExpressionPos(*nbrNode->getInternalID()));
+        std::vector<processor::DataPos> outVectorsPos;
+        outVectorsPos.push_back(outNodeVectorPos);
+
+        for (auto& expression : getProperties()) {
+            outVectorsPos.emplace_back(getSchema()->getExpressionPos(*expression));
+        }
+        str += ",";
+        for (const auto& item : outVectorsPos){
+            str += "(" + std::to_string(item.dataChunkPos) + "_" + std::to_string(item.valueVectorPos) + ")";
+        }
+        return str;
+    }
 
     inline std::unique_ptr<LogicalOperator> copy() override {
         return make_unique<LogicalExtend>(boundNode, nbrNode, rel, direction, properties,

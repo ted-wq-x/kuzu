@@ -12,13 +12,26 @@ namespace processor {
 struct DataChunkDescriptor {
     bool isSingleState;
     std::vector<common::LogicalType> logicalTypes;
+    bool isFlat;
 
-    explicit DataChunkDescriptor(bool isSingleState) : isSingleState{isSingleState} {}
+    explicit DataChunkDescriptor(bool isSingleState, bool isFlat)
+        : isSingleState{isSingleState}, isFlat{isFlat} {}
     DataChunkDescriptor(const DataChunkDescriptor& other)
-        : isSingleState{other.isSingleState}, logicalTypes(other.logicalTypes) {}
+        : isSingleState{other.isSingleState}, logicalTypes(other.logicalTypes),
+          isFlat(other.isFlat) {}
 
     inline std::unique_ptr<DataChunkDescriptor> copy() const {
         return std::make_unique<DataChunkDescriptor>(*this);
+    }
+
+    std::string toString() const {
+        std::string ss;
+        if (isFlat) {
+            ss = "flat";
+        } else {
+            ss = "unflat";
+        }
+        return ss + "[" + std::to_string(logicalTypes.size()) + "]";
     }
 };
 
