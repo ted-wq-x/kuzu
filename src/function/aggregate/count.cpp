@@ -47,6 +47,11 @@ function_set CountFunction::getFunctionSet() {
                 LogicalTypeID::INT64, isDistinct, paramRewriteFunc));
         }
     }
+    for (auto isDistinct : std::vector<bool>{true, false}) {
+        result.push_back(AggregateFunctionUtil::getAggFunc<CountFunction>(name,
+            LogicalTypeID::RECURSIVE_REL, LogicalTypeID::INT64, isDistinct, paramRewriteFunc));
+    }
+
     return result;
 }
 

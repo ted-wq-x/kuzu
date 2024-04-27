@@ -118,3 +118,12 @@ Bob|Dan
 2000-01-01|Dan
 2021-06-30|Carol
 2021-06-30|Dan
+
+-LOG PathDistinct
+-STATEMENT MATCH p=(a:person)-[:knows]->(:person) WHERE a.ID = 5 RETURN count(distinct p);
+---- 1
+3
+
+-STATEMENT MATCH p=(a:person)-[:knows *1..2]->(:person) WHERE a.ID = 5 RETURN count(distinct p);
+---- 1
+12

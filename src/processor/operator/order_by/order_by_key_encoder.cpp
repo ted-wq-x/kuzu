@@ -258,6 +258,10 @@ void OrderByKeyEncoder::getEncodingFunction(PhysicalTypeID physicalType, encode_
         func = encodeTemplate<interval_t>;
         return;
     }
+    case PhysicalTypeID::INTERNAL_ID: {
+        func = encodeTemplate<internalID_t>;
+        return;
+    }
     default:
         KU_UNREACHABLE;
     }
@@ -396,6 +400,11 @@ void OrderByKeyEncoder::encodeData(float data, uint8_t* resultPtr, bool swapByte
     } else {
         resultPtr[0] = flipSign(resultPtr[0]);
     }
+}
+
+template<>
+void OrderByKeyEncoder::encodeData(internalID_t data, uint8_t* resultPtr, bool swapBytes) {
+    encodeData(data.offset, resultPtr, swapBytes);
 }
 
 } // namespace processor
