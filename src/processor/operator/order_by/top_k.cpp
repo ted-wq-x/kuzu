@@ -161,6 +161,10 @@ void TopKBuffer::getSelectComparisonFunction(common::PhysicalTypeID typeID,
         selectFunc = function::BinaryFunctionExecutor::selectComparison<common::interval_t,
             common::interval_t, FUNC>;
     } break;
+    case common::PhysicalTypeID::INTERNAL_ID: {
+        selectFunc = function::BinaryFunctionExecutor::selectComparison<common::internalID_t,
+            common::internalID_t, FUNC>;
+    } break;
     default:
         KU_UNREACHABLE;
     }

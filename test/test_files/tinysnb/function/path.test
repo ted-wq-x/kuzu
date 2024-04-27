@@ -41,3 +41,18 @@
 [3:12]|True
 [3:13,3:13]|False
 [3:13]|True
+
+-LOG PathFun6
+-STATEMENT MATCH p = (a)-[e:knows]-(b) WHERE a.ID=7 RETURN count(p)
+---- 1
+2
+
+-LOG PathFun7
+-STATEMENT MATCH p = (a)-[e:knows]-()-[:knows]-() WHERE a.ID=7 RETURN count(p)
+---- 1
+2
+
+-LOG PathFun8
+-STATEMENT MATCH p = (a)-[e:knows*1..2]-(b) WHERE a.ID=7 RETURN count(p)
+---- 1
+4

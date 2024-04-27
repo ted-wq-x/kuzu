@@ -112,6 +112,7 @@ static void computeStructVecHash(ValueVector* operand, ValueVector* result) {
         UnaryHashFunctionExecutor::execute<internalID_t, hash_t>(
             *StructVector::getFieldVector(operand, 3), *result);
     } break;
+    case LogicalTypeID::RECURSIVE_REL:
     case LogicalTypeID::STRUCT: {
         VectorHashFunction::computeHash(StructVector::getFieldVector(operand, 0 /* idx */).get(),
             result);
