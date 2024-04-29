@@ -358,7 +358,9 @@ public:
 
     inline WriteIterator iter_mut() { return WriteIterator{diskArray.iter_mut(sizeof(U))}; }
     inline uint64_t getAPIdx(uint64_t idx) const { return diskArray.getAPIdx(idx); }
-    uint32_t getAlignedElementSize() const { return 1 << diskArray.header.alignedElementSizeLog2; }
+    static constexpr uint32_t getAlignedElementSize() {
+        return (1 << (std::bit_width(sizeof(U)) - 1));
+    }
 
 private:
     BaseDiskArrayInternal diskArray;
@@ -457,7 +459,9 @@ public:
 
     inline void saveToDisk() { diskArray.saveToDisk(); }
 
-    uint32_t getAlignedElementSize() const { return 1 << diskArray.header.alignedElementSizeLog2; }
+    static constexpr uint32_t getAlignedElementSize() {
+        return BaseDiskArray<U>::getAlignedElementSize();
+    }
 
 private:
     InMemDiskArrayBuilderInternal diskArray;
