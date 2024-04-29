@@ -16,6 +16,13 @@ static void BinaryExecListExtractFunction(const std::vector<std::shared_ptr<Valu
         *params[1], result);
 }
 
+template<typename OPERAND_TYPE, typename RESULT_TYPE, typename FUNC>
+static void UnaryExecListExtractFunction(const std::vector<std::shared_ptr<ValueVector>>& params,
+    ValueVector& result, void* /*dataPtr*/ = nullptr) {
+    KU_ASSERT(params.size() == 1);
+    UnaryFunctionExecutor::executeListExtract<OPERAND_TYPE, RESULT_TYPE, FUNC>(*params[0], result);
+}
+
 static std::unique_ptr<FunctionBindData> ListExtractBindFunc(
     const binder::expression_vector& arguments, Function* function) {
     auto resultType = ListType::getChildType(arguments[0]->dataType);
@@ -42,6 +49,77 @@ function_set ListExtractFunction::getFunctionSet() {
     result.push_back(std::make_unique<ScalarFunction>(name,
         std::vector<LogicalTypeID>{LogicalTypeID::ARRAY, LogicalTypeID::INT64}, LogicalTypeID::ANY,
         nullptr, nullptr, ListExtractBindFunc));
+    return result;
+}
+
+static std::unique_ptr<FunctionBindData> ListApplyBindFunc(
+    const binder::expression_vector& arguments, Function* function) {
+    auto resultType = ListType::getChildType(arguments[0]->dataType);
+    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(function);
+    TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
+        scalarFunction->execFunc =
+            BinaryExecListExtractFunction<list_entry_t, int64_t, T, ListApply>;
+    });
+    std::vector<LogicalType> paramTypes;
+    paramTypes.push_back(arguments[0]->getDataType());
+    paramTypes.push_back(LogicalType(function->parameterTypeIDs[1]));
+    return std::make_unique<FunctionBindData>(std::move(paramTypes), resultType.copy());
+}
+
+function_set ListApplyFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(std::make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::LIST, LogicalTypeID::INT64}, LogicalTypeID::ANY,
+        nullptr, nullptr, ListApplyBindFunc));
+    result.push_back(std::make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::ARRAY, LogicalTypeID::INT64}, LogicalTypeID::ANY,
+        nullptr, nullptr, ListApplyBindFunc));
+    return result;
+}
+
+static std::unique_ptr<FunctionBindData> ListHeadBindFunc(
+    const binder::expression_vector& arguments, Function* function) {
+    auto resultType = ListType::getChildType(arguments[0]->dataType);
+    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(function);
+    TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
+        scalarFunction->execFunc = UnaryExecListExtractFunction<list_entry_t, T, ListHead>;
+    });
+    std::vector<LogicalType> paramTypes;
+    paramTypes.push_back(arguments[0]->getDataType());
+    return std::make_unique<FunctionBindData>(std::move(paramTypes), resultType.copy());
+}
+
+function_set ListHeadFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(
+        std::make_unique<ScalarFunction>(name, std::vector<LogicalTypeID>{LogicalTypeID::LIST},
+            LogicalTypeID::ANY, nullptr, nullptr, ListHeadBindFunc));
+    result.push_back(
+        std::make_unique<ScalarFunction>(name, std::vector<LogicalTypeID>{LogicalTypeID::ARRAY},
+            LogicalTypeID::ANY, nullptr, nullptr, ListHeadBindFunc));
+    return result;
+}
+
+static std::unique_ptr<FunctionBindData> ListLastBindFunc(
+    const binder::expression_vector& arguments, Function* function) {
+    auto resultType = ListType::getChildType(arguments[0]->dataType);
+    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(function);
+    TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
+        scalarFunction->execFunc = UnaryExecListExtractFunction<list_entry_t, T, ListLast>;
+    });
+    std::vector<LogicalType> paramTypes;
+    paramTypes.push_back(arguments[0]->getDataType());
+    return std::make_unique<FunctionBindData>(std::move(paramTypes), resultType.copy());
+}
+
+function_set ListLastFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(
+        std::make_unique<ScalarFunction>(name, std::vector<LogicalTypeID>{LogicalTypeID::LIST},
+            LogicalTypeID::ANY, nullptr, nullptr, ListLastBindFunc));
+    result.push_back(
+        std::make_unique<ScalarFunction>(name, std::vector<LogicalTypeID>{LogicalTypeID::ARRAY},
+            LogicalTypeID::ANY, nullptr, nullptr, ListLastBindFunc));
     return result;
 }
 

@@ -527,9 +527,8 @@ oC_NotExpression
 NOT : ( 'N' | 'n' ) ( 'O' | 'o' ) ( 'T' | 't' ) ;
 
 oC_ComparisonExpression
-    : kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )?
-        | kU_BitwiseOrOperatorExpression SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )+ { notifyNonBinaryComparison($ctx->start); }
-        ;
+    : kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )*
+        | kU_BitwiseOrOperatorExpression SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )+ { notifyNonBinaryComparison($ctx->start); } ;
 
 kU_ComparisonOperator : '=' | '<>' | '<' | '<=' | '>' | '>='| '!=' ;
 

@@ -1,0 +1,61 @@
+-DATASET CSV tinysnb
+
+--
+
+-CASE stellardbFunction2
+
+-LOG q1
+-STATEMENT match (a) return uid(a)
+---- 14
+1
+4
+6
+
+
+
+0
+2
+3
+5
+7
+8
+9
+10
+
+-LOG q2
+-STATEMENT match (a) return labels(a)
+---- 14
+movies
+movies
+movies
+organisation
+organisation
+organisation
+person
+person
+person
+person
+person
+person
+person
+person
+
+-LOG q3
+-STATEMENT match p=(a:person)-[e:marries]->(b:person) return relationships(p)
+---- 3
+[(0:0)-{_LABEL: marries, _ID: 7:0, usedAddress: [toronto], address: [4,5]}->(0:1)]
+[(0:2)-{_LABEL: marries, _ID: 7:1, address: [2,5], note: long long long string}->(0:3)]
+[(0:4)-{_LABEL: marries, _ID: 7:2, usedAddress: [], address: [3,9], note: short str}->(0:5)]
+
+-LOG q4g
+-STATEMENT match (a:person)-[e:knows]->(b:person) where 20<a.age<50 return a.fName
+---- 9
+Alice
+Alice
+Alice
+Bob
+Bob
+Bob
+Carol
+Carol
+Carol

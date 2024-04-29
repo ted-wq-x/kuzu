@@ -150,5 +150,145 @@ struct MakeDate {
     }
 };
 
+struct DateYearPart {
+    template<class T>
+
+    static inline void operation(T& /*input*/, int64_t& /*result*/) {
+        KU_UNREACHABLE;
+    }
+};
+
+template<>
+inline void DateYearPart::operation(common::timestamp_t& input, int64_t& result) {
+    result = common::Timestamp::getTimestampPart(common::DatePartSpecifier::YEAR, input);
+}
+
+template<>
+inline void DateYearPart::operation(common::date_t& input, int64_t& result) {
+    result = common::Date::getDatePart(common::DatePartSpecifier::YEAR, input);
+}
+
+struct DateMonthPart {
+    template<class T>
+
+    static inline void operation(T& /*input*/, int64_t& /*result*/) {
+        KU_UNREACHABLE;
+    }
+};
+
+template<>
+inline void DateMonthPart::operation(common::timestamp_t& input, int64_t& result) {
+    result = common::Timestamp::getTimestampPart(common::DatePartSpecifier::MONTH, input);
+}
+
+template<>
+inline void DateMonthPart::operation(common::date_t& input, int64_t& result) {
+    result = common::Date::getDatePart(common::DatePartSpecifier::MONTH, input);
+}
+
+struct DateDayPart {
+    template<class T>
+
+    static inline void operation(T& /*input*/, int64_t& /*result*/) {
+        KU_UNREACHABLE;
+    }
+};
+
+template<>
+inline void DateDayPart::operation(common::timestamp_t& input, int64_t& result) {
+    result = common::Timestamp::getTimestampPart(common::DatePartSpecifier::DAY, input);
+}
+
+template<>
+inline void DateDayPart::operation(common::date_t& input, int64_t& result) {
+    result = common::Date::getDatePart(common::DatePartSpecifier::DAY, input);
+}
+
+struct DateHourPart {
+    template<class T>
+
+    static inline void operation(T& /*input*/, int64_t& /*result*/) {
+        KU_UNREACHABLE;
+    }
+};
+
+template<>
+inline void DateHourPart::operation(common::timestamp_t& input, int64_t& result) {
+    result = common::Timestamp::getTimestampPart(common::DatePartSpecifier::HOUR, input);
+}
+
+template<>
+inline void DateHourPart::operation(common::date_t& input, int64_t& result) {
+    result = common::Date::getDatePart(common::DatePartSpecifier::HOUR, input);
+}
+
+struct DateMinutePart {
+    template<class T>
+
+    static inline void operation(T& /*input*/, int64_t& /*result*/) {
+        KU_UNREACHABLE;
+    }
+};
+
+template<>
+inline void DateMinutePart::operation(common::timestamp_t& input, int64_t& result) {
+    result = common::Timestamp::getTimestampPart(common::DatePartSpecifier::MINUTE, input);
+}
+
+template<>
+inline void DateMinutePart::operation(common::date_t& input, int64_t& result) {
+    result = common::Date::getDatePart(common::DatePartSpecifier::MINUTE, input);
+}
+
+struct DateSecondPart {
+    template<class T>
+
+    static inline void operation(T& /*input*/, int64_t& /*result*/) {
+        KU_UNREACHABLE;
+    }
+};
+
+template<>
+inline void DateSecondPart::operation(common::timestamp_t& input, int64_t& result) {
+    result = common::Timestamp::getTimestampPart(common::DatePartSpecifier::SECOND, input);
+}
+
+template<>
+inline void DateSecondPart::operation(common::date_t& input, int64_t& result) {
+    result = common::Date::getDatePart(common::DatePartSpecifier::SECOND, input);
+}
+
+struct AddDay {
+    static inline void operation(common::timestamp_t& left, int64_t& Day,
+        common::timestamp_t& result) {
+        auto right = common::interval_t(0, 0, Day * common::Interval::MICROS_PER_DAY);
+        result = left + right;
+    }
+};
+
+struct AddHour {
+    static inline void operation(common::timestamp_t& left, int64_t& Hour,
+        common::timestamp_t& result) {
+        auto right = common::interval_t(0, 0, Hour * common::Interval::MICROS_PER_HOUR);
+        result = left + right;
+    }
+};
+
+struct AddMinute {
+    static inline void operation(common::timestamp_t& left, int64_t& Minute,
+        common::timestamp_t& result) {
+        auto right = common::interval_t(0, 0, Minute * common::Interval::MICROS_PER_MINUTE);
+        result = left + right;
+    }
+};
+
+struct AddSecond {
+    static inline void operation(common::timestamp_t& left, int64_t& Second,
+        common::timestamp_t& result) {
+        auto right = common::interval_t(0, 0, Second * common::Interval::MICROS_PER_SEC);
+        result = left + right;
+    }
+};
+
 } // namespace function
 } // namespace kuzu

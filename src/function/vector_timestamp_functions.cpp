@@ -32,5 +32,16 @@ function_set ToTimestampFunction::getFunctionSet() {
     return result;
 }
 
+function_set TimeDiffFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP, LogicalTypeID::TIMESTAMP,
+            LogicalTypeID::STRING},
+        LogicalTypeID::INT64,
+        ScalarFunction::TernaryExecFunction<timestamp_t, timestamp_t, ku_string_t, int64_t,
+            TimeDiff>));
+    return result;
+}
+
 } // namespace function
 } // namespace kuzu

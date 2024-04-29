@@ -19,9 +19,16 @@ public:
         KU_ASSERT(internalID != nullptr);
         return internalID->copy();
     }
+    void setPrimaryKeyName(std::string name) {
+        if (primaryKeyName == "") {
+            primaryKeyName = name;
+        }
+    }
+    std::string getPrimaryKeyName() const { return primaryKeyName; }
 
 private:
     std::unique_ptr<Expression> internalID;
+    std::string primaryKeyName = "";
 };
 
 } // namespace binder

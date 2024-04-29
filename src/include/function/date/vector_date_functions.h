@@ -57,5 +57,65 @@ struct MonthNameFunction {
     static function_set getFunctionSet();
 };
 
+struct DateYearFunction {
+    static constexpr const char* name = "YEAR";
+
+    static function_set getFunctionSet();
+};
+
+struct DateMonthFunction {
+    static constexpr const char* name = "MONTH";
+
+    static function_set getFunctionSet();
+};
+
+struct DateDayFunction {
+    static constexpr const char* name = "DAY";
+
+    static function_set getFunctionSet();
+};
+
+struct DateHourFunction {
+    static constexpr const char* name = "HOUR";
+
+    static function_set getFunctionSet();
+};
+
+struct DateMinuteFunction {
+    static constexpr const char* name = "MINUTE";
+
+    static function_set getFunctionSet();
+};
+
+struct DateSecondFunction {
+    static constexpr const char* name = "SECOND";
+
+    static function_set getFunctionSet();
+};
+
+struct AddDayFunction {
+    static constexpr const char* name = "ADD_DAY";
+
+    static function_set getFunctionSet();
+};
+
+struct AddHourFunction {
+    static constexpr const char* name = "ADD_HOUR";
+
+    static function_set getFunctionSet();
+};
+
+struct AddMinuteFunction {
+    static constexpr const char* name = "ADD_MINUTE";
+
+    static function_set getFunctionSet();
+};
+
+struct AddSecondFunction {
+    static constexpr const char* name = "ADD_SECOND";
+
+    static function_set getFunctionSet();
+};
+
 } // namespace function
 } // namespace kuzu

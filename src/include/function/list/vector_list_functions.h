@@ -25,6 +25,8 @@ struct SizeFunction {
 
     static constexpr const char* alias = "CARDINALITY";
 
+    static constexpr const char* alias2 = "CRUX_SIZE";
+
     static function_set getFunctionSet();
 };
 
@@ -49,6 +51,8 @@ struct ListConcatFunction {
 struct ListAppendFunction {
     static constexpr const char* name = "LIST_APPEND";
 
+    static constexpr const char* alias = "ADD_LIST";
+    
     static function_set getFunctionSet();
 };
 
@@ -82,6 +86,8 @@ struct ListSliceFunction {
 
 struct ListSortFunction {
     static constexpr const char* name = "LIST_SORT";
+
+    static constexpr const char* alias = "SORT_LIST";
 
     static function_set getFunctionSet();
 };
@@ -124,6 +130,36 @@ struct ListAnyValueFunction {
 
 struct ListReverseFunction {
     static constexpr const char* name = "LIST_REVERSE";
+
+    static function_set getFunctionSet();
+};
+
+struct ListApplyFunction {
+    static constexpr const char* name = "LIST_APPLY";
+
+    static function_set getFunctionSet();
+};
+
+struct ListHeadFunction {
+    static constexpr const char* name = "HEAD";
+
+    static function_set getFunctionSet();
+};
+
+struct ListTailFunction {
+    static constexpr const char* name = "TAIL";
+
+    static function_set getFunctionSet();
+};
+
+struct ListLastFunction {
+    static constexpr const char* name = "LAST";
+
+    static function_set getFunctionSet();
+};
+
+struct ListCollectionContainsFunction {
+    static constexpr const char* name = "COLLECTION_CONTAINS";
 
     static function_set getFunctionSet();
 };

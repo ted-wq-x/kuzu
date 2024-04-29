@@ -14,6 +14,8 @@ struct NodesFunction {
 struct RelsFunction {
     static constexpr const char* name = "RELS";
 
+    static constexpr const char* alias = "RELATIONSHIPS";
+
     static function_set getFunctionSet();
 };
 

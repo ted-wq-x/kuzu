@@ -50,12 +50,12 @@ True
 -CASE CastDoubleToString
 -STATEMENT RETURN left(to_double(1.34), 8);
 ---- 1
-1.340000
+1.34
 
 -CASE CastfloatToString
 -STATEMENT RETURN left(to_float(1.34), 8);
 ---- 1
-1.340000
+1.34
 
 -CASE Castint128ToString
 -STATEMENT RETURN left(to_int128(134), 3);

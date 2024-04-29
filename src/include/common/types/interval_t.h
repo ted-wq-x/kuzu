@@ -76,6 +76,9 @@ public:
     static constexpr const int32_t SECS_PER_HOUR = SECS_PER_MINUTE * MINS_PER_HOUR;
     static constexpr const int32_t SECS_PER_DAY = SECS_PER_HOUR * HOURS_PER_DAY;
     static constexpr const int32_t SECS_PER_WEEK = SECS_PER_DAY * DAYS_PER_WEEK;
+    static constexpr const int32_t MSECS_PER_MINUTE = MSECS_PER_SEC * SECS_PER_MINUTE;
+    static constexpr const int32_t MSECS_PER_HOUR = MSECS_PER_SEC * SECS_PER_HOUR;
+    static constexpr const int32_t MSECS_PER_DAY = MSECS_PER_SEC * SECS_PER_DAY;
 
     static constexpr const int64_t MICROS_PER_MSEC = 1000;
     static constexpr const int64_t MICROS_PER_SEC = MICROS_PER_MSEC * MSECS_PER_SEC;
