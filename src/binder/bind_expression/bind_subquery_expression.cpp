@@ -24,7 +24,7 @@ std::shared_ptr<Expression> ExpressionBinder::bindSubqueryExpression(
     if (subqueryExpr.hasWhereClause()) {
         boundGraphPattern.where = binder->bindWhereExpression(*subqueryExpr.getWhereClause());
     }
-    binder->rewriteMatchPattern(boundGraphPattern);
+    binder->rewriteMatchPattern(boundGraphPattern, false);
     auto subqueryType = subqueryExpr.getSubqueryType();
     auto dataType =
         subqueryType == SubqueryType::COUNT ? LogicalType::INT64() : LogicalType::BOOL();

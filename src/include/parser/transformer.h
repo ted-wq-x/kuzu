@@ -80,6 +80,7 @@ private:
     std::unique_ptr<ReadingClause> transformUnwind(CypherParser::OC_UnwindContext& ctx);
     std::unique_ptr<ReadingClause> transformInQueryCall(CypherParser::KU_InQueryCallContext& ctx);
     std::unique_ptr<ReadingClause> transformLoadFrom(CypherParser::KU_LoadFromContext& ctx);
+    std::vector<std::vector<std::string>> transformHint(CypherParser::OC_HintContext& ctx);
 
     // Transform projection.
     WithClause transformWith(CypherParser::OC_WithContext& ctx);

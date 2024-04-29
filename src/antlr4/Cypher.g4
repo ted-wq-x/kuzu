@@ -322,7 +322,14 @@ kU_InQueryCall
     : CALL SP oC_FunctionInvocation (SP? oC_Where)? ;
 
 oC_Match
-    : ( OPTIONAL SP )? MATCH SP? oC_Pattern (SP? oC_Where)? ;
+    : ( OPTIONAL SP )? MATCH SP? oC_Pattern (SP? oC_Hint)? (SP?) (SP? oC_Where)? ;
+
+oC_Hint
+    : '#' SP? oC_Hint_Part (SP? ',' SP? oC_Hint_Part)* SP? '#';
+
+oC_Hint_Part
+    : ( '(' SP? oC_SymbolicName (SP? ',' SP? oC_SymbolicName)* SP? ')' )
+    | oC_SymbolicName;
 
 OPTIONAL : ( 'O' | 'o' ) ( 'P' | 'p' ) ( 'T' | 't' ) ( 'I' | 'i' ) ( 'O' | 'o' ) ( 'N' | 'n' ) ( 'A' | 'a' ) ( 'L' | 'l' ) ;
 

@@ -29,10 +29,27 @@ std::unique_ptr<ReadingClause> Transformer::transformMatch(CypherParser::OC_Matc
         ctx.OPTIONAL() ? MatchClauseType::OPTIONAL_MATCH : MatchClauseType::MATCH;
     auto matchClause =
         std::make_unique<MatchClause>(transformPattern(*ctx.oC_Pattern()), matchClauseType);
+
+    if (ctx.oC_Hint()) {
+        matchClause->setHint(transformHint(*ctx.oC_Hint()));
+    }
+
     if (ctx.oC_Where()) {
         matchClause->setWherePredicate(transformWhere(*ctx.oC_Where()));
     }
     return matchClause;
+}
+
+std::vector<std::vector<std::string>> Transformer::transformHint(CypherParser::OC_HintContext& ctx){
+    std::vector<std::vector<std::string>> hints;
+    for (const auto& hintPart : ctx.oC_Hint_Part()){
+        std::vector<std::string> group;
+        for (const auto& symbolicName : hintPart->oC_SymbolicName()){
+            group.push_back(transformSymbolicName(*symbolicName)) ;
+        }
+        hints.push_back(group);
+    }
+    return hints;
 }
 
 std::unique_ptr<ReadingClause> Transformer::transformUnwind(CypherParser::OC_UnwindContext& ctx) {

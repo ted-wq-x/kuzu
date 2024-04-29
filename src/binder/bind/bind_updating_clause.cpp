@@ -78,7 +78,7 @@ std::unique_ptr<BoundUpdatingClause> Binder::bindMergeClause(
     auto patternsScope = populatePatternsScope(scope);
     // bindGraphPattern will update scope.
     auto boundGraphPattern = bindGraphPattern(mergeClause.getPatternElementsRef());
-    rewriteMatchPattern(boundGraphPattern);
+    rewriteMatchPattern(boundGraphPattern, false);
     auto existenceMark = createVariable("__existence", *LogicalType::BOOL());
     auto distinctMark = createVariable("__distinct", *LogicalType::BOOL());
     auto createInfos = bindInsertInfos(boundGraphPattern.queryGraphCollection, patternsScope);

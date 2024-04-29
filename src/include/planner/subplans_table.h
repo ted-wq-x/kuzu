@@ -8,7 +8,7 @@
 namespace kuzu {
 namespace planner {
 
-const uint64_t MAX_LEVEL_TO_PLAN_EXACTLY = 7;
+const uint64_t MAX_LEVEL_TO_PLAN_EXACTLY = 20;
 
 // Different from vanilla dp algorithm where one optimal plan is kept per subgraph, we keep multiple
 // plans each with a different factorization structure. The following example will explain our
@@ -37,7 +37,7 @@ private:
     std::bitset<binder::MAX_NUM_QUERY_VARIABLES> encodePlan(const LogicalPlan& plan);
 
 private:
-    constexpr static uint32_t MAX_NUM_PLANS = 10;
+    constexpr static uint32_t MAX_NUM_PLANS = INT32_MAX;
 
 private:
     uint64_t maxCost = UINT64_MAX;
@@ -66,7 +66,7 @@ public:
     inline void clear() { subgraph2Plans.clear(); }
 
 private:
-    constexpr static uint32_t MAX_NUM_SUBGRAPH = 50;
+    constexpr static uint32_t MAX_NUM_SUBGRAPH = INT32_MAX;
 
 private:
     binder::subquery_graph_V_map_t<std::unique_ptr<SubgraphPlans>> subgraph2Plans;

@@ -27,23 +27,25 @@ binder::expression_vector Planner::getCorrelatedExprs(const QueryGraphCollection
 
 void Planner::planOptionalMatch(const QueryGraphCollection& queryGraphCollection,
     const expression_vector& predicates, const binder::expression_vector& corrExprs,
-    LogicalPlan& leftPlan) {
-    planOptionalMatch(queryGraphCollection, predicates, corrExprs, nullptr /* mark */, leftPlan);
+    LogicalPlan& leftPlan, const std::vector<std::vector<std::string>>& hint) {
+    planOptionalMatch(queryGraphCollection, predicates, corrExprs, nullptr /* mark */, leftPlan,
+        hint);
 }
 
 void Planner::planOptionalMatch(const QueryGraphCollection& queryGraphCollection,
     const expression_vector& predicates, const binder::expression_vector& corrExprs,
-    std::shared_ptr<Expression> mark, LogicalPlan& leftPlan) {
+    std::shared_ptr<Expression> mark, LogicalPlan& leftPlan,
+    const std::vector<std::vector<std::string>>& hint) {
     if (leftPlan.isEmpty()) {
         // Optional match is the first clause. No left plan to join.
-        auto plan = planQueryGraphCollection(queryGraphCollection, predicates);
+        auto plan = planQueryGraphCollection(queryGraphCollection, predicates,hint);
         leftPlan.setLastOperator(plan->getLastOperator());
         appendOptionalAccumulate(mark, leftPlan);
         return;
     }
     if (corrExprs.empty()) {
         // No join condition, apply cross product.
-        auto rightPlan = planQueryGraphCollection(queryGraphCollection, predicates);
+        auto rightPlan = planQueryGraphCollection(queryGraphCollection, predicates, hint);
         if (leftPlan.hasUpdate()) {
             appendCrossProduct(AccumulateType::OPTIONAL_, *rightPlan, leftPlan, leftPlan);
         } else {
@@ -59,11 +61,11 @@ void Planner::planOptionalMatch(const QueryGraphCollection& queryGraphCollection
         // ID in both outer and inner plan as these are fast in-memory operations. For node
         // properties, we only scan in the outer query.
         rightPlan = planQueryGraphCollectionInNewContext(SubqueryType::INTERNAL_ID_CORRELATED,
-            corrExprs, leftPlan.getCardinality(), queryGraphCollection, predicates);
+            corrExprs, leftPlan.getCardinality(), queryGraphCollection, predicates, hint);
     } else {
         // Unnest using ExpressionsScan which scans the accumulated table on probe side.
         rightPlan = planQueryGraphCollectionInNewContext(SubqueryType::CORRELATED, corrExprs,
-            leftPlan.getCardinality(), queryGraphCollection, predicates);
+            leftPlan.getCardinality(), queryGraphCollection, predicates, hint);
         appendAccumulate(corrExprs, leftPlan);
     }
     if (leftPlan.hasUpdate()) {
@@ -74,7 +76,8 @@ void Planner::planOptionalMatch(const QueryGraphCollection& queryGraphCollection
 }
 
 void Planner::planRegularMatch(const QueryGraphCollection& queryGraphCollection,
-    const expression_vector& predicates, LogicalPlan& leftPlan) {
+    const expression_vector& predicates, LogicalPlan& leftPlan,
+    const std::vector<std::vector<std::string>>& hint) {
     auto correlatedExpressions =
         getCorrelatedExprs(queryGraphCollection, predicates, leftPlan.getSchema());
     expression_vector predicatesToPushDown, predicatesToPullUp;
@@ -92,7 +95,7 @@ void Planner::planRegularMatch(const QueryGraphCollection& queryGraphCollection,
     if (joinNodeIDs.empty()) {
         auto rightPlan =
             planQueryGraphCollectionInNewContext(SubqueryType::NONE, correlatedExpressions,
-                leftPlan.getCardinality(), queryGraphCollection, predicatesToPushDown);
+                leftPlan.getCardinality(), queryGraphCollection, predicatesToPushDown, hint);
         if (leftPlan.hasUpdate()) {
             appendCrossProduct(AccumulateType::REGULAR, *rightPlan, leftPlan, leftPlan);
         } else {
@@ -102,8 +105,9 @@ void Planner::planRegularMatch(const QueryGraphCollection& queryGraphCollection,
         // TODO(Xiyang): there is a question regarding if we want to plan as a correlated subquery
         // Multi-part query is actually CTE and CTE can be considered as a subquery but does not
         // scan from outer.
-        auto rightPlan = planQueryGraphCollectionInNewContext(SubqueryType::INTERNAL_ID_CORRELATED,
-            joinNodeIDs, leftPlan.getCardinality(), queryGraphCollection, predicatesToPushDown);
+        auto rightPlan =
+            planQueryGraphCollectionInNewContext(SubqueryType::INTERNAL_ID_CORRELATED, joinNodeIDs,
+                leftPlan.getCardinality(), queryGraphCollection, predicatesToPushDown, hint);
         if (leftPlan.hasUpdate()) {
             appendHashJoin(joinNodeIDs, JoinType::INNER, *rightPlan, leftPlan, leftPlan);
         } else {
@@ -121,9 +125,10 @@ void Planner::planSubquery(const std::shared_ptr<Expression>& expression, Logica
     auto predicates = subquery->getPredicatesSplitOnAnd();
     auto correlatedExprs = outerPlan.getSchema()->getSubExpressionsInScope(expression);
     std::unique_ptr<LogicalPlan> innerPlan;
+    const std::vector<std::vector<std::string>> hint;
     if (correlatedExprs.empty()) {
         innerPlan = planQueryGraphCollectionInNewContext(SubqueryType::NONE, correlatedExprs,
-            outerPlan.getCardinality(), *subquery->getQueryGraphCollection(), predicates);
+            outerPlan.getCardinality(), *subquery->getQueryGraphCollection(), predicates, hint);
         switch (subquery->getSubqueryType()) {
         case common::SubqueryType::EXISTS: {
             appendAggregate(expression_vector{}, expression_vector{subquery->getCountStarExpr()},
@@ -144,11 +149,11 @@ void Planner::planSubquery(const std::shared_ptr<Expression>& expression, Logica
         if (isInternalIDCorrelated) {
             innerPlan = planQueryGraphCollectionInNewContext(SubqueryType::INTERNAL_ID_CORRELATED,
                 correlatedExprs, outerPlan.getCardinality(), *subquery->getQueryGraphCollection(),
-                predicates);
+                predicates, hint);
         } else {
-            innerPlan =
-                planQueryGraphCollectionInNewContext(SubqueryType::CORRELATED, correlatedExprs,
-                    outerPlan.getCardinality(), *subquery->getQueryGraphCollection(), predicates);
+            innerPlan = planQueryGraphCollectionInNewContext(SubqueryType::CORRELATED,
+                correlatedExprs, outerPlan.getCardinality(), *subquery->getQueryGraphCollection(),
+                predicates, hint);
             appendAccumulate(correlatedExprs, outerPlan);
         }
         switch (subquery->getSubqueryType()) {

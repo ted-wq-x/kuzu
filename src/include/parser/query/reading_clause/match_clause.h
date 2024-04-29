@@ -26,10 +26,15 @@ public:
 
     inline common::MatchClauseType getMatchClauseType() const { return matchClauseType; }
 
+    const std::vector<std::vector<std::string>>& getHint() const { return hint; }
+
+    void setHint(const std::vector<std::vector<std::string>>& hintVector) { MatchClause::hint = std::move(hintVector); }
+
 private:
     std::vector<PatternElement> patternElements;
     std::unique_ptr<ParsedExpression> wherePredicate;
     common::MatchClauseType matchClauseType;
+    std::vector<std::vector<std::string>> hint;
 };
 
 } // namespace parser

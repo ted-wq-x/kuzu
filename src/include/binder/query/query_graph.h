@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bitset>
+#include <set>
 #include <unordered_map>
 
 #include "binder/expression/rel_expression.h"
@@ -44,6 +45,10 @@ struct SubqueryGraph {
         return queryRelsSelector.count() == 1 && queryNodesSelector.count() == 0;
     }
 
+    inline bool isEmpty() const {
+        return queryRelsSelector.count() == 0 && queryNodesSelector.count() == 0;
+    }
+
     bool containAllVariables(std::unordered_set<std::string>& variables) const;
 
     std::unordered_set<uint32_t> getNodeNbrPositions() const;
@@ -77,6 +82,9 @@ public:
     inline bool containsQueryNode(const std::string& queryNodeName) const {
         return queryNodeNameToPosMap.contains(queryNodeName);
     }
+    inline bool containsQueryNodeByAliasName(const std::string& queryNodeAliasName) const {
+        return queryNodeAliasNameToPosMap.contains(queryNodeAliasName);
+    }
     inline std::vector<std::shared_ptr<NodeExpression>> getQueryNodes() const { return queryNodes; }
     inline std::shared_ptr<NodeExpression> getQueryNode(const std::string& queryNodeName) const {
         return queryNodes[getQueryNodePos(queryNodeName)];
@@ -99,11 +107,17 @@ public:
     inline uint32_t getQueryNodePos(const std::string& queryNodeName) const {
         return queryNodeNameToPosMap.at(queryNodeName);
     }
+    inline uint32_t getQueryNodePosByAliasName(const std::string& queryNodeAliasName) const {
+        return queryNodeAliasNameToPosMap.at(queryNodeAliasName);
+    }
     void addQueryNode(std::shared_ptr<NodeExpression> queryNode);
 
     inline uint32_t getNumQueryRels() const { return queryRels.size(); }
     inline bool containsQueryRel(const std::string& queryRelName) const {
         return queryRelNameToPosMap.contains(queryRelName);
+    }
+    inline bool containsQueryRelByAliasName(const std::string& queryRelAliasName) const {
+        return queryRelAliasNameToPosMap.contains(queryRelAliasName);
     }
     inline std::vector<std::shared_ptr<RelExpression>> getQueryRels() const { return queryRels; }
     inline std::shared_ptr<RelExpression> getQueryRel(const std::string& queryRelName) const {
@@ -115,6 +129,9 @@ public:
     inline uint32_t getQueryRelPos(const std::string& queryRelName) const {
         return queryRelNameToPosMap.at(queryRelName);
     }
+    inline uint32_t getQueryRelPosByAliasName(const std::string& queryRelAliasName) const {
+        return queryRelAliasNameToPosMap.at(queryRelAliasName);
+    }
     void addQueryRel(std::shared_ptr<RelExpression> queryRel);
 
     bool canProjectExpression(const std::shared_ptr<Expression>& expression) const;
@@ -125,11 +142,31 @@ public:
 
     inline std::unique_ptr<QueryGraph> copy() const { return std::make_unique<QueryGraph>(*this); }
 
+    std::set<std::string> getQueryNodeNames() const { return getKeyFromMap(queryNodeNameToPosMap); }
+    std::set<std::string> getQueryNodeAliasNames() const {
+        return getKeyFromMap(queryNodeAliasNameToPosMap);
+    }
+    std::set<std::string> getQueryRelNames() const { return getKeyFromMap(queryRelNameToPosMap); }
+    std::set<std::string> getQueryRelAliasNames() const {
+        return getKeyFromMap(queryRelAliasNameToPosMap);
+    }
+
 private:
+    std::unordered_map<std::string, uint32_t> queryNodeAliasNameToPosMap;
+    std::unordered_map<std::string, uint32_t> queryRelAliasNameToPosMap;
     std::unordered_map<std::string, uint32_t> queryNodeNameToPosMap;
     std::unordered_map<std::string, uint32_t> queryRelNameToPosMap;
     std::vector<std::shared_ptr<NodeExpression>> queryNodes;
     std::vector<std::shared_ptr<RelExpression>> queryRels;
+
+    template<typename T>
+    static std::set<std::string> getKeyFromMap(const T& map) {
+        std::set<std::string> set;
+        for (const auto& item : map) {
+            set.insert(item.first);
+        }
+        return set;
+    }
 };
 
 // QueryGraphCollection represents a pattern (a set of connected components) specified in MATCH

@@ -11,16 +11,17 @@ namespace kuzu {
 namespace planner {
 
 std::unique_ptr<LogicalPlan> Planner::planQueryGraphCollection(
-    const QueryGraphCollection& queryGraphCollection, const expression_vector& predicates) {
-    return getBestPlan(enumerateQueryGraphCollection(queryGraphCollection, predicates));
+    const QueryGraphCollection& queryGraphCollection, const expression_vector& predicates,
+    const std::vector<std::vector<std::string>> hint) {
+    return getBestPlan(enumerateQueryGraphCollection(queryGraphCollection, predicates, hint));
 }
 
 std::unique_ptr<LogicalPlan> Planner::planQueryGraphCollectionInNewContext(
     SubqueryType subqueryType, const binder::expression_vector& correlatedExpressions,
     uint64_t cardinality, const QueryGraphCollection& queryGraphCollection,
-    const expression_vector& predicates) {
+    const expression_vector& predicates, const std::vector<std::vector<std::string>> hint) {
     auto prevContext = enterContext(subqueryType, correlatedExpressions, cardinality);
-    auto plans = enumerateQueryGraphCollection(queryGraphCollection, predicates);
+    auto plans = enumerateQueryGraphCollection(queryGraphCollection, predicates, hint);
     exitContext(std::move(prevContext));
     return getBestPlan(std::move(plans));
 }
@@ -39,7 +40,8 @@ static int32_t getConnectedQueryGraphIdx(const QueryGraphCollection& queryGraphC
 }
 
 std::vector<std::unique_ptr<LogicalPlan>> Planner::enumerateQueryGraphCollection(
-    const QueryGraphCollection& queryGraphCollection, const expression_vector& predicates) {
+    const QueryGraphCollection& queryGraphCollection, const expression_vector& predicates,
+    const std::vector<std::vector<std::string>> hint) {
     KU_ASSERT(queryGraphCollection.getNumQueryGraphs() > 0);
     auto correlatedExpressionSet = context.getCorrelatedExpressionsSet();
     int32_t queryGraphIdxToPlanExpressionsScan = -1;
@@ -77,23 +79,23 @@ std::vector<std::unique_ptr<LogicalPlan>> Planner::enumerateQueryGraphCollection
         case SubqueryType::NONE: {
             // Plan current query graph as an isolated query graph.
             plans = enumerateQueryGraph(SubqueryType::NONE, expression_vector{}, *queryGraph,
-                predicatesToEvaluate);
+                predicatesToEvaluate, hint);
         } break;
         case SubqueryType::INTERNAL_ID_CORRELATED: {
             // All correlated expressions are node IDs. Plan as isolated query graph but do not scan
             // any properties of correlated node IDs because they must be scanned in outer query.
             plans = enumerateQueryGraph(SubqueryType::INTERNAL_ID_CORRELATED,
-                context.correlatedExpressions, *queryGraph, predicatesToEvaluate);
+                context.correlatedExpressions, *queryGraph, predicatesToEvaluate, hint);
         } break;
         case SubqueryType::CORRELATED: {
             if (i == (uint32_t)queryGraphIdxToPlanExpressionsScan) {
                 // Plan ExpressionsScan with current query graph.
                 plans = enumerateQueryGraph(SubqueryType::CORRELATED, context.correlatedExpressions,
-                    *queryGraph, predicatesToEvaluate);
+                    *queryGraph, predicatesToEvaluate, hint);
             } else {
                 // Plan current query graph as an isolated query graph.
                 plans = enumerateQueryGraph(SubqueryType::NONE, expression_vector{}, *queryGraph,
-                    predicatesToEvaluate);
+                    predicatesToEvaluate, hint);
             }
         } break;
         default:
@@ -132,16 +134,54 @@ std::vector<std::unique_ptr<LogicalPlan>> Planner::enumerateQueryGraphCollection
     return result;
 }
 
+SubqueryGraph Planner::makeSubGraph(std::vector<std::string> symbols) {
+    auto empty = context.getEmptySubqueryGraph();
+
+    for (const auto& symbol : symbols) {
+        if (context.queryGraph->containsQueryRelByAliasName(symbol)) {
+            auto relPos = context.queryGraph->getQueryRelPosByAliasName(symbol);
+            empty.addQueryRel(relPos);
+        } else if (context.queryGraph->containsQueryNodeByAliasName(symbol)) {
+            auto nodePos = context.queryGraph->getQueryNodePosByAliasName(symbol);
+            empty.addQueryNode(nodePos);
+        }
+    }
+
+    return empty;
+}
 std::vector<std::unique_ptr<LogicalPlan>> Planner::enumerateQueryGraph(SubqueryType subqueryType,
     const expression_vector& correlatedExpressions, const QueryGraph& queryGraph,
-    expression_vector& predicates) {
+    expression_vector& predicates, const std::vector<std::vector<std::string>> hint) {
     context.init(&queryGraph, predicates);
     cardinalityEstimator.initNodeIDDom(queryGraph, clientContext->getTx());
     planBaseTableScans(subqueryType, correlatedExpressions);
     context.currentLevel++;
-    while (context.currentLevel < context.maxLevel) {
-        planLevel(context.currentLevel++);
+    if (hint.empty()) {
+        while (context.currentLevel < context.maxLevel) {
+            planLevel(context.currentLevel++);
+        }
+    } else {
+
+        auto preGroupSubGraph = context.getEmptySubqueryGraph();
+
+        for (const auto& hintPart : hint) {
+            auto size = hintPart.size();
+            KU_ASSERT(size != 0);
+            auto preSubGraph = makeSubGraph({hintPart[0]});
+            for (auto i = 1u; i < size; ++i) {
+                const SubqueryGraph& subgraph = makeSubGraph({hintPart[i]});
+                connectSubGraph(preSubGraph, subgraph);
+                preSubGraph.addSubqueryGraph(subgraph);
+            }
+            if (!preGroupSubGraph.isEmpty()) {
+                connectSubGraph(preGroupSubGraph, preSubGraph);
+            }
+            preGroupSubGraph.addSubqueryGraph(preSubGraph);
+        }
+        // INL-J 需要连续的2个边
+        //(a,r1,r4,b),(d,r3),(c,r2)
     }
+
     return std::move(context.getPlans(context.getFullyMatchedSubqueryGraph()));
 }
 
@@ -156,6 +196,8 @@ void Planner::planLevel(uint32_t level) {
 
 void Planner::planLevelExactly(uint32_t level) {
     auto maxLeftLevel = floor(level / 2.0);
+    // 这里的双循环的意思是,有多少种组合可以构建成level,如5,可以是1+4&2+3
+    // 同时left也扮演着边的数量,right是点的数量
     for (auto leftLevel = 1u; leftLevel <= maxLeftLevel; ++leftLevel) {
         auto rightLevel = level - leftLevel;
         if (leftLevel > 1) { // wcoj requires at least 2 rels
@@ -478,6 +520,20 @@ static bool needPruneImplicitJoins(const SubqueryGraph& leftSubgraph,
         }
     }
     return intersectionSize != numJoinNodes;
+}
+
+void Planner::connectSubGraph(const SubqueryGraph& leftSubgraph,
+    const SubqueryGraph& rightSubgraph) {
+    auto joinNodePositions = rightSubgraph.getConnectedNodePos(leftSubgraph);
+    auto joinNodes = context.queryGraph->getQueryNodes(joinNodePositions);
+    if (needPruneImplicitJoins(leftSubgraph, rightSubgraph, joinNodes.size())) {
+        return;
+    }
+    // If index nested loop (INL) join is possible, we prune hash join plans
+    if (tryPlanINLJoin(rightSubgraph, leftSubgraph, joinNodes)) {
+        return;
+    }
+    planInnerHashJoin(rightSubgraph, leftSubgraph, joinNodes, false);
 }
 
 void Planner::planInnerJoin(uint32_t leftLevel, uint32_t rightLevel) {

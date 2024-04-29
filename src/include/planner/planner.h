@@ -113,13 +113,15 @@ private:
     // Plan subquery
     void planOptionalMatch(const binder::QueryGraphCollection& queryGraphCollection,
         const binder::expression_vector& predicates, const binder::expression_vector& corrExprs,
-        LogicalPlan& leftPlan);
+        LogicalPlan& leftPlan,const std::vector<std::vector<std::string>>& hint);
     // Write whether optional match succeed or not to mark.
     void planOptionalMatch(const binder::QueryGraphCollection& queryGraphCollection,
         const binder::expression_vector& predicates, const binder::expression_vector& corrExprs,
-        std::shared_ptr<binder::Expression> mark, LogicalPlan& leftPlan);
+        std::shared_ptr<binder::Expression> mark, LogicalPlan& leftPlan,
+        const std::vector<std::vector<std::string>>& hint);
     void planRegularMatch(const binder::QueryGraphCollection& queryGraphCollection,
-        const binder::expression_vector& predicates, LogicalPlan& leftPlan);
+        const binder::expression_vector& predicates, LogicalPlan& leftPlan,
+        const std::vector<std::vector<std::string>>& hint);
     void planSubquery(const std::shared_ptr<binder::Expression>& subquery, LogicalPlan& outerPlan);
     void planSubqueryIfNecessary(const std::shared_ptr<binder::Expression>& expression,
         LogicalPlan& plan);
@@ -131,17 +133,21 @@ private:
     // Plan query graphs
     std::unique_ptr<LogicalPlan> planQueryGraphCollection(
         const binder::QueryGraphCollection& queryGraphCollection,
-        const binder::expression_vector& predicates);
+        const binder::expression_vector& predicates,
+        const std::vector<std::vector<std::string>> hint);
     std::unique_ptr<LogicalPlan> planQueryGraphCollectionInNewContext(SubqueryType subqueryType,
         const binder::expression_vector& correlatedExpressions, uint64_t cardinality,
         const binder::QueryGraphCollection& queryGraphCollection,
-        const binder::expression_vector& predicates);
+        const binder::expression_vector& predicates,
+        const std::vector<std::vector<std::string>> hint);
     std::vector<std::unique_ptr<LogicalPlan>> enumerateQueryGraphCollection(
         const binder::QueryGraphCollection& queryGraphCollection,
-        const binder::expression_vector& predicates);
+        const binder::expression_vector& predicates,
+        const std::vector<std::vector<std::string>> hint);
     std::vector<std::unique_ptr<LogicalPlan>> enumerateQueryGraph(SubqueryType subqueryType,
         const binder::expression_vector& correlatedExpressions,
-        const binder::QueryGraph& queryGraph, binder::expression_vector& predicates);
+        const binder::QueryGraph& queryGraph, binder::expression_vector& predicates,
+        const std::vector<std::vector<std::string>> hint);
 
     // Plan node/rel table scan
     void planBaseTableScans(SubqueryType subqueryType,
@@ -168,6 +174,11 @@ private:
 
     // Plan index-nested-loop join / hash join
     void planInnerJoin(uint32_t leftLevel, uint32_t rightLevel);
+    void connectSubGraph(const binder::SubqueryGraph& leftSubgraph,
+        const binder::SubqueryGraph& rightSubgraph);
+
+    binder::SubqueryGraph makeSubGraph(std::vector<std::string> symbols);
+
     bool tryPlanINLJoin(const binder::SubqueryGraph& subgraph,
         const binder::SubqueryGraph& otherSubgraph,
         const std::vector<std::shared_ptr<binder::NodeExpression>>& joinNodes);

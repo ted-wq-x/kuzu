@@ -159,7 +159,7 @@ private:
     std::unique_ptr<BoundReadingClause> bindReadingClause(
         const parser::ReadingClause& readingClause);
     std::unique_ptr<BoundReadingClause> bindMatchClause(const parser::ReadingClause& readingClause);
-    void rewriteMatchPattern(BoundGraphPattern& boundGraphPattern);
+    void rewriteMatchPattern(BoundGraphPattern& boundGraphPattern, bool hasHint);
     std::unique_ptr<BoundReadingClause> bindUnwindClause(
         const parser::ReadingClause& readingClause);
     std::unique_ptr<BoundReadingClause> bindInQueryCall(const parser::ReadingClause& readingClause);

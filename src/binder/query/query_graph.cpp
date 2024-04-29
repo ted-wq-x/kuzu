@@ -25,7 +25,7 @@ bool SubqueryGraph::containAllVariables(std::unordered_set<std::string>& variabl
     }
     return true;
 }
-
+// 子图中,存在的边,相关联的未访问的点 ,nbr=neighbour
 std::unordered_set<uint32_t> SubqueryGraph::getNodeNbrPositions() const {
     std::unordered_set<uint32_t> result;
     for (auto relPos = 0u; relPos < queryGraph.getNumQueryRels(); ++relPos) {
@@ -44,7 +44,7 @@ std::unordered_set<uint32_t> SubqueryGraph::getNodeNbrPositions() const {
     }
     return result;
 }
-
+// 子图中的点,未访问的相邻边
 std::unordered_set<uint32_t> SubqueryGraph::getRelNbrPositions() const {
     std::unordered_set<uint32_t> result;
     for (auto relPos = 0u; relPos < queryGraph.getNumQueryRels(); ++relPos) {
@@ -63,6 +63,7 @@ std::unordered_set<uint32_t> SubqueryGraph::getRelNbrPositions() const {
 
 subquery_graph_set_t SubqueryGraph::getNbrSubgraphs(uint32_t size) const {
     auto result = getBaseNbrSubgraph();
+    // 标记
     for (auto i = 1u; i < size; ++i) {
         std::unordered_set<SubqueryGraph, SubqueryGraphHasher> tmp;
         for (auto& prevNbr : result) {
@@ -162,6 +163,9 @@ void QueryGraph::addQueryNode(std::shared_ptr<NodeExpression> queryNode) {
         return;
     }
     queryNodeNameToPosMap.insert({queryNode->getUniqueName(), queryNodes.size()});
+    if (!queryNode->getAlias().empty()) {
+        queryNodeAliasNameToPosMap.insert({queryNode->getAlias(), queryNodes.size()});
+    }
     queryNodes.push_back(std::move(queryNode));
 }
 
@@ -170,6 +174,9 @@ void QueryGraph::addQueryRel(std::shared_ptr<RelExpression> queryRel) {
         return;
     }
     queryRelNameToPosMap.insert({queryRel->getUniqueName(), queryRels.size()});
+    if (!queryRel->getAlias().empty()) {
+        queryRelAliasNameToPosMap.insert({queryRel->getAlias(), queryRels.size()});
+    }
     queryRels.push_back(std::move(queryRel));
 }
 

@@ -9,9 +9,10 @@ namespace binder {
 class BoundMatchClause : public BoundReadingClause {
 public:
     BoundMatchClause(QueryGraphCollection queryGraphCollection,
-        common::MatchClauseType matchClauseType)
+        common::MatchClauseType matchClauseType, std::vector<std::vector<std::string>> hint)
         : BoundReadingClause{common::ClauseType::MATCH},
-          queryGraphCollection{std::move(queryGraphCollection)}, matchClauseType{matchClauseType} {}
+          queryGraphCollection{std::move(queryGraphCollection)}, matchClauseType{matchClauseType},
+          hint{std::move(hint)} {}
 
     inline const QueryGraphCollection* getQueryGraphCollection() const {
         return &queryGraphCollection;
@@ -19,9 +20,12 @@ public:
 
     inline common::MatchClauseType getMatchClauseType() const { return matchClauseType; }
 
+    inline const std::vector<std::vector<std::string>>* getHint() const { return &hint; }
+
 private:
     QueryGraphCollection queryGraphCollection;
     common::MatchClauseType matchClauseType;
+    std::vector<std::vector<std::string>> hint;
 };
 
 } // namespace binder
