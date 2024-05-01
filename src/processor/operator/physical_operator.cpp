@@ -2,6 +2,7 @@
 
 #include "common/exception/interrupt.h"
 #include "processor/operator/sink.h"
+#include "common/exception/runtime.h"
 
 using namespace kuzu::common;
 
@@ -20,24 +21,20 @@ std::string PhysicalOperatorUtils::operatorTypeToString(PhysicalOperatorType ope
         return "ATTACH_DATABASE";
     case PhysicalOperatorType::BATCH_INSERT:
         return "BATCH_INSERT";
-    case PhysicalOperatorType::STANDALONE_CALL:
-        return "STANDALONE_CALL";
-    case PhysicalOperatorType::COPY_TO:
-        return "COPY_TO";
+    case PhysicalOperatorType::COMMENT_ON:
+        return "COMMENT_ON";
     case PhysicalOperatorType::COPY_RDF:
         return "COPY_RDF";
+    case PhysicalOperatorType::COPY_TO:
+        return "COPY_TO";
     case PhysicalOperatorType::CREATE_MACRO:
         return "CREATE_MACRO";
-    case PhysicalOperatorType::DETACH_DATABASE:
-        return "DETACH_DATABASE";
-    case PhysicalOperatorType::READER:
-        return "READER";
-    case PhysicalOperatorType::INSERT:
-        return "INSERT";
     case PhysicalOperatorType::CREATE_TABLE:
         return "CREATE_TABLE";
     case PhysicalOperatorType::CROSS_PRODUCT:
         return "CROSS_PRODUCT";
+    case PhysicalOperatorType::DETACH_DATABASE:
+        return "DETACH_DATABASE";
     case PhysicalOperatorType::DELETE_NODE:
         return "DELETE_NODE";
     case PhysicalOperatorType::DELETE_REL:
@@ -46,6 +43,8 @@ std::string PhysicalOperatorUtils::operatorTypeToString(PhysicalOperatorType ope
         return "DROP_TABLE";
     case PhysicalOperatorType::EMPTY_RESULT:
         return "EMPTY_RESULT";
+    case PhysicalOperatorType::EXPORT_DATABASE:
+        return "EXPORT_DATABASE";
     case PhysicalOperatorType::FILTER:
         return "FILTER";
     case PhysicalOperatorType::FLATTEN:
@@ -54,10 +53,16 @@ std::string PhysicalOperatorUtils::operatorTypeToString(PhysicalOperatorType ope
         return "HASH_JOIN_BUILD";
     case PhysicalOperatorType::HASH_JOIN_PROBE:
         return "HASH_JOIN_PROBE";
+    case PhysicalOperatorType::IMPORT_DATABASE:
+        return "IMPORT_DATABASE";
+    case PhysicalOperatorType::IN_QUERY_CALL:
+        return "IN_QUERY_CALL";
     case PhysicalOperatorType::INDEX_LOOKUP:
         return "INDEX_LOOKUP";
     case PhysicalOperatorType::INDEX_SCAN:
         return "INDEX_SCAN";
+    case PhysicalOperatorType::INSERT:
+        return "INSERT";
     case PhysicalOperatorType::INTERSECT_BUILD:
         return "INTERSECT_BUILD";
     case PhysicalOperatorType::INTERSECT:
@@ -78,6 +83,8 @@ std::string PhysicalOperatorUtils::operatorTypeToString(PhysicalOperatorType ope
         return "PATH_PROPERTY_PROBE";
     case PhysicalOperatorType::PROJECTION:
         return "PROJECTION";
+    case PhysicalOperatorType::PROFILE:
+        return "PROFILE";
     case PhysicalOperatorType::RECURSIVE_JOIN:
         return "RECURSIVE_JOIN";
     case PhysicalOperatorType::RENAME_PROPERTY:
@@ -106,6 +113,8 @@ std::string PhysicalOperatorUtils::operatorTypeToString(PhysicalOperatorType ope
         return "SET_REL_PROPERTY";
     case PhysicalOperatorType::SKIP:
         return "SKIP";
+    case PhysicalOperatorType::STANDALONE_CALL:
+        return "STANDALONE_CALL";
     case PhysicalOperatorType::TOP_K:
         return "TOP_K";
     case PhysicalOperatorType::TOP_K_SCAN:
@@ -122,16 +131,10 @@ std::string PhysicalOperatorUtils::operatorTypeToString(PhysicalOperatorType ope
         return "UNION_ALL_SCAN";
     case PhysicalOperatorType::UNWIND:
         return "UNWIND";
-    case PhysicalOperatorType::IN_QUERY_CALL:
-        return "IN_QUERY_CALL";
-    case PhysicalOperatorType::PROFILE:
-        return "PROFILE";
-    case PhysicalOperatorType::EXPORT_DATABASE:
-        return "EXPORT_DATABASE";
-    case PhysicalOperatorType::IMPORT_DATABASE:
-        return "IMPORT_DATABASE";
+    case PhysicalOperatorType::USE_DATABASE:
+        return "USE_DATABASE";
     default:
-        KU_UNREACHABLE;
+        throw RuntimeException("Unknown physical operator type.");
     }
 }
 // LCOV_EXCL_STOP
