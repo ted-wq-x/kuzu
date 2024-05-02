@@ -1,0 +1,50 @@
+-GROUP LDBCTest
+-DATASET CSV ldbc-sf01
+
+--
+
+-CASE LDBCMultiMatchNode
+
+-LOG Test1
+-STATEMENT MATCH (a:Place) MATCH (b) WHERE a = b RETURN a.id, a.name ORDER BY a.id LIMIT 3;
+---- 3
+0|India
+1|China
+2|Angola
+
+-LOG Test2
+-STATEMENT MATCH (a:Place) WITH a AS c WITH c AS d MATCH (b) WHERE d = b RETURN d.id, d.name ORDER BY d.id LIMIT 3;
+---- 3
+0|India
+1|China
+2|Angola
+
+-LOG Test3
+-STATEMENT MATCH (a:Place) MATCH (b) WHERE ID(a) = ID(b) RETURN a.id, a.name ORDER BY a.id LIMIT 3;
+---- 3
+0|India
+1|China
+2|Angola
+
+-CASE LDBCMultiMatchRel
+
+-LOG Test1
+-STATEMENT MATCH (:Person)-[a:knows]->(:Person) MATCH (:Person)-[b:knows]->(f) WHERE a = b RETURN a.creationDate ORDER BY a.creationDate LIMIT 3;
+---- 3
+20100115161014348
+20100120233708602
+20100121060136490
+
+-LOG Test2
+-STATEMENT MATCH (:Person)-[a:knows]->(:Person) WITH a AS c WITH c AS d MATCH (:Person)-[b:knows]->(f) WHERE d = b RETURN d.creationDate ORDER BY d.creationDate LIMIT 3;
+---- 3
+20100115161014348
+20100120233708602
+20100121060136490
+
+-LOG Test3
+-STATEMENT MATCH (:Person)-[a:knows]->(:Person) MATCH (:Person)-[b:knows]->(f) WHERE ID(a) = ID(b) RETURN a.creationDate ORDER BY a.creationDate LIMIT 3;
+---- 3
+20100115161014348
+20100120233708602
+20100121060136490

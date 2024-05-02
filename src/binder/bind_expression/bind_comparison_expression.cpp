@@ -6,19 +6,43 @@
 #include "common/exception/binder.h"
 #include "function/built_in_function_utils.h"
 #include "main/client_context.h"
+#include "parser/expression/parsed_function_expression.h"
+#include "parser/expression/parsed_variable_expression.h"
 
 using namespace kuzu::common;
 using namespace kuzu::parser;
 
 namespace kuzu {
 namespace binder {
+ParsedFunctionExpression ParsedPropertyExpressionFaker(std::string nam) {
+    std::unique_ptr<ParsedExpression> parsedVariableExpressionFaker(
+        new (ParsedVariableExpression){nam, nam});
 
+    ParsedFunctionExpression parsedPropertyExpressionFaker =
+        (ParsedFunctionExpression){"ID", move(parsedVariableExpressionFaker), "ID(" + nam + ")"};
+    return parsedPropertyExpressionFaker;
+}
 std::shared_ptr<Expression> ExpressionBinder::bindComparisonExpression(
     const ParsedExpression& parsedExpression) {
     expression_vector children;
     for (auto i = 0u; i < parsedExpression.getNumChildren(); ++i) {
         auto child = bindExpression(*parsedExpression.getChild(i));
         children.push_back(std::move(child));
+    }
+    if (children.size() == 2 &&
+        ((children[0]->dataType.getLogicalTypeID() == LogicalTypeID::NODE &&
+             children[1]->dataType.getLogicalTypeID() == LogicalTypeID::NODE) ||
+            (children[0]->dataType.getLogicalTypeID() == LogicalTypeID::REL &&
+                children[1]->dataType.getLogicalTypeID() == LogicalTypeID::REL)) &&
+        (parsedExpression.getExpressionType() == ExpressionType::EQUALS ||
+            parsedExpression.getExpressionType() == ExpressionType::NOT_EQUALS)) {
+        children.clear();
+        ParsedFunctionExpression c1 =
+            ParsedPropertyExpressionFaker(parsedExpression.getChild(0)->getRawName());
+        ParsedFunctionExpression c2 =
+            ParsedPropertyExpressionFaker(parsedExpression.getChild(1)->getRawName());
+        children.push_back(std::move(bindFunctionExpression(c1))),
+            children.push_back(std::move(bindFunctionExpression(c2)));
     }
     return bindComparisonExpression(parsedExpression.getExpressionType(), children);
 }

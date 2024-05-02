@@ -38,7 +38,7 @@ void Planner::planOptionalMatch(const QueryGraphCollection& queryGraphCollection
     const std::vector<std::vector<std::string>>& hint) {
     if (leftPlan.isEmpty()) {
         // Optional match is the first clause. No left plan to join.
-        auto plan = planQueryGraphCollection(queryGraphCollection, predicates,hint);
+        auto plan = planQueryGraphCollection(queryGraphCollection, predicates, hint);
         leftPlan.setLastOperator(plan->getLastOperator());
         appendOptionalAccumulate(mark, leftPlan);
         return;
@@ -54,12 +54,26 @@ void Planner::planOptionalMatch(const QueryGraphCollection& queryGraphCollection
         return;
     }
     bool isInternalIDCorrelated =
-        ExpressionUtil::isExpressionsWithDataType(corrExprs, LogicalTypeID::INTERNAL_ID);
+             ExpressionUtil::isExpressionsWithDataType(corrExprs, LogicalTypeID::INTERNAL_ID),
+         flag = true;
+    expression_set cal;
+    for (uint32_t i = 0; i < queryGraphCollection.getNumQueryGraphs(); ++i) {
+        auto v = queryGraphCollection.getQueryGraph(i);
+        for (uint32_t j = 0; j < v->getNumQueryNodes(); ++j) {
+            cal.insert(v->getQueryNode(j).get()->getInternalID());
+        }
+    }
+    for (auto expression : corrExprs) {
+        if (!cal.contains(expression)) {
+            flag = false;
+            break;
+        }
+    }
     std::unique_ptr<LogicalPlan> rightPlan;
-    if (isInternalIDCorrelated) {
-        // If all correlated expressions are node IDs. We can trivially unnest by scanning internal
-        // ID in both outer and inner plan as these are fast in-memory operations. For node
-        // properties, we only scan in the outer query.
+    if (isInternalIDCorrelated && flag) {
+        // If all correlated expressions are node IDs. We can trivially unnest by scanning
+        // internal ID in both outer and inner plan as these are fast in-memory operations. For
+        // node properties, we only scan in the outer query.
         rightPlan = planQueryGraphCollectionInNewContext(SubqueryType::INTERNAL_ID_CORRELATED,
             corrExprs, leftPlan.getCardinality(), queryGraphCollection, predicates, hint);
     } else {
@@ -90,8 +104,20 @@ void Planner::planRegularMatch(const QueryGraphCollection& queryGraphCollection,
             predicatesToPullUp.push_back(predicate);
         }
     }
-    auto joinNodeIDs = ExpressionUtil::getExpressionsWithDataType(correlatedExpressions,
+    auto joinNodeIDs_full = ExpressionUtil::getExpressionsWithDataType(correlatedExpressions,
         LogicalTypeID::INTERNAL_ID);
+    expression_set cal;
+    for (uint32_t i = 0; i < queryGraphCollection.getNumQueryGraphs(); ++i) {
+        auto v = queryGraphCollection.getQueryGraph(i);
+        for (uint32_t j = 0; j < v->getNumQueryNodes(); ++j) {
+            cal.insert(v->getQueryNode(j).get()->getInternalID());
+        }
+    }
+    expression_vector joinNodeIDs;
+    for (auto expression : joinNodeIDs_full) {
+        if (cal.contains(expression))
+            joinNodeIDs.push_back(expression);
+    }
     if (joinNodeIDs.empty()) {
         auto rightPlan =
             planQueryGraphCollectionInNewContext(SubqueryType::NONE, correlatedExpressions,
