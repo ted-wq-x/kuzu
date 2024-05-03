@@ -526,6 +526,9 @@ void Planner::connectSubGraph(const SubqueryGraph& leftSubgraph,
     const SubqueryGraph& rightSubgraph) {
     auto joinNodePositions = rightSubgraph.getConnectedNodePos(leftSubgraph);
     auto joinNodes = context.queryGraph->getQueryNodes(joinNodePositions);
+    if (joinNodes.empty()) {
+        throw RuntimeException("Must have join conditions between subGraphs");
+    }
     if (needPruneImplicitJoins(leftSubgraph, rightSubgraph, joinNodes.size())) {
         return;
     }
