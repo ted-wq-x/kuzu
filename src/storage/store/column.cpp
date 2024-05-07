@@ -105,8 +105,9 @@ public:
     void scan(Transaction*, ChunkState&, ValueVector* nodeIDVector,
         ValueVector* resultVector) override {
         // Serial column cannot contain null values.
-        for (auto i = 0ul; i < nodeIDVector->state->selVector->selectedSize; i++) {
-            auto pos = nodeIDVector->state->selVector->selectedPositions[i];
+        auto& selVector = nodeIDVector->state->getSelVector();
+        for (auto i = 0ul; i < selVector.getSelSize(); i++) {
+            auto pos = selVector[i];
             auto offset = nodeIDVector->readNodeOffset(pos);
             resultVector->setNull(pos, false);
             resultVector->setValue<offset_t>(pos, offset);
@@ -116,8 +117,9 @@ public:
     void lookup(Transaction*, ChunkState&, ValueVector* nodeIDVector,
         ValueVector* resultVector) override {
         // Serial column cannot contain null values.
-        for (auto i = 0ul; i < nodeIDVector->state->selVector->selectedSize; i++) {
-            auto pos = nodeIDVector->state->selVector->selectedPositions[i];
+        auto& selVector = nodeIDVector->state->getSelVector();
+        for (auto i = 0ul; i < selVector.getSelSize(); i++) {
+            auto pos = selVector[i];
             auto offset = nodeIDVector->readNodeOffset(pos);
             resultVector->setNull(pos, false);
             resultVector->setValue<offset_t>(pos, offset);
@@ -212,8 +214,9 @@ InternalIDColumn::InternalIDColumn(std::string name, const MetadataDAHInfo& meta
 
 void InternalIDColumn::populateCommonTableIDFiltered(ValueVector* resultVector) const {
     auto nodeIDs = ((internalID_t*)resultVector->getData());
-    for (auto i = 0u; i < resultVector->state->selVector->selectedSize; i++) {
-        auto pos = resultVector->state->selVector->selectedPositions[i];
+    auto& selVector = resultVector->state->getSelVector();
+    for (auto i = 0u; i < selVector.getSelSize(); i++) {
+        auto pos = selVector[i];
         nodeIDs[pos].tableID = commonTableID;
     }
 }
@@ -383,8 +386,8 @@ void Column::scanInternal(Transaction* transaction, ChunkState& readState,
         StorageUtils::getNodeGroupIdxAndOffsetInChunk(nodeIDVector->readNodeOffset(0));
     KU_ASSERT(nodeGroupIdx == readState.nodeGroupIdx);
     auto cursor = getPageCursorForOffsetInGroup(startOffsetInChunk, readState);
-    if (nodeIDVector->state->selVector->isUnfiltered()) {
-        scanUnfiltered(transaction, cursor, nodeIDVector->state->selVector->selectedSize,
+    if (nodeIDVector->state->getSelVector().isUnfiltered()) {
+        scanUnfiltered(transaction, cursor, nodeIDVector->state->getSelVector().getSelSize(),
             resultVector, readState.metadata);
     } else {
         scanFiltered(transaction, cursor, nodeIDVector, resultVector, readState.metadata);
@@ -418,12 +421,13 @@ void Column::scanFiltered(Transaction* transaction, PageCursor& pageCursor,
     auto posInSelVector = 0u;
     auto numValuesPerPage =
         chunkMeta.compMeta.numValues(BufferPoolConstants::PAGE_4KB_SIZE, dataType);
+    auto& selVector = nodeIDVector->state->getSelVector();
     while (numValuesScanned < numValuesToScan) {
         uint64_t numValuesToScanInPage =
             std::min((uint64_t)numValuesPerPage - pageCursor.elemPosInPage,
                 numValuesToScan - numValuesScanned);
-        if (isInRange(nodeIDVector->state->selVector->selectedPositions[posInSelVector],
-                numValuesScanned, numValuesScanned + numValuesToScanInPage)) {
+        if (isInRange(selVector[posInSelVector], numValuesScanned,
+                numValuesScanned + numValuesToScanInPage)) {
             KU_ASSERT(isPageIdxValid(pageCursor.pageIdx, chunkMeta));
             readFromPage(transaction, pageCursor.pageIdx, [&](uint8_t* frame) -> void {
                 readToVectorFunc(frame, pageCursor, resultVector, numValuesScanned,
@@ -432,9 +436,8 @@ void Column::scanFiltered(Transaction* transaction, PageCursor& pageCursor,
         }
         numValuesScanned += numValuesToScanInPage;
         pageCursor.nextPage();
-        while (
-            posInSelVector < nodeIDVector->state->selVector->selectedSize &&
-            nodeIDVector->state->selVector->selectedPositions[posInSelVector] < numValuesScanned) {
+        while (posInSelVector < selVector.getSelSize() &&
+               selVector[posInSelVector] < numValuesScanned) {
             posInSelVector++;
         }
     }
@@ -451,8 +454,9 @@ void Column::lookup(Transaction* transaction, ChunkState& readState, ValueVector
 
 void Column::lookupInternal(transaction::Transaction* transaction, ChunkState& readState,
     ValueVector* nodeIDVector, ValueVector* resultVector) {
-    for (auto i = 0ul; i < nodeIDVector->state->selVector->selectedSize; i++) {
-        auto pos = nodeIDVector->state->selVector->selectedPositions[i];
+    auto& selVector = nodeIDVector->state->getSelVector();
+    for (auto i = 0ul; i < selVector.getSelSize(); i++) {
+        auto pos = selVector[i];
         if (nodeIDVector->isNull(pos)) {
             continue;
         }
