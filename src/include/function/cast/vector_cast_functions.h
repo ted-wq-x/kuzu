@@ -32,7 +32,7 @@ struct CastToDateFunction {
 struct CastToTimestampFunction {
     static constexpr const char* name = "TIMESTAMP";
 
-    //兼容crux
+    // 兼容crux
     static constexpr const char* alias = "LOCALDATETIME";
 
     static function_set getFunctionSet();
@@ -50,6 +50,8 @@ struct CastToStringFunction {
     static constexpr const char* name = "TO_STRING";
 
     static constexpr const char* alias = "STRING";
+
+    static constexpr const char* alias2 = "TOSTRING";
 
     static function_set getFunctionSet();
 };
@@ -73,17 +75,23 @@ struct CastToUUIDFunction {
 struct CastToBoolFunction {
     static constexpr const char* name = "TO_BOOL";
 
+    static constexpr const char* alias = "TOBOOLEAN";
+
     static function_set getFunctionSet();
 };
 
 struct CastToDoubleFunction {
     static constexpr const char* name = "TO_DOUBLE";
 
+    static constexpr const char* alias = "TODOUBLE";
+
     static function_set getFunctionSet();
 };
 
 struct CastToFloatFunction {
     static constexpr const char* name = "TO_FLOAT";
+
+    static constexpr const char* alias = "TOFLOAT";
 
     static function_set getFunctionSet();
 };
@@ -103,11 +111,15 @@ struct CastToInt128Function {
 struct CastToInt64Function {
     static constexpr const char* name = "TO_INT64";
 
+    static constexpr const char* alias = "TOLONG";
+
     static function_set getFunctionSet();
 };
 
 struct CastToInt32Function {
     static constexpr const char* name = "TO_INT32";
+
+    static constexpr const char* alias = "TOINTEGER";
 
     static function_set getFunctionSet();
 };

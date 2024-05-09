@@ -17,7 +17,8 @@ struct Century {
 
 struct EpochMs {
     static inline void operation(int64_t& ms, common::timestamp_t& result) {
-        result = common::Timestamp::fromEpochMilliSeconds(ms);
+        result =
+            common::Timestamp::fromEpochMilliSeconds(ms + 8 * common::Interval::MSECS_PER_HOUR);
     }
 };
 
@@ -28,6 +29,14 @@ struct ToTimestamp {
             throw common::ConversionException("Could not convert epoch seconds to TIMESTAMP");
         }
         result = common::timestamp_t(ms);
+    }
+};
+
+struct TimeDiff {
+    static inline void operation(common::timestamp_t& left, common::timestamp_t& right,
+        common::ku_string_t& specifier, int64_t& result) {
+        int64_t diff = left - right;
+        result = common::Timestamp::getTimeDiffPart(specifier.getAsString(), diff);
     }
 };
 

@@ -37,7 +37,7 @@ struct KUZU_API timestamp_t {
     timestamp_t operator+(const interval_t& interval) const;
     timestamp_t operator-(const interval_t& interval) const;
 
-    interval_t operator-(const timestamp_t& rhs) const;
+    int64_t operator-(const timestamp_t& rhs) const;
 };
 
 struct timestamp_tz_t : public timestamp_t { // NO LINT
@@ -102,6 +102,8 @@ public:
     KUZU_API static int64_t getEpochMilliSeconds(const timestamp_t& timestamp);
 
     KUZU_API static int64_t getEpochSeconds(const timestamp_t& timestamp);
+
+    KUZU_API static int64_t getTimeDiffPart(std::string specifier, int64_t& diff);
 
     KUZU_API static bool tryParseUTCOffset(const char* str, uint64_t& pos, uint64_t len,
         int& hour_offset, int& minute_offset);

@@ -1,0 +1,244 @@
+-DATASET CSV empty
+
+--
+
+-CASE stellardbFunction
+
+-LOG q1
+-STATEMENT return concat_string("a1","b2");
+---- 1
+a1b2
+
+-LOG q2
+-STATEMENT return tolower("Aa");
+---- 1
+aa
+
+-LOG q3
+-STATEMENT return toupper("ab");
+---- 1
+AB
+
+-LOG q4
+-STATEMENT return tointeger("234");
+---- 1
+234
+
+-LOG q5
+-STATEMENT return tolong("234");
+---- 1
+234
+
+-LOG q6
+-STATEMENT return toFloat("2.34");
+---- 1
+2.340000
+
+-LOG q7
+-STATEMENT return toDouble("2.34");
+---- 1
+2.340000
+
+-LOG q8
+-STATEMENT return tostring(1.2);
+---- 1
+1.2
+
+-LOG q9
+-STATEMENT return tostring(1.0000);
+---- 1
+1.0
+
+-LOG q10
+-STATEMENT return toboolean(1);
+---- 1
+True
+
+-LOG q11
+-STATEMENT return toboolean("0");
+---- 1
+False
+
+-LOG q12
+-STATEMENT return toboolean(1!=2);
+---- 1
+True
+
+-LOG q13
+-STATEMENT return localdatetime("2024-04-18 15:23:05");
+---- 1
+2024-04-18 15:23:05
+
+-LOG q14
+-STATEMENT return localdatetime("2024-04-18");
+---- 1
+2024-04-18 00:00:00
+
+-LOG q15
+-STATEMENT return year(localdatetime('1995-11-02 12:05:21'));
+---- 1
+1995
+
+-LOG q16
+-STATEMENT return month(localdatetime('1995-11-02 12:05:21'));
+---- 1
+11
+
+-LOG q17
+-STATEMENT return day(localdatetime('1995-11-02 12:05:21'));
+---- 1
+2
+
+-LOG q18
+-STATEMENT return hour(localdatetime('1995-11-02 12:05:21'));
+---- 1
+12
+
+-LOG q19
+-STATEMENT return minute(localdatetime('1995-11-02 12:05:21'));
+---- 1
+5
+
+-LOG q20
+-STATEMENT return second(localdatetime('1995-11-02 12:05:21'));
+---- 1
+21
+
+-LOG q21
+-STATEMENT return add_day(localdatetime("2022-11-12 13:22:17"),2);
+---- 1
+2022-11-14 13:22:17
+
+-LOG q22
+-STATEMENT return add_hour(localdatetime("2022-11-12 13:22:17"),2);
+---- 1
+2022-11-12 15:22:17
+
+-LOG q23
+-STATEMENT return add_minute(localdatetime("2022-11-12 13:22:17"),2);
+---- 1
+2022-11-12 13:24:17
+
+-LOG q24
+-STATEMENT return add_second(localdatetime("2022-11-12 13:22:17"),2);
+---- 1
+2022-11-12 13:22:19
+
+-LOG q25
+-STATEMENT return epoch_ms(0);
+---- 1
+1970-01-01 08:00:00
+
+-LOG q26
+-STATEMENT return tolocaldatetime(1);
+---- 1
+1970-01-01 08:00:00.001
+
+-LOG q27
+-STATEMENT return localdatetime('2022-11-22 15:12:22') -localdatetime('2022-11-22 15:12:21');
+---- 1
+1000
+
+-LOG q28
+-STATEMENT return timediff(localdatetime('2022-11-22 15:12:22') ,localdatetime('2021-10-21 14:11:20'),"d");
+---- 1
+397
+
+-LOG q29
+-STATEMENT return timediff(localdatetime('2022-11-22 15:12:22') ,localdatetime('2021-10-21 14:11:20'),"h");
+---- 1
+9529
+
+-LOG q30
+-STATEMENT return timediff(localdatetime('2022-11-22 15:12:22') ,localdatetime('2021-10-21 14:11:20'),"m");
+---- 1
+571741
+
+-LOG q31
+-STATEMENT return timediff(localdatetime('2022-11-22 15:12:22') ,localdatetime('2021-10-21 14:11:20'),"s");
+---- 1
+34304462
+
+-LOG q32
+-STATEMENT return timediff(localdatetime('2022-11-22 15:12:22') ,localdatetime('2021-10-21 14:11:20'),"ms");
+---- 1
+34304462000
+
+-LOG q33
+-STATEMENT return crux_size([1,2,3]);
+---- 1
+3
+
+-LOG q34
+-STATEMENT return head([1,2,3]);
+---- 1
+1
+
+-LOG q35
+-STATEMENT return last([1,2,3]);
+---- 1
+3
+
+-LOG q36
+-STATEMENT return tail([1,2,3])
+---- 1
+[2,3]
+
+-LOG q37
+-STATEMENT return tail([1])
+---- 1
+[]
+
+-LOG q38
+-STATEMENT return add_list([1,2,3], 4);
+---- 1
+[1,2,3,4]
+
+-LOG q39
+-STATEMENT return list_apply([1,2,3],0);
+1
+
+-LOG q40
+-STATEMENT return sort_list([3,1,2]);
+---- 1
+[1,2,3]
+
+-LOG q41
+-STATEMENT return collection_contains([1,2,3],[1,2]);
+---- 1
+True
+
+-LOG q42
+-STATEMENT return collection_contains([1,2,3],[1,2,4]);
+---- 1
+False
+
+-LOG q43
+-STATEMENT return collection_contains([1,2,3],[1,1]);
+---- 1
+False
+
+-LOG q44
+-STATEMENT return collection_contains([1,2,3],[3,2]);
+---- 1
+True
+
+-LOG q45
+-STATEMENT return collection_contains([1,2,3],["1"]);
+---- 1
+False
+
+-LOG q46
+-STATEMENT return 1<2<=3>2;
+---- 1
+True
+
+-LOG q47
+-STATEMENT return 1!=2<2;
+---- 1
+False
+
+-LOG q48
+-STATEMENT return 2<<1 < 2+3;
+---- 1
+True

@@ -25,5 +25,11 @@ struct EndNodeFunction {
     static constexpr const char* name = "END_NODE";
 };
 
+struct UIDFunction {
+    static constexpr const char* name = "UID";
+
+    static function_set getFunctionSet();
+};
+
 } // namespace function
 } // namespace kuzu

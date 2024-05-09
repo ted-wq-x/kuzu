@@ -92,6 +92,39 @@ struct UnaryUDFFunctionWrapper {
     }
 };
 
+struct UnaryListExtractFunctionWrapper {
+    template<typename OPERAND_TYPE, typename RESULT_TYPE, typename OP>
+    static inline void operation(OPERAND_TYPE& operand, RESULT_TYPE& result,
+        common::ValueVector* operandValueVector, common::ValueVector* resultValueVector,
+        uint64_t resultPos, void* /*dataPtr*/) {
+        OP::operation(operand, result, *operandValueVector, *resultValueVector, resultPos);
+    }
+};
+
+struct UnaryListFunctionWrapper {
+    template<typename OPERAND_TYPE, typename RESULT_TYPE, typename OP>
+    static inline void operation(OPERAND_TYPE& operand, RESULT_TYPE& result,
+        void* operandValueVector, void* resultValueVector, void* /*dataPtr*/) {
+        OP::operation(operand, result, *(common::ValueVector*)operandValueVector,
+            *(common::ValueVector*)resultValueVector);
+    }
+};
+
+struct CastChildFunctionExecutor {
+    template<typename OPERAND_TYPE, typename RESULT_TYPE, typename FUNC, typename OP_WRAPPER>
+    static void executeSwitch(common::ValueVector& operand, common::ValueVector& result,
+        void* dataPtr) {
+        auto numOfEntries = reinterpret_cast<CastFunctionBindData*>(dataPtr)->numOfEntries;
+        for (auto i = 0u; i < numOfEntries; i++) {
+            result.setNull(i, operand.isNull(i));
+            if (!result.isNull(i)) {
+                OP_WRAPPER::template operation<OPERAND_TYPE, RESULT_TYPE, FUNC>((void*)(&operand),
+                    i, (void*)(&result), i, dataPtr);
+            }
+        }
+    }
+};
+
 struct UnaryFunctionExecutor {
     template<typename OPERAND_TYPE, typename RESULT_TYPE, typename FUNC, typename OP_WRAPPER>
     static void executeOnValue(common::ValueVector& inputVector, uint64_t inputPos,
@@ -160,6 +193,30 @@ struct UnaryFunctionExecutor {
         void* dataPtr) {
         executeSwitch<OPERAND_TYPE, RESULT_TYPE, FUNC, UnaryUDFFunctionWrapper>(operand, result,
             dataPtr);
+    }
+
+    template<typename OPERAND_TYPE, typename RESULT_TYPE, typename FUNC>
+    static void executeListExtract(common::ValueVector& operand, common::ValueVector& result) {
+        auto pos = operand.state->selVector->selectedPositions[0];
+        auto resPos = result.state->selVector->selectedPositions[0];
+        result.setNull(resPos, operand.isNull(pos));
+        if (!result.isNull(resPos)) {
+            UnaryListExtractFunctionWrapper::template operation<OPERAND_TYPE, RESULT_TYPE, FUNC>(
+                ((OPERAND_TYPE*)operand.getData())[pos], ((RESULT_TYPE*)result.getData())[resPos],
+                &operand, &result, resPos, nullptr /* dataPtr */);
+        }
+    }
+
+    template<typename OPERAND_TYPE, typename RESULT_TYPE, typename FUNC>
+    static void executeListStruct(common::ValueVector& operand, common::ValueVector& result) {
+        auto pos = operand.state->selVector->selectedPositions[0];
+        auto resPos = result.state->selVector->selectedPositions[0];
+        result.setNull(resPos, operand.isNull(pos));
+        if (!result.isNull(resPos)) {
+            UnaryListFunctionWrapper::operation<OPERAND_TYPE, RESULT_TYPE, FUNC>(
+                ((OPERAND_TYPE*)operand.getData())[pos], ((RESULT_TYPE*)result.getData())[resPos],
+                &operand, &result, nullptr /* dataPtr */);
+        }
     }
 };
 

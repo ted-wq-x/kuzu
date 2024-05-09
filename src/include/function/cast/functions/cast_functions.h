@@ -14,7 +14,25 @@ struct CastToString {
     static inline void operation(T& input, common::ku_string_t& result,
         common::ValueVector& inputVector, common::ValueVector& resultVector) {
         auto str = common::TypeUtils::toString(input, (void*)&inputVector);
-        common::StringVector::addString(&resultVector, result, str);
+        auto remove_trailing_zeros = [](std::string str) -> std::string {
+            auto pos = str.find('.');
+            if (pos == std::string::npos) {
+                return str;
+            }
+            for (size_t i = pos + 1; i < str.size(); ++i) {
+                if (!isdigit(str[i])) {
+                    return str;
+                }
+            }
+            while (str.back() == '0') {
+                str.pop_back();
+            }
+            if (str.back() == '.') {
+                str.push_back('0');
+            }
+            return str;
+        };
+        common::StringVector::addString(&resultVector, result, remove_trailing_zeros(str));
     }
 };
 

@@ -33,6 +33,8 @@ struct ArrayExtractFunction {
 struct ConcatFunction : public VectorStringFunction {
     static constexpr const char* name = "CONCAT";
 
+    static constexpr const char* alias = "CONCAT_STRING";
+
     static void execFunc(const std::vector<std::shared_ptr<common::ValueVector>>& parameters,
         common::ValueVector& result, void* /*dataPtr*/);
 
@@ -63,6 +65,8 @@ struct LowerFunction : public VectorStringFunction {
     static constexpr const char* name = "LOWER";
 
     static constexpr const char* alias = "LCASE";
+
+    static constexpr const char* alias2 = "TOLOWER";
 
     static inline function_set getFunctionSet() { return getUnaryStrFunction<Lower>(name); }
 };
@@ -135,6 +139,8 @@ struct UpperFunction : public VectorStringFunction {
     static constexpr const char* name = "UPPER";
 
     static constexpr const char* alias = "UCASE";
+
+    static constexpr const char* alias2 = "TOUPPER";
 
     static inline function_set getFunctionSet() { return getUnaryStrFunction<Upper>(name); }
 };

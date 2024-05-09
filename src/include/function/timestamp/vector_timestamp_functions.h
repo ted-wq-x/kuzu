@@ -14,6 +14,8 @@ struct CenturyFunction {
 struct EpochMsFunction {
     static constexpr const char* name = "EPOCH_MS";
 
+    static constexpr const char* alias = "TOLOCALDATETIME";
+    
     static function_set getFunctionSet();
 };
 
@@ -21,6 +23,12 @@ struct ToTimestampFunction {
     static constexpr const char* name = "TO_TIMESTAMP";
 
     static function_set getFunctionSet();
+};
+
+struct TimeDiffFunction{
+     static constexpr const char* name = "TIMEDIFF";
+
+     static function_set getFunctionSet();
 };
 
 } // namespace function

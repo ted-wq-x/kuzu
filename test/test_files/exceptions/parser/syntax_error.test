@@ -30,12 +30,6 @@ Parser exception: RETURN can only be used at the end of the query (line: 1, offs
 "RETURN a MATCH (a) RETURN a;"
  ^^^^^^
 
--CASE ConjunctiveComparison
--STATEMENT MATCH (a:person)<-[e1:knows]-(b:person)-[e2:knows]->(c:person) WHERE b.fName = e1.date = e2.date AND id(a) <> id(c) RETURN COUNT(*);
----- error
-Parser exception: Non-binary comparison (e.g. a=b=c) is not supported (line: 1, offset: 69)
-"MATCH (a:person)<-[e1:knows]-(b:person)-[e2:knows]->(c:person) WHERE b.fName = e1.date = e2.date AND id(a) <> id(c) RETURN COUNT(*);"
-                                                                      ^
 -LOG SubExpressionInMacro
 -STATEMENT CREATE MACRO add4(x) AS exists match (a:person) return a.age
 ---- error

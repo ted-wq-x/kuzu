@@ -92,29 +92,54 @@ std::unique_ptr<ParsedExpression> Transformer::transformComparisonExpression(
     }
     // Antlr parser throws error for conjunctive comparison.
     // Transformer should only handle the case of single comparison operator.
-    KU_ASSERT(ctx.kU_ComparisonOperator().size() == 1);
-    auto left = transformBitwiseOrOperatorExpression(*ctx.kU_BitwiseOrOperatorExpression(0));
-    auto right = transformBitwiseOrOperatorExpression(*ctx.kU_BitwiseOrOperatorExpression(1));
-    auto comparisonOperator = ctx.kU_ComparisonOperator()[0]->getText();
-    if (comparisonOperator == "=") {
-        return std::make_unique<ParsedExpression>(ExpressionType::EQUALS, std::move(left),
-            std::move(right), ctx.getText());
-    } else if (comparisonOperator == "<>" || comparisonOperator == "!=") {
-        return std::make_unique<ParsedExpression>(ExpressionType::NOT_EQUALS, std::move(left),
-            std::move(right), ctx.getText());
-    } else if (comparisonOperator == ">") {
-        return std::make_unique<ParsedExpression>(ExpressionType::GREATER_THAN, std::move(left),
-            std::move(right), ctx.getText());
-    } else if (comparisonOperator == ">=") {
-        return std::make_unique<ParsedExpression>(ExpressionType::GREATER_THAN_EQUALS,
-            std::move(left), std::move(right), ctx.getText());
-    } else if (comparisonOperator == "<") {
-        return std::make_unique<ParsedExpression>(ExpressionType::LESS_THAN, std::move(left),
-            std::move(right), ctx.getText());
+    if (ctx.kU_ComparisonOperator().size() == 1) {
+        auto left = transformBitwiseOrOperatorExpression(*ctx.kU_BitwiseOrOperatorExpression(0));
+        auto right = transformBitwiseOrOperatorExpression(*ctx.kU_BitwiseOrOperatorExpression(1));
+        auto comparisonOperator = ctx.kU_ComparisonOperator()[0]->getText();
+        if (comparisonOperator == "=") {
+            return std::make_unique<ParsedExpression>(ExpressionType::EQUALS, std::move(left),
+                std::move(right), ctx.getText());
+        } else if (comparisonOperator == "<>" || comparisonOperator == "!=") {
+            return std::make_unique<ParsedExpression>(ExpressionType::NOT_EQUALS, std::move(left),
+                std::move(right), ctx.getText());
+        } else if (comparisonOperator == ">") {
+            return std::make_unique<ParsedExpression>(ExpressionType::GREATER_THAN, std::move(left),
+                std::move(right), ctx.getText());
+        } else if (comparisonOperator == ">=") {
+            return std::make_unique<ParsedExpression>(ExpressionType::GREATER_THAN_EQUALS,
+                std::move(left), std::move(right), ctx.getText());
+        } else if (comparisonOperator == "<") {
+            return std::make_unique<ParsedExpression>(ExpressionType::LESS_THAN, std::move(left),
+                std::move(right), ctx.getText());
+        } else {
+            KU_ASSERT(comparisonOperator == "<=");
+            return std::make_unique<ParsedExpression>(ExpressionType::LESS_THAN_EQUALS,
+                std::move(left), std::move(right), ctx.getText());
+        }
     } else {
-        KU_ASSERT(comparisonOperator == "<=");
-        return std::make_unique<ParsedExpression>(ExpressionType::LESS_THAN_EQUALS, std::move(left),
-            std::move(right), ctx.getText());
+        std::vector<std::unique_ptr<ParsedExpression>> expressions;
+        for (size_t i = 0; i < ctx.kU_BitwiseOrOperatorExpression().size() - 1; ++i) {
+            auto left =
+                transformBitwiseOrOperatorExpression(*ctx.kU_BitwiseOrOperatorExpression(i));
+            auto right =
+                transformBitwiseOrOperatorExpression(*ctx.kU_BitwiseOrOperatorExpression(i + 1));
+            auto op = ctx.kU_ComparisonOperator()[i]->getText();
+            expressions.push_back(std::make_unique<ParsedExpression>(
+                (op == "=")                    ? ExpressionType::EQUALS :
+                ((op == "<>") || (op == "!=")) ? ExpressionType::NOT_EQUALS :
+                (op == ">")                    ? ExpressionType::GREATER_THAN :
+                (op == ">=")                   ? ExpressionType::GREATER_THAN_EQUALS :
+                (op == "<")                    ? ExpressionType::LESS_THAN :
+                                                 ExpressionType::LESS_THAN_EQUALS,
+                std::move(left), std::move(right), ctx.getText()));
+        }
+        std::unique_ptr<ParsedExpression> expression = std::move(expressions[0]);
+        for (size_t i = 1; i < expressions.size(); ++i) {
+            auto rawName = expression->getRawName() + " AND " + expressions[i]->getRawName();
+            expression = std::make_unique<ParsedExpression>(ExpressionType::AND,
+                std::move(expression), std::move(expressions[i]), rawName);
+        }
+        return expression;
     }
 }
 

@@ -44,5 +44,19 @@ function_set IDFunction::getFunctionSet() {
     return functionSet;
 }
 
+static std::shared_ptr<binder::Expression> UIDrewriteFunc(const expression_vector& params,
+    ExpressionBinder* binder) {
+    KU_ASSERT(params.size() == 1);
+    auto node = ku_dynamic_cast<Expression*, NodeExpression*>(params[0].get());
+    return node->getPropertyExpression(node->getPrimaryKeyName());
+}
+
+function_set UIDFunction::getFunctionSet() {
+    function_set functionSet;
+    functionSet.push_back(std::move(std::make_unique<RewriteFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::NODE}, UIDrewriteFunc)));
+    return functionSet;
+}
+
 } // namespace function
 } // namespace kuzu

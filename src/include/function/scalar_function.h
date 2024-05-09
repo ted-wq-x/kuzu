@@ -197,6 +197,15 @@ struct ScalarFunction final : public BaseScalarFunction {
             *params[0], *params[1], result);
     }
 
+    template<typename OPERAND_TYPE, typename RESULT_TYPE, typename FUNC>
+    static void UnaryExecListStructFunction(
+        const std::vector<std::shared_ptr<common::ValueVector>>& params,
+        common::ValueVector& result, void* /*dataPtr*/ = nullptr) {
+        KU_ASSERT(params.size() == 1);
+        UnaryFunctionExecutor::executeListStruct<OPERAND_TYPE, RESULT_TYPE, FUNC>(*params[0],
+            result);
+    }
+
     std::unique_ptr<Function> copy() const override {
         return std::make_unique<ScalarFunction>(*this);
     }

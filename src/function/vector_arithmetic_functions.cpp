@@ -204,9 +204,9 @@ function_set SubtractFunction::getFunctionSet() {
         std::vector<LogicalTypeID>{LogicalTypeID::DATE, LogicalTypeID::INTERVAL},
         LogicalTypeID::DATE,
         ScalarFunction::BinaryExecFunction<date_t, interval_t, date_t, Subtract>));
-    // timestamp - timestamp → interval
-    result.push_back(getBinaryFunction<Subtract, timestamp_t, interval_t>(name,
-        LogicalTypeID::TIMESTAMP, LogicalTypeID::INTERVAL));
+    // timestamp - timestamp → int64
+    result.push_back(getBinaryFunction<Subtract, timestamp_t, int64_t>(name,
+        LogicalTypeID::TIMESTAMP, LogicalTypeID::INT64));
     // timestamp - interval → timestamp
     result.push_back(make_unique<ScalarFunction>(name,
         std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP, LogicalTypeID::INTERVAL},

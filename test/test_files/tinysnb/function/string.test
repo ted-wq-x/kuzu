@@ -77,7 +77,7 @@ Hubert Blaine Wolfeschlegelsteinhausenbergerdorffsuffix
 1
 
 -LOG StrVarAndDoubleLiteralConcat
--STATEMENT MATCH (a:person) WHERE concat(a.fName, string(11.7)) = 'Farooq11.700000' RETURN COUNT(*)
+-STATEMENT MATCH (a:person) WHERE concat(a.fName, string(11.7)) = 'Farooq11.7' RETURN COUNT(*)
 ---- 1
 1
 

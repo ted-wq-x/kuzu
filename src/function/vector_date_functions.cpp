@@ -104,5 +104,107 @@ function_set MonthNameFunction::getFunctionSet() {
     return result;
 }
 
+function_set DateYearFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::DATE}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<date_t, int64_t, DateYearPart>));
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<timestamp_t, int64_t, DateYearPart>));
+    return result;
+}
+
+function_set DateMonthFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::DATE}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<date_t, int64_t, DateMonthPart>));
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<timestamp_t, int64_t, DateMonthPart>));
+    return result;
+}
+
+function_set DateDayFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(
+        make_unique<ScalarFunction>(name, std::vector<LogicalTypeID>{LogicalTypeID::DATE},
+            LogicalTypeID::INT64, ScalarFunction::UnaryExecFunction<date_t, int64_t, DateDayPart>));
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<timestamp_t, int64_t, DateDayPart>));
+    return result;
+}
+
+function_set DateHourFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::DATE}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<date_t, int64_t, DateHourPart>));
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<timestamp_t, int64_t, DateHourPart>));
+    return result;
+}
+
+function_set DateMinuteFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::DATE}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<date_t, int64_t, DateMinutePart>));
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<timestamp_t, int64_t, DateMinutePart>));
+    return result;
+}
+
+function_set DateSecondFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::DATE}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<date_t, int64_t, DateSecondPart>));
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP}, LogicalTypeID::INT64,
+        ScalarFunction::UnaryExecFunction<timestamp_t, int64_t, DateSecondPart>));
+    return result;
+}
+
+function_set AddDayFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP, LogicalTypeID::INT64},
+        LogicalTypeID::TIMESTAMP,
+        ScalarFunction::BinaryExecFunction<timestamp_t, int64_t, timestamp_t, AddDay>));
+    return result;
+}
+
+function_set AddHourFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP, LogicalTypeID::INT64},
+        LogicalTypeID::TIMESTAMP,
+        ScalarFunction::BinaryExecFunction<timestamp_t, int64_t, timestamp_t, AddHour>));
+    return result;
+}
+
+function_set AddMinuteFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP, LogicalTypeID::INT64},
+        LogicalTypeID::TIMESTAMP,
+        ScalarFunction::BinaryExecFunction<timestamp_t, int64_t, timestamp_t, AddMinute>));
+    return result;
+}
+
+function_set AddSecondFunction::getFunctionSet() {
+    function_set result;
+    result.push_back(make_unique<ScalarFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::TIMESTAMP, LogicalTypeID::INT64},
+        LogicalTypeID::TIMESTAMP,
+        ScalarFunction::BinaryExecFunction<timestamp_t, int64_t, timestamp_t, AddSecond>));
+    return result;
+}
+
 } // namespace function
 } // namespace kuzu

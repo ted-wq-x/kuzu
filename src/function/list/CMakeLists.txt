@@ -3,6 +3,7 @@ add_library(kuzu_list_function
         list_agg_function.cpp
         list_any_value_function.cpp
         list_append_function.cpp
+        list_collection_contains.cpp
         list_concat_function.cpp
         list_contains_function.cpp
         list_creation.cpp

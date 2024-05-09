@@ -98,17 +98,8 @@ timestamp_t timestamp_t::operator-(const interval_t& interval) const {
     return (*this) + inverseRight;
 }
 
-interval_t timestamp_t::operator-(const timestamp_t& rhs) const {
-    interval_t result{};
-    uint64_t diff = std::abs(value - rhs.value);
-    result.months = 0;
-    result.days = diff / Interval::MICROS_PER_DAY;
-    result.micros = diff % Interval::MICROS_PER_DAY;
-    if (value < rhs.value) {
-        result.days = -result.days;
-        result.micros = -result.micros;
-    }
-    return result;
+int64_t timestamp_t::operator-(const timestamp_t& rhs) const {
+    return (value - rhs.value) / Interval::MICROS_PER_MSEC;
 }
 
 static_assert(sizeof(timestamp_t) == sizeof(int64_t), "timestamp_t was padded");
@@ -341,6 +332,23 @@ int64_t Timestamp::getEpochMilliSeconds(const timestamp_t& timestamp) {
 
 int64_t Timestamp::getEpochSeconds(const timestamp_t& timestamp) {
     return timestamp.value / Interval::MICROS_PER_SEC;
+}
+
+int64_t Timestamp::getTimeDiffPart(std::string specifier, int64_t& diff) {
+
+    if (specifier == "ms") {
+        return diff;
+    } else if (specifier == "s") {
+        return diff / Interval::MSECS_PER_SEC;
+    } else if (specifier == "m") {
+        return diff / Interval::MSECS_PER_MINUTE;
+    } else if (specifier == "h") {
+        return diff / Interval::MSECS_PER_HOUR;
+    } else if (specifier == "d") {
+        return diff / Interval::MSECS_PER_DAY;
+    } else {
+       throw ConversionException("unknown time diff unit " + specifier + ",following units are supported: ms, s, m, h, d");
+    }
 }
 
 timestamp_t Timestamp::getCurrentTimestamp() {

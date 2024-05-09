@@ -170,49 +170,49 @@ False
 -LOG CastDoubleToString
 -STATEMENT MATCH (p:person) RETURN string(p.eyeSight)
 ---- 9
-5.000000
-5.100000
-5.000000
-4.800000
-4.700000
-4.500000
-4.900000
-4.900000
+5.0
+5.1
+5.0
+4.8
+4.7
+4.5
+4.9
+4.9
 
 -STATEMENT MATCH (p:person) RETURN cast(p.eyeSight, "string")
 ---- 9
-5.000000
-5.100000
-5.000000
-4.800000
-4.700000
-4.500000
-4.900000
-4.900000
+5.0
+5.1
+5.0
+4.8
+4.7
+4.5
+4.9
+4.9
 
 
 -LOG CastFloatToString
 -STATEMENT MATCH (p:person) RETURN string(p.height)
 ---- 9
-1.731000
-0.990000
-1.000000
-1.300000
-1.463000
-1.510000
-1.600000
-1.323000
+1.731
+0.99
+1.0
+1.3
+1.463
+1.51
+1.6
+1.323
 
 -STATEMENT MATCH (p:person) RETURN cast(p.height, "string")
 ---- 9
-1.731000
-0.990000
-1.000000
-1.300000
-1.463000
-1.510000
-1.600000
-1.323000
+1.731
+0.99
+1.0
+1.3
+1.463
+1.51
+1.6
+1.323
 
 
 -LOG CastDateToString
@@ -659,13 +659,13 @@ Hubert Blaine Wolfeschlegelsteinhausenbergerdorff
 -LOG CastUnionToString
 -STATEMENT MATCH (o:organisation) RETURN string(o.info)
 ---- 4
-3.120000
+3.12
 abcd
 2023-12-15
 
 -STATEMENT MATCH (o:organisation) RETURN cast(o.info, "string")
 ---- 4
-3.120000
+3.12
 abcd
 2023-12-15
 
