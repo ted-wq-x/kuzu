@@ -197,7 +197,7 @@ void Planner::planLevel(uint32_t level) {
 void Planner::planLevelExactly(uint32_t level) {
     auto maxLeftLevel = floor(level / 2.0);
     // 这里的双循环的意思是,有多少种组合可以构建成level,如5,可以是1+4&2+3
-    // 同时left也扮演着边的数量,right是点的数量
+    // 同时left也扮演着边的数量,right是点的数量(仅针对WCOJoin成立)
     for (auto leftLevel = 1u; leftLevel <= maxLeftLevel; ++leftLevel) {
         auto rightLevel = level - leftLevel;
         if (leftLevel > 1) { // wcoj requires at least 2 rels
