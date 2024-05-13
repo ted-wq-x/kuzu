@@ -1,6 +1,7 @@
 #pragma once
 
 #include "catalog/catalog_entry/rel_table_catalog_entry.h"
+#include "storage/storage_manager.h"
 #include "storage/store/rel_table_data.h"
 #include "storage/store/table.h"
 
@@ -68,9 +69,8 @@ struct RelDetachDeleteState {
 class RelsStoreStats;
 class RelTable final : public Table {
 public:
-    RelTable(BMFileHandle* dataFH, BMFileHandle* metadataFH, RelsStoreStats* relsStoreStats,
-        MemoryManager* memoryManager, catalog::RelTableCatalogEntry* relTableEntry, WAL* wal,
-        bool enableCompression, bool readOnly);
+    RelTable(StorageManager* storageManager, MemoryManager* memoryManager,
+        catalog::RelTableCatalogEntry* relTableEntry);
 
     void initializeReadState(transaction::Transaction* transaction,
         common::RelDataDirection direction, const std::vector<common::column_id_t>& columnIDs,

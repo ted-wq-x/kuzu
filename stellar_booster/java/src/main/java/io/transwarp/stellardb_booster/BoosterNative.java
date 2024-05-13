@@ -67,8 +67,6 @@ public class BoosterNative {
 
     protected static native void database_destroy(BoosterDatabase db);
 
-    protected static native void database_set_logging_level(String logging_level);
-
     // Connection
     protected static native long connection_init(BoosterDatabase database);
 
@@ -94,9 +92,6 @@ public class BoosterNative {
 
     // PreparedStatement
     protected static native void prepared_statement_destroy(BoosterPreparedStatement prepared_statement);
-
-    protected static native boolean prepared_statement_allow_active_transaction(
-            BoosterPreparedStatement prepared_statement);
 
     protected static native boolean prepared_statement_is_success(BoosterPreparedStatement prepared_statement);
 

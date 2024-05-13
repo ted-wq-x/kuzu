@@ -33,14 +33,6 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_databa
 
 /*
  * Class:     io_transwarp_stellardb_booster_BoosterNative
- * Method:    database_set_logging_level
- * Signature: (Ljava/lang/String;)V
- */
-JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_database_1set_1logging_1level
-  (JNIEnv *, jclass, jstring);
-
-/*
- * Class:     io_transwarp_stellardb_booster_BoosterNative
  * Method:    connection_init
  * Signature: (Lio/transwarp/stellardb_booster/BoosterDatabase;)J
  */
@@ -117,14 +109,6 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connec
  * Signature: (Lio/transwarp/stellardb_booster/BoosterPreparedStatement;)V
  */
 JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_prepared_1statement_1destroy
-  (JNIEnv *, jclass, jobject);
-
-/*
- * Class:     io_transwarp_stellardb_booster_BoosterNative
- * Method:    prepared_statement_allow_active_transaction
- * Signature: (Lio/transwarp/stellardb_booster/BoosterPreparedStatement;)Z
- */
-JNIEXPORT jboolean JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_prepared_1statement_1allow_1active_1transaction
   (JNIEnv *, jclass, jobject);
 
 /*

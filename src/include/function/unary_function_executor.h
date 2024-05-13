@@ -198,8 +198,8 @@ struct UnaryFunctionExecutor {
 
     template<typename OPERAND_TYPE, typename RESULT_TYPE, typename FUNC>
     static void executeListExtract(common::ValueVector& operand, common::ValueVector& result) {
-        auto pos = operand.state->selVector->selectedPositions[0];
-        auto resPos = result.state->selVector->selectedPositions[0];
+        auto pos = operand.state->getSelVector().getSelectedPositions()[0];
+        auto resPos = result.state->getSelVector().getSelectedPositions()[0];
         result.setNull(resPos, operand.isNull(pos));
         if (!result.isNull(resPos)) {
             UnaryListExtractFunctionWrapper::template operation<OPERAND_TYPE, RESULT_TYPE, FUNC>(
@@ -210,8 +210,8 @@ struct UnaryFunctionExecutor {
 
     template<typename OPERAND_TYPE, typename RESULT_TYPE, typename FUNC>
     static void executeListStruct(common::ValueVector& operand, common::ValueVector& result) {
-        auto pos = operand.state->selVector->selectedPositions[0];
-        auto resPos = result.state->selVector->selectedPositions[0];
+        auto pos = operand.state->getSelVector().getSelectedPositions()[0];
+        auto resPos = result.state->getSelVector().getSelectedPositions()[0];
         result.setNull(resPos, operand.isNull(pos));
         if (!result.isNull(resPos)) {
             UnaryListFunctionWrapper::operation<OPERAND_TYPE, RESULT_TYPE, FUNC>(

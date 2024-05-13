@@ -25,7 +25,7 @@ NodeTable::NodeTable(StorageManager* storageManager, NodeTableCatalogEntry* node
     tableData = std::make_unique<NodeTableData>(storageManager->getDataFH(),
         storageManager->getMetadataFH(), nodeTableEntry, bufferManager, wal,
         nodeTableEntry->getPropertiesRef(), storageManager->getNodesStatisticsAndDeletedIDs(),
-        storageManager->compressionEnabled());
+        storageManager->compressionEnabled(), storageManager->isReadOnly());
     initializePKIndex(storageManager->getDatabasePath(), nodeTableEntry,
         storageManager->isReadOnly(), vfs);
 }

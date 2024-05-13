@@ -253,7 +253,7 @@ public:
     void scan(transaction::Transaction* transaction, ChunkState& state,
         common::ValueVector* nodeIDVector, common::ValueVector* resultVector) override {
         Column::scan(transaction, state, nodeIDVector, resultVector);
-        if (nodeIDVector->state->selVector->isUnfiltered()) {
+        if (nodeIDVector->state->getSelVector().isUnfiltered()) {
             populateCommonTableIDUnfiltered(resultVector);
         } else {
             populateCommonTableIDFiltered(resultVector);
@@ -271,7 +271,7 @@ public:
     void lookup(transaction::Transaction* transaction, ChunkState& state,
         common::ValueVector* nodeIDVector, common::ValueVector* resultVector) override {
         Column::lookup(transaction, state, nodeIDVector, resultVector);
-        if (nodeIDVector->state->selVector->isUnfiltered()) {
+        if (nodeIDVector->state->getSelVector().isUnfiltered()) {
             populateCommonTableIDUnfiltered(resultVector);
         } else {
             populateCommonTableIDFiltered(resultVector);

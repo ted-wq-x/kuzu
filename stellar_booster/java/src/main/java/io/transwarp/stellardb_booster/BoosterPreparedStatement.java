@@ -36,16 +36,6 @@ public class BoosterPreparedStatement {
     }
 
     /**
-     * DDL and COPY_CSV statements are automatically wrapped in a transaction and committed. As such, they cannot be
-     * part of an active transaction.
-     * @throws BoosterObjectRefDestroyedException If the prepared statement has been destroyed.
-     */
-    public boolean allowActiveTransaction() throws BoosterObjectRefDestroyedException {
-        checkNotDestroyed();
-        return BoosterNative.prepared_statement_allow_active_transaction(this);
-    }
-
-    /**
      * Check if the query is prepared successfully or not.
      * @return The query is prepared successfully or not.
      * @throws BoosterObjectRefDestroyedException If the prepared statement has been destroyed.

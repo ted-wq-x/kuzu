@@ -74,8 +74,6 @@ public class KuzuNative {
 
     protected static native void kuzu_database_destroy(KuzuDatabase db);
 
-    protected static native void kuzu_database_set_logging_level(String logging_level);
-
     // Connection
     protected static native long kuzu_connection_init(KuzuDatabase database);
 

@@ -222,10 +222,12 @@ void InternalIDColumn::populateCommonTableIDFiltered(ValueVector* resultVector) 
 }
 void InternalIDColumn::populateCommonTableIDUnfiltered(ValueVector* resultVector) const {
     auto nodeIDs = ((internalID_t*)resultVector->getData());
-    for (auto i = 0u; i < resultVector->state->selVector->selectedSize; i++) {
+    auto& selVector = resultVector->state->getSelVector();
+    for (auto i = 0u; i < selVector.getSelSize(); i++) {
         nodeIDs[i].tableID = commonTableID;
     }
 }
+
 Column::Column(std::string name, LogicalType dataType, const MetadataDAHInfo& metaDAHeaderInfo,
     BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
     transaction::Transaction* transaction, RWPropertyStats propertyStatistics,

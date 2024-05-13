@@ -43,14 +43,6 @@ public class BoosterDatabase {
     }
 
     /**
-    * Sets the logging level of the database instance.
-    * @param loggingLevel: New logging level. (Supported logging levels are: 'info', 'debug', 'err').
-    */
-    public static void setLoggingLevel(String loggingLevel) {
-        BoosterNative.database_set_logging_level(loggingLevel);
-    }
-
-    /**
     * Checks if the database instance has been destroyed.
     * @throws BoosterObjectRefDestroyedException If the database instance is destroyed.
     */
