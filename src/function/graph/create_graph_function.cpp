@@ -7,6 +7,7 @@
 #include "function/graph/graph_functions.h"
 #include "function/rewrite_function.h"
 #include "main/client_context.h"
+#include "common/exception/binder.h"
 
 using namespace kuzu::binder;
 using namespace kuzu::common;
@@ -16,26 +17,17 @@ namespace function {
 
 static std::shared_ptr<Expression> rewriteFunc(const expression_vector& params,
     ExpressionBinder* expressionBinder) {
-    auto catalog = expressionBinder->getClientContext()->getCatalog();
-    auto tx = expressionBinder->getClientContext()->getTx();
     auto uniqueName = expressionBinder->getUniqueName(CreateGraphFunction::name);
-    std::vector<std::string> tableNames;
-    if (params.size() == 0) { // Rewrite as all
-        for (auto& entry : catalog->getTableEntries(tx)) {
-            tableNames.push_back(entry->getName());
-        }
-    } else {
-        for (auto& param : params) {
-            ExpressionUtil::validateExpressionType(*param, ExpressionType::LITERAL);
-            // TODO(Xiyang): Change the following line to ASSERT.
-            ExpressionUtil::validateDataType(*param, *LogicalType::STRING());
-            KU_ASSERT(param->dataType == *LogicalType::STRING());
-            auto tableName =
-                param->constPtrCast<LiteralExpression>()->getValue().getValue<std::string>();
-            tableNames.push_back(std::move(tableName));
-        }
+    if (params.size() != 2) {
+        throw BinderException("Graph function requires 2 parameters.");
     }
-    return std::make_shared<GraphExpression>(std::move(uniqueName), std::move(tableNames));
+    ExpressionUtil::validateExpressionType(*params[0], ExpressionType::LITERAL);
+    ExpressionUtil::validateExpressionType(*params[1], ExpressionType::LITERAL);
+    ExpressionUtil::validateDataType(*params[0], *LogicalType::STRING());
+    ExpressionUtil::validateDataType(*params[1], *LogicalType::STRING());
+    auto nodeName = params[0]->constPtrCast<LiteralExpression>()->getValue().getValue<std::string>();
+    auto relName = params[1]->constPtrCast<LiteralExpression>()->getValue().getValue<std::string>();
+    return std::make_shared<GraphExpression>(std::move(uniqueName), nodeName, relName);
 }
 
 function_set CreateGraphFunction::getFunctionSet() {

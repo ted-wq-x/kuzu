@@ -14,6 +14,8 @@ struct TableReadState {
     std::vector<common::ValueVector*> outputVectors;
     std::unique_ptr<TableDataReadState> dataReadState;
 
+    explicit TableReadState(const common::ValueVector* nodeIDVector) : nodeIDVector{nodeIDVector} {}
+    // TODO(Xiyang): remove the next
     explicit TableReadState(std::vector<common::column_id_t> columnIDs)
         : columnIDs{std::move(columnIDs)} {}
     TableReadState(const common::ValueVector* nodeIDVector,

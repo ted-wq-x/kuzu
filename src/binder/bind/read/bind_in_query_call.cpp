@@ -80,11 +80,11 @@ std::unique_ptr<BoundReadingClause> Binder::bindInQueryCall(const ReadingClause&
         // future. Technically speaking, I can also extend to arbitrary inputs but there is not yet
         // an algorithm that requires doing so.
         expression_vector nodeInputs;
-        for (auto i = 1u; i < children.size(); ++i) {
-            ExpressionUtil::validateExpressionType(*children[i], ExpressionType::VARIABLE);
-            ExpressionUtil::validateDataType(*children[0], LogicalTypeID::NODE);
-            nodeInputs.push_back(children[i]);
-        };
+//        for (auto i = 1u; i < children.size(); ++i) {
+//            ExpressionUtil::validateExpressionType(*children[i], ExpressionType::VARIABLE);
+//            ExpressionUtil::validateDataType(*children[0], LogicalTypeID::NODE);
+//            nodeInputs.push_back(children[i]);
+//        };
         boundReadingClause = std::make_unique<BoundAlgorithmCall>(*algoFunc, std::move(bindData),
             std::move(graphExpr), std::move(nodeInputs), std::move(columns));
     } break;

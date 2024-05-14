@@ -10,18 +10,19 @@ class GraphExpression : public Expression {
     static constexpr common::ExpressionType exprType = common::ExpressionType::GRAPH;
 
 public:
-    GraphExpression(std::string uniqueName, std::vector<std::string> tableNames)
+    GraphExpression(std::string uniqueName, std::string nodeName, std::string relName)
         : Expression{exprType, *common::LogicalType::ANY(), std::move(uniqueName)},
-          tableNames{std::move(tableNames)} {}
+          nodeName{std::move(nodeName)}, relName{std::move(relName)} {}
 
-    std::vector<std::string> getTableNames() const { return tableNames; }
+    std::string getNodeName() const { return nodeName; }
+    std::string getRelName() const { return relName; }
 
 protected:
     std::string toStringInternal() const override { return alias.empty() ? uniqueName : alias; }
 
 private:
-    // NOTE: I'm still debating if we should use table id here.
-    std::vector<std::string> tableNames;
+    std::string nodeName;
+    std::string relName;
 };
 
 } // namespace binder

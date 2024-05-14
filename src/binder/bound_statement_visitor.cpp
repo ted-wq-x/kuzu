@@ -193,6 +193,9 @@ void BoundStatementVisitor::visitReadingClauseUnsafe(BoundReadingClause& reading
     case ClauseType::IN_QUERY_CALL: {
         visitInQueryCall(readingClause);
     } break;
+    case ClauseType::ALGORITHM_CALL: {
+        visitAlgorithmCall(readingClause);
+    } break;
     case ClauseType::LOAD_FROM: {
         visitLoadFrom(readingClause);
     } break;

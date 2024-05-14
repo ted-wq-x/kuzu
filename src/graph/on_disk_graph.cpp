@@ -11,44 +11,59 @@ using namespace kuzu::common;
 namespace kuzu {
 namespace graph {
 
-OnDiskGraph::OnDiskGraph(ClientContext* context, const std::vector<std::string>& tableNames)
-    : Graph{context} {
+NbrScanState::NbrScanState(storage::MemoryManager* mm) {
+    srcNodeIDVectorState = DataChunkState::getSingleValueDataChunkState();
+    dstNodeIDVectorState = std::make_shared<common::DataChunkState>();
+    srcNodeIDVector = std::make_unique<ValueVector>(*LogicalType::INTERNAL_ID(), mm);
+    srcNodeIDVector->state = srcNodeIDVectorState;
+    dstNodeIDVector = std::make_unique<ValueVector>(*LogicalType::INTERNAL_ID(), mm);
+    dstNodeIDVector->state = dstNodeIDVectorState;
+    fwdReadState = std::make_unique<RelTableReadState>(columnIDs, direction);
+    fwdReadState->nodeIDVector = srcNodeIDVector.get();
+    fwdReadState->outputVectors.push_back(dstNodeIDVector.get());
+}
+
+OnDiskGraph::OnDiskGraph(main::ClientContext* context, const std::string& nodeName, const std::string& relName) : context{context} {
     auto catalog = context->getCatalog();
     auto storage = context->getStorageManager();
     auto tx = context->getTx();
-    for (auto& tableName : tableNames) {
-        auto tableID = catalog->getTableID(tx, tableName);
-        auto table = storage->getTable(tableID);
-        auto entry = catalog->getTableCatalogEntry(tx, tableID);
-        switch (entry->getTableType()) {
-        case TableType::NODE: {
-            auto nodeTable = ku_dynamic_cast<Table*, NodeTable*>(table);
-            nodeTables.insert({tableName, nodeTable});
-        } break;
-        case TableType::REL: {
-            auto relTable = ku_dynamic_cast<Table*, RelTable*>(table);
-            relTables.insert({tableName, relTable});
-        } break;
-        default:
-            KU_UNREACHABLE;
-        }
-    }
+    auto nodeTableID = catalog->getTableID(tx, nodeName);
+    nodeTable = storage->getTable(nodeTableID)->ptrCast<NodeTable>();
+    auto relTableID = catalog->getTableID(tx, relName);
+    relTable = storage->getTable(relTableID)->ptrCast<RelTable>();
+    nbrScanState = std::make_unique<NbrScanState>(context->getMemoryManager());
 }
 
 common::offset_t OnDiskGraph::getNumNodes() {
-    common::offset_t numNodes = 0;
-    for (auto& [_, nodeTable] : nodeTables) {
-        numNodes += nodeTable->getNumTuples(context->getTx());
-    }
-    return numNodes;
+    return nodeTable->getNumTuples(context->getTx());
 }
 
 common::offset_t OnDiskGraph::getNumEdges() {
-    common::offset_t numEdges = 0;
-    for (auto& [_, relTable] : relTables) {
-        numEdges += relTable->getNumTuples(context->getTx());
+    return relTable->getNumTuples(context->getTx());
+}
+
+uint64_t OnDiskGraph::scanNbrFwd(common::offset_t offset) {
+    nbrScanState->srcNodeIDVector->setValue<nodeID_t>(0, {offset, nodeTable->getTableID()});
+    auto tx = context->getTx();
+    auto readState = nbrScanState->fwdReadState.get();
+    auto dstState = nbrScanState->dstNodeIDVectorState.get();
+    auto dstVector = nbrScanState->dstNodeIDVector.get();
+    nbrs.clear();
+    relTable->initializeReadState(tx, RelDataDirection::FWD, nbrScanState->columnIDs, *readState);
+    while (nbrScanState->fwdReadState->hasMoreToRead(tx))  {
+        relTable->read(tx, *readState);
+        KU_ASSERT(dstState->getSelVector().isUnfiltered());
+        for (auto i = 0u; i < dstState->getSelVector().getSelSize(); ++i) {
+            auto nodeID = dstVector->getValue<nodeID_t>(i);
+            nbrs.push_back(nodeID);
+        }
     }
-    return numEdges;
+    return nbrs.size();
+}
+
+common::nodeID_t OnDiskGraph::getNbr(common::idx_t idx) {
+    KU_ASSERT(idx < nbrs.size());
+    return nbrs[idx];
 }
 
 } // namespace graph

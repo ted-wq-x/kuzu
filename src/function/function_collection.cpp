@@ -225,7 +225,7 @@ FunctionCollection* FunctionCollection::getFunctions() {
         TABLE_FUNCTION(RdfLiteralTripleInMemScan), TABLE_FUNCTION(FTableScan),
 
         // Algorithm functions
-        ALGORITHM_FUNCTION(DemoAvgDegreeFunction), ALGORITHM_FUNCTION(VariableLengthPathFunction),
+        ALGORITHM_FUNCTION(DemoAvgDegreeFunction), ALGORITHM_FUNCTION(VariableLengthPathFunction), ALGORITHM_FUNCTION(WeaklyConnectedComponentFunction),
         ALGORITHM_FUNCTION(ShortestPathFunction), ALGORITHM_FUNCTION(PageRankFunction),
 
         // End of array

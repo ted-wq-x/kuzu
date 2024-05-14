@@ -1,4 +1,3 @@
-#include "common/exception/binder.h"
 #include "common/vector/value_vector.h"
 #include "function/algorithm/algorithm_function_collection.h"
 #include "function/algorithm_function.h"
@@ -7,6 +6,8 @@
 
 using namespace kuzu::common;
 using namespace kuzu::processor;
+using namespace kuzu::binder;
+using namespace kuzu::storage;
 
 namespace kuzu {
 namespace function {
@@ -20,18 +21,23 @@ static AlgoFuncBindData bindFunc(const binder::expression_vector& params) {
 }
 
 struct DemoAvgDegreeFuncLocalState : public AlgoFuncLocalState {
-    ValueVector resultVector;
+    std::unique_ptr<ValueVector> degreeVector;
     std::vector<ValueVector*> vectors;
 
-    DemoAvgDegreeFuncLocalState(const LogicalType& type, storage::MemoryManager* mm)
-        : resultVector{type, mm} {
-        resultVector.state = DataChunkState::getSingleValueDataChunkState();
-        vectors.push_back(&resultVector);
+    explicit DemoAvgDegreeFuncLocalState(MemoryManager* mm) {
+        degreeVector = std::make_unique<ValueVector>(*LogicalType::DOUBLE(), mm);
+        degreeVector->state = DataChunkState::getSingleValueDataChunkState();
+        vectors.push_back(degreeVector.get());
+    }
+
+    void materializeResult(double degree, FactorizedTable& table) {
+        degreeVector->setValue<double>(0, degree);
+        table.append(vectors);
     }
 };
 
-static std::unique_ptr<AlgoFuncLocalState> initLocalStateFunc(storage::MemoryManager* mm) {
-    return std::make_unique<DemoAvgDegreeFuncLocalState>(*LogicalType::DOUBLE(), mm);
+static std::unique_ptr<AlgoFuncLocalState> initLocalStateFunc(MemoryManager* mm) {
+    return std::make_unique<DemoAvgDegreeFuncLocalState>(mm);
 }
 
 static void execFunc(const AlgoFuncInput& input, FactorizedTable& fTable) {
@@ -40,8 +46,7 @@ static void execFunc(const AlgoFuncInput& input, FactorizedTable& fTable) {
     auto numNodes = graph->getNumNodes();
     auto numEdges = graph->getNumEdges();
     auto degree = (double)numEdges / (double)numNodes;
-    localState->resultVector.setValue<double>(0, degree);
-    fTable.append(localState->vectors);
+    localState->materializeResult(degree, fTable);
 }
 
 function_set DemoAvgDegreeFunction::getFunctionSet() {

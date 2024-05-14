@@ -18,6 +18,12 @@ struct VariableLengthPathFunction {
     static function_set getFunctionSet();
 };
 
+struct WeaklyConnectedComponentFunction {
+    static constexpr const char* name = "WEAKLY_CONNECTED_COMPONENT";
+
+    static function_set getFunctionSet();
+};
+
 struct ShortestPathFunction {
     static constexpr const char* name = "SHORTEST_PATH";
 

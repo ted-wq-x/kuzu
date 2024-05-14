@@ -22,6 +22,11 @@ struct AlgoFuncExtraBindData {
     virtual ~AlgoFuncExtraBindData() = default;
 
     virtual std::unique_ptr<AlgoFuncExtraBindData> copy() const = 0;
+
+    template<class TARGET>
+    TARGET* ptrCast() {
+        return common::ku_dynamic_cast<AlgoFuncExtraBindData*, TARGET*>(this);
+    }
 };
 
 // All algorithm functions need to implement algo_func_bind_t to create a AlgoFuncBindData. This
@@ -54,8 +59,10 @@ struct AlgoFuncLocalState {
     }
 };
 
+// Input to algorithm function
 struct AlgoFuncInput {
     graph::Graph* graph;
+    AlgoFuncBindData bindData;
     std::unique_ptr<AlgoFuncLocalState> localState;
 };
 

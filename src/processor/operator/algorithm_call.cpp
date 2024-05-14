@@ -11,6 +11,7 @@ namespace processor {
 
 void AlgorithmCall::initLocalStateInternal(ResultSet*, ExecutionContext* context) {
     algoFuncInput.graph = sharedState->graph.get();
+    algoFuncInput.bindData = info.bindData.copy();
     algoFuncInput.localState =
         info.function.initLocalStateFunc(context->clientContext->getMemoryManager());
 }
@@ -18,7 +19,7 @@ void AlgorithmCall::initLocalStateInternal(ResultSet*, ExecutionContext* context
 void AlgorithmCall::initGlobalStateInternal(ExecutionContext* context) {
     auto graphExpr_ = info.graphExpr->constPtrCast<GraphExpression>();
     sharedState->graph =
-        std::make_unique<OnDiskGraph>(context->clientContext, graphExpr_->getTableNames());
+        std::make_unique<OnDiskGraph>(context->clientContext, graphExpr_->getNodeName(), graphExpr_->getRelName());
 }
 
 void AlgorithmCall::executeInternal(ExecutionContext*) {
