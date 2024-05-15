@@ -153,11 +153,12 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(DateMinuteFunction), SCALAR_FUNCTION(DateSecondFunction),
         SCALAR_FUNCTION(AddDayFunction), SCALAR_FUNCTION(AddHourFunction),
         SCALAR_FUNCTION(AddMinuteFunction), SCALAR_FUNCTION(AddSecondFunction),
+        SCALAR_FUNCTION(CurrentDateFunction),
 
         // Timestamp functions
         SCALAR_FUNCTION(CenturyFunction), SCALAR_FUNCTION(EpochMsFunction),
         SCALAR_FUNCTION_ALIAS(EpochMsFunction), SCALAR_FUNCTION(ToTimestampFunction),
-        SCALAR_FUNCTION(TimeDiffFunction),
+        SCALAR_FUNCTION(TimeDiffFunction), SCALAR_FUNCTION(CurrentTimestampFunction),
 
         // Interval functions
         SCALAR_FUNCTION(ToYearsFunction), SCALAR_FUNCTION(ToMonthsFunction),

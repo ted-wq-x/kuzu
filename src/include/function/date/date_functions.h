@@ -290,5 +290,13 @@ struct AddSecond {
     }
 };
 
+struct CurrentDate {
+    static void operation(common::date_t& result, void* dataPtr);
+};
+
+struct CurrentTimestamp {
+    static void operation(common::timestamp_tz_t& result, void* dataPtr);
+};
+
 } // namespace function
 } // namespace kuzu

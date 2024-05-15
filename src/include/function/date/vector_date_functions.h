@@ -117,5 +117,17 @@ struct AddSecondFunction {
     static function_set getFunctionSet();
 };
 
+struct CurrentDateFunction {
+    static constexpr const char* name = "CURRENT_DATE";
+
+    static function_set getFunctionSet();
+};
+
+struct CurrentTimestampFunction {
+    static constexpr const char* name = "CURRENT_TIMESTAMP";
+
+    static function_set getFunctionSet();
+};
+
 } // namespace function
 } // namespace kuzu
