@@ -181,8 +181,13 @@ std::vector<std::unique_ptr<LogicalPlan>> Planner::enumerateQueryGraph(SubqueryT
         // INL-J 需要连续的2个边
         //(a,r1,r4,b),(d,r3),(c,r2)
     }
-
-    return std::move(context.getPlans(context.getFullyMatchedSubqueryGraph()));
+    auto plans = std::move(context.getPlans(context.getFullyMatchedSubqueryGraph()));
+    if (queryGraph.isEmpty()) {
+        for (auto& plan : plans) {
+            appendEmptyResult(*plan);
+        }
+    }
+    return plans;
 }
 
 void Planner::planLevel(uint32_t level) {
