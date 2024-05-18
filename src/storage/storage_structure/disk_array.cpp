@@ -18,6 +18,16 @@ using namespace kuzu::transaction;
 namespace kuzu {
 namespace storage {
 
+// Header can be read or write since it just needs the sizes
+static inline PageCursor getAPIdxAndOffsetInAP(const DiskArrayHeader& header, uint64_t idx) {
+    // We assume that `numElementsPerPageLog2`, `elementPageOffsetMask`,
+    // `alignedElementSizeLog2` are never modified throughout transactional updates, thus, we
+    // directly use them from header here.
+    common::page_idx_t apIdx = idx >> header.numElementsPerPageLog2;
+    uint16_t byteOffsetInAP = (idx & header.elementPageOffsetMask) << header.alignedElementSizeLog2;
+    return PageCursor{apIdx, byteOffsetInAP};
+}
+
 DiskArrayHeader::DiskArrayHeader(uint64_t elementSize)
     : alignedElementSizeLog2{(uint64_t)ceil(log2(elementSize))},
       numElementsPerPageLog2{BufferPoolConstants::PAGE_4KB_SIZE_LOG2 - alignedElementSizeLog2},
@@ -40,13 +50,7 @@ PIPWrapper::PIPWrapper(FileHandle& fileHandle, page_idx_t pipPageIdx) : pipPageI
     fileHandle.readPage(reinterpret_cast<uint8_t*>(&pipContents), pipPageIdx);
 }
 
-BaseDiskArrayInternal::BaseDiskArrayInternal(FileHandle& fileHandle, page_idx_t headerPageIdx,
-    uint64_t elementSize)
-    : header{elementSize}, readOnly{false}, fileHandle{fileHandle}, headerPageIdx{headerPageIdx},
-      headerForWriteTrx{header}, hasTransactionalUpdates{false}, bufferManager{nullptr},
-      wal{nullptr}, lastAPPageIdx{INVALID_PAGE_IDX} {}
-
-BaseDiskArrayInternal::BaseDiskArrayInternal(FileHandle& fileHandle, DBFileID dbFileID,
+DiskArrayInternal::DiskArrayInternal(FileHandle& fileHandle, DBFileID dbFileID,
     page_idx_t headerPageIdx, BufferManager* bufferManager, WAL* wal,
     transaction::Transaction* transaction, bool readOnly, bool bypassWAL)
     : readOnly{readOnly}, fileHandle{fileHandle}, dbFileID{dbFileID}, headerPageIdx{headerPageIdx},
@@ -71,17 +75,17 @@ BaseDiskArrayInternal::BaseDiskArrayInternal(FileHandle& fileHandle, DBFileID db
     }
 }
 
-void BaseDiskArrayInternal::updateLastPageOnDisk() {
+void DiskArrayInternal::updateLastPageOnDisk() {
     auto numElements = getNumElementsNoLock(TransactionType::READ_ONLY);
     if (numElements > 0) {
-        auto apCursor = getAPIdxAndOffsetInAP(numElements - 1);
+        auto apCursor = getAPIdxAndOffsetInAP(header, numElements - 1);
         lastPageOnDisk = getAPPageIdxNoLock(apCursor.pageIdx, TransactionType::READ_ONLY);
     } else {
         lastPageOnDisk = 0;
     }
 }
 
-uint64_t BaseDiskArrayInternal::getNumElements(TransactionType trxType) {
+uint64_t DiskArrayInternal::getNumElements(TransactionType trxType) {
     if (readOnly) {
         return getNumElementsNoLock(trxType);
     } else {
@@ -90,7 +94,7 @@ uint64_t BaseDiskArrayInternal::getNumElements(TransactionType trxType) {
     }
 }
 
-bool BaseDiskArrayInternal::checkOutOfBoundAccess(TransactionType trxType, uint64_t idx) {
+bool DiskArrayInternal::checkOutOfBoundAccess(TransactionType trxType, uint64_t idx) {
     auto currentNumElements = getNumElementsNoLock(trxType);
     if (idx >= currentNumElements) {
         // LCOV_EXCL_START
@@ -102,8 +106,7 @@ bool BaseDiskArrayInternal::checkOutOfBoundAccess(TransactionType trxType, uint6
     return true;
 }
 
-void BaseDiskArrayInternal::get(uint64_t idx, transaction::TransactionType trxType,
-    std::span<uint8_t> val) {
+void DiskArrayInternal::get(uint64_t idx, TransactionType trxType, std::span<std::byte> val) {
     if (readOnly) {
         getNoLock(idx, trxType, val);
     } else {
@@ -112,10 +115,10 @@ void BaseDiskArrayInternal::get(uint64_t idx, transaction::TransactionType trxTy
     }
 }
 
-void BaseDiskArrayInternal::getNoLock(uint64_t idx, TransactionType trxType,
+void DiskArrayInternal::getNoLock(uint64_t idx, TransactionType trxType,
     std::span<uint8_t> val) {
     KU_ASSERT(checkOutOfBoundAccess(trxType, idx));
-    auto apCursor = getAPIdxAndOffsetInAP(idx);
+    auto apCursor = getAPIdxAndOffsetInAP(header, idx);
     page_idx_t apPageIdx = getAPPageIdxNoLock(apCursor.pageIdx, trxType);
     auto& bmFileHandle = (BMFileHandle&)fileHandle;
     if (trxType == TransactionType::READ_ONLY || !hasTransactionalUpdates ||
@@ -132,7 +135,7 @@ void BaseDiskArrayInternal::getNoLock(uint64_t idx, TransactionType trxType,
     }
 }
 
-void BaseDiskArrayInternal::updatePage(uint64_t pageIdx, bool isNewPage,
+void DiskArrayInternal::updatePage(uint64_t pageIdx, bool isNewPage,
     std::function<void(uint8_t*)> updateOp) {
     auto& bmFileHandle = (BMFileHandle&)fileHandle;
     // Pages which are new to this transaction are written directly to the file
@@ -153,14 +156,14 @@ void BaseDiskArrayInternal::updatePage(uint64_t pageIdx, bool isNewPage,
     }
 }
 
-void BaseDiskArrayInternal::update(uint64_t idx, std::span<uint8_t> val) {
+void DiskArrayInternal::update(uint64_t idx, std::span<uint8_t> val) {
     if (readOnly) {
         throw Exception("Cannot exec update operation under READ ONLY mode.");
     }
     std::unique_lock xLck{diskArraySharedMtx};
     hasTransactionalUpdates = true;
     KU_ASSERT(checkOutOfBoundAccess(TransactionType::WRITE, idx));
-    auto apCursor = getAPIdxAndOffsetInAP(idx);
+    auto apCursor = getAPIdxAndOffsetInAP(header, idx);
     // TODO: We are currently supporting only DiskArrays that can grow in size and not
     // those that can shrink in size. That is why we can use
     // getAPPageIdxNoLock(apIdx, Transaction::WRITE) directly to compute the physical page Idx
@@ -176,7 +179,7 @@ void BaseDiskArrayInternal::update(uint64_t idx, std::span<uint8_t> val) {
     });
 }
 
-uint64_t BaseDiskArrayInternal::pushBack(std::span<uint8_t> val) {
+uint64_t DiskArrayInternal::pushBack(std::span<uint8_t> val) {
     if (readOnly) {
         throw Exception("Cannot exec pushBack operation under READ ONLY mode.");
     }
@@ -187,7 +190,7 @@ uint64_t BaseDiskArrayInternal::pushBack(std::span<uint8_t> val) {
     return originalNumElements;
 }
 
-uint64_t BaseDiskArrayInternal::resize(uint64_t newNumElements, std::span<uint8_t> defaultVal) {
+uint64_t DiskArrayInternal::resize(uint64_t newNumElements, std::span<std::byte> defaultVal) {
     std::unique_lock xLck{diskArraySharedMtx};
     auto it = iter_mut(defaultVal.size());
     auto originalNumElements = getNumElementsNoLock(TransactionType::WRITE);
@@ -197,7 +200,7 @@ uint64_t BaseDiskArrayInternal::resize(uint64_t newNumElements, std::span<uint8_
     return originalNumElements;
 }
 
-void BaseDiskArrayInternal::setNextPIPPageIDxOfPIPNoLock(DiskArrayHeader* updatedDiskArrayHeader,
+void DiskArrayInternal::setNextPIPPageIDxOfPIPNoLock(DiskArrayHeader* updatedDiskArrayHeader,
     uint64_t pipIdxOfPreviousPIP, page_idx_t nextPIPPageIdx) {
     // This happens if the first pip is being inserted, in which case we need to change the header.
     if (pipIdxOfPreviousPIP == UINT64_MAX) {
@@ -219,7 +222,7 @@ void BaseDiskArrayInternal::setNextPIPPageIDxOfPIPNoLock(DiskArrayHeader* update
     }
 }
 
-page_idx_t BaseDiskArrayInternal::getAPPageIdxNoLock(page_idx_t apIdx, TransactionType trxType) {
+page_idx_t DiskArrayInternal::getAPPageIdxNoLock(page_idx_t apIdx, TransactionType trxType) {
     auto [pipIdx, offsetInPIP] = StorageUtils::getQuotientRemainder(apIdx, NUM_PAGE_IDXS_PER_PIP);
     if ((trxType == TransactionType::READ_ONLY) || !hasPIPUpdatesNoLock(pipIdx)) {
         return pips[pipIdx].pipContents.pageIdxs[offsetInPIP];
@@ -231,20 +234,19 @@ page_idx_t BaseDiskArrayInternal::getAPPageIdxNoLock(page_idx_t apIdx, Transacti
     }
 }
 
-page_idx_t BaseDiskArrayInternal::getUpdatedPageIdxOfPipNoLock(uint64_t pipIdx) {
+page_idx_t DiskArrayInternal::getUpdatedPageIdxOfPipNoLock(uint64_t pipIdx) {
     if (pipIdx < pips.size()) {
         return pips[pipIdx].pipPageIdx;
     }
     return pipUpdates.newPIPs[pipIdx - pips.size()].pipPageIdx;
 }
 
-void BaseDiskArrayInternal::clearWALPageVersionAndRemovePageFromFrameIfNecessary(
-    page_idx_t pageIdx) {
+void DiskArrayInternal::clearWALPageVersionAndRemovePageFromFrameIfNecessary(page_idx_t pageIdx) {
     ((BMFileHandle&)this->fileHandle).clearWALPageIdxIfNecessary(pageIdx);
     bufferManager->removePageFromFrameIfNecessary((BMFileHandle&)this->fileHandle, pageIdx);
 }
 
-void BaseDiskArrayInternal::checkpointOrRollbackInMemoryIfNecessaryNoLock(bool isCheckpoint) {
+void DiskArrayInternal::checkpointOrRollbackInMemoryIfNecessaryNoLock(bool isCheckpoint) {
     if (!hasTransactionalUpdates) {
         return;
     }
@@ -281,7 +283,7 @@ void BaseDiskArrayInternal::checkpointOrRollbackInMemoryIfNecessaryNoLock(bool i
     }
 }
 
-void BaseDiskArrayInternal::prepareCommit() {
+void DiskArrayInternal::prepareCommit() {
     auto& bmFileHandle = ku_dynamic_cast<FileHandle&, BMFileHandle&>(fileHandle);
     // Update header if it has changed
     if (headerForWriteTrx != header) {
@@ -303,7 +305,7 @@ void BaseDiskArrayInternal::prepareCommit() {
     }
 }
 
-bool BaseDiskArrayInternal::hasPIPUpdatesNoLock(uint64_t pipIdx) {
+bool DiskArrayInternal::hasPIPUpdatesNoLock(uint64_t pipIdx) {
     // This is a request to a pipIdx > pips.size(). Since pips.size() is the original number of pips
     // we started with before the write transaction is updated, we return true, i.e., this PIP is
     // an "updated" PIP and should be read from the WAL version.
@@ -314,7 +316,7 @@ bool BaseDiskArrayInternal::hasPIPUpdatesNoLock(uint64_t pipIdx) {
 }
 
 std::pair<page_idx_t, bool>
-BaseDiskArrayInternal::getAPPageIdxAndAddAPToPIPIfNecessaryForWriteTrxNoLock(
+DiskArrayInternal::getAPPageIdxAndAddAPToPIPIfNecessaryForWriteTrxNoLock(
     DiskArrayHeader* updatedDiskArrayHeader, page_idx_t apIdx) {
     if (apIdx == updatedDiskArrayHeader->numAPs - 1 && lastAPPageIdx != INVALID_PAGE_IDX) {
         return std::make_pair(lastAPPageIdx, false /*not a new page*/);
@@ -361,11 +363,11 @@ BaseDiskArrayInternal::getAPPageIdxAndAddAPToPIPIfNecessaryForWriteTrxNoLock(
     }
 }
 
-BaseDiskArrayInternal::WriteIterator& BaseDiskArrayInternal::WriteIterator::seek(size_t newIdx) {
+DiskArrayInternal::WriteIterator& DiskArrayInternal::WriteIterator::seek(size_t newIdx) {
     KU_ASSERT(newIdx < diskArray.headerForWriteTrx.numElements);
     auto oldPageIdx = apCursor.pageIdx;
     idx = newIdx;
-    apCursor = diskArray.getAPIdxAndOffsetInAP(idx);
+    apCursor = getAPIdxAndOffsetInAP(diskArray.header, idx);
     if (oldPageIdx != apCursor.pageIdx) {
         common::page_idx_t apPageIdx = diskArray.getAPPageIdxNoLock(apCursor.pageIdx, TRX_TYPE);
         getPage(apPageIdx, false /*isNewlyAdded*/);
@@ -373,10 +375,10 @@ BaseDiskArrayInternal::WriteIterator& BaseDiskArrayInternal::WriteIterator::seek
     return *this;
 }
 
-void BaseDiskArrayInternal::WriteIterator::pushBack(std::span<uint8_t> val) {
+void DiskArrayInternal::WriteIterator::pushBack(std::span<std::byte> val) {
     idx = diskArray.headerForWriteTrx.numElements++;
     auto oldPageIdx = apCursor.pageIdx;
-    apCursor = diskArray.getAPIdxAndOffsetInAP(idx);
+    apCursor = getAPIdxAndOffsetInAP(diskArray.header, idx);
     // If this would add a new page, pin new page and update PIP
     auto [apPageIdx, isNewlyAdded] =
         diskArray.getAPPageIdxAndAddAPToPIPIfNecessaryForWriteTrxNoLock(
@@ -389,7 +391,7 @@ void BaseDiskArrayInternal::WriteIterator::pushBack(std::span<uint8_t> val) {
     memcpy(operator*().data(), val.data(), val.size());
 }
 
-void BaseDiskArrayInternal::WriteIterator::unpin() {
+void DiskArrayInternal::WriteIterator::unpin() {
     auto& bmFileHandle = common::ku_dynamic_cast<FileHandle&, BMFileHandle&>(diskArray.fileHandle);
     if (walPageIdxAndFrame.pageIdxInWAL != common::INVALID_PAGE_IDX) {
         // unpin current page
@@ -402,8 +404,7 @@ void BaseDiskArrayInternal::WriteIterator::unpin() {
     }
 }
 
-void BaseDiskArrayInternal::WriteIterator::getPage(common::page_idx_t newPageIdx,
-    bool isNewlyAdded) {
+void DiskArrayInternal::WriteIterator::getPage(common::page_idx_t newPageIdx, bool isNewlyAdded) {
     auto& bmFileHandle = common::ku_dynamic_cast<FileHandle&, BMFileHandle&>(diskArray.fileHandle);
     unpin();
     if (newPageIdx <= diskArray.lastPageOnDisk) {
@@ -420,107 +421,45 @@ void BaseDiskArrayInternal::WriteIterator::getPage(common::page_idx_t newPageIdx
     }
 }
 
-BaseDiskArrayInternal::WriteIterator BaseDiskArrayInternal::iter_mut(uint64_t valueSize) {
+DiskArrayInternal::WriteIterator DiskArrayInternal::iter_mut(uint64_t valueSize) {
     if (readOnly) {
         throw Exception("Cannot exec iter_mut operation under READ ONLY mode.");
     }
-    return BaseDiskArrayInternal::WriteIterator(valueSize, *this);
+    return DiskArrayInternal::WriteIterator(valueSize, *this);
 }
 
-BaseInMemDiskArray::BaseInMemDiskArray(FileHandle& fileHandle, DBFileID dbFileID,
-    page_idx_t headerPageIdx, BufferManager* bufferManager, WAL* wal,
-    transaction::Transaction* transaction, bool readOnly)
-    : BaseDiskArrayInternal(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction,
-          readOnly) {
-    for (page_idx_t apIdx = 0; apIdx < this->header.numAPs; ++apIdx) {
-        addInMemoryArrayPageAndReadFromFile(this->getAPPageIdxNoLock(apIdx));
-    }
-}
-
-BaseInMemDiskArray::BaseInMemDiskArray(FileHandle& fileHandle, page_idx_t headerPageIdx,
-    uint64_t elementSize)
-    : BaseDiskArrayInternal(fileHandle, headerPageIdx, elementSize) {}
+//BaseInMemDiskArray::BaseInMemDiskArray(FileHandle& fileHandle, DBFileID dbFileID,
+//    page_idx_t headerPageIdx, BufferManager* bufferManager, WAL* wal,
+//    transaction::Transaction* transaction, bool readOnly)
+//    : BaseDiskArrayInternal(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction,
+//          readOnly) {
+//    for (page_idx_t apIdx = 0; apIdx < this->header.numAPs; ++apIdx) {
+//        addInMemoryArrayPageAndReadFromFile(this->getAPPageIdxNoLock(apIdx));
+//    }
+//common::page_idx_t DiskArrayInternal::getAPIdx(uint64_t idx) const {
+//    return getAPIdxAndOffsetInAP(header, idx).pageIdx;
+//}
 
 // [] operator to be used when building an InMemDiskArrayBuilder without transactional updates.
 // This changes the contents directly in memory and not on disk (nor on the wal)
-uint8_t* BaseInMemDiskArray::operator[](uint64_t idx) {
-    auto apCursor = BaseDiskArrayInternal::getAPIdxAndOffsetInAP(idx);
+uint8_t* BlockVectorInternal::operator[](uint64_t idx) {
+    auto apCursor = getAPIdxAndOffsetInAP(header, idx);
     KU_ASSERT(apCursor.pageIdx < this->header.numAPs);
     return inMemArrayPages[apCursor.pageIdx].get() + apCursor.elemPosInPage;
 }
 
-void BaseInMemDiskArray::addInMemoryArrayPageAndReadFromFile(page_idx_t apPageIdx) {
-    uint64_t apIdx = this->addInMemoryArrayPage(false /* setToZero */);
-    readArrayPageFromFile(apIdx, apPageIdx);
-}
-
-void BaseInMemDiskArray::readArrayPageFromFile(uint64_t apIdx, page_idx_t apPageIdx) {
-    this->fileHandle.readPage(reinterpret_cast<uint8_t*>(this->inMemArrayPages[apIdx].get()),
-        apPageIdx);
-}
-
-InMemDiskArrayBuilderInternal::InMemDiskArrayBuilderInternal(FileHandle& fileHandle,
-    page_idx_t headerPageIdx, uint64_t numElements, size_t elementSize, bool setToZero)
-    : BaseInMemDiskArray(fileHandle, headerPageIdx, elementSize) {
-    setNumElementsAndAllocateDiskAPsForBuilding(numElements);
-    for (uint64_t i = 0; i < this->header.numAPs; ++i) {
-        this->addInMemoryArrayPage(setToZero);
-    }
-}
-
-void InMemDiskArrayBuilderInternal::resize(uint64_t newNumElements, bool setToZero) {
-    uint64_t oldNumAPs = this->header.numAPs;
-    setNumElementsAndAllocateDiskAPsForBuilding(newNumElements);
-    uint64_t newNumAPs = this->header.numAPs;
-    for (auto i = oldNumAPs; i < newNumAPs; ++i) {
-        this->addInMemoryArrayPage(setToZero);
-    }
-}
-
-void InMemDiskArrayBuilderInternal::saveToDisk() {
-    // save the header and pips.
-    this->header.saveToDisk(this->fileHandle, this->headerPageIdx);
-    for (auto i = 0u; i < this->pips.size(); ++i) {
-        this->fileHandle.writePage(reinterpret_cast<uint8_t*>(&this->pips[i].pipContents),
-            this->pips[i].pipPageIdx);
-    }
-    // Save array pages
-    for (page_idx_t apIdx = 0; apIdx < this->header.numAPs; ++apIdx) {
-        this->fileHandle.writePage(reinterpret_cast<uint8_t*>(this->inMemArrayPages[apIdx].get()),
-            this->getAPPageIdxNoLock(apIdx));
-    }
-}
-
-void InMemDiskArrayBuilderInternal::addNewArrayPageForBuilding() {
-    uint64_t arrayPageIdx = this->fileHandle.addNewPage();
-    // The idx of the next array page will be exactly header.numArrayPages. That is why we first
-    // find the pipIdx and offset in the PIP of the array page before incrementing
-    // header.numArrayPages by 1.
-    auto pipIdxAndOffset =
-        StorageUtils::getQuotientRemainder(this->header.numAPs, NUM_PAGE_IDXS_PER_PIP);
-    this->header.numAPs++;
-    uint64_t pipIdx = pipIdxAndOffset.first;
-    if (pipIdx == this->pips.size()) {
-        uint64_t pipPageIdx = this->fileHandle.addNewPage();
-        this->pips.emplace_back(pipPageIdx);
-        if (pipIdx == 0) {
-            this->header.firstPIPPageIdx = pipPageIdx;
-        } else {
-            this->pips[pipIdx - 1].pipContents.nextPipPageIdx = pipPageIdx;
-        }
-    }
-    this->pips[pipIdx].pipContents.pageIdxs[pipIdxAndOffset.second] = arrayPageIdx;
-}
-
-void InMemDiskArrayBuilderInternal::setNumElementsAndAllocateDiskAPsForBuilding(
-    uint64_t newNumElements) {
+void BlockVectorInternal::resize(uint64_t newNumElements, std::span<std::byte> defaultVal) {
+    auto oldNumElements = this->header.numElements;
     uint64_t oldNumArrayPages = this->header.numAPs;
     uint64_t newNumArrayPages = getNumArrayPagesNeededForElements(newNumElements);
     for (auto i = oldNumArrayPages; i < newNumArrayPages; ++i) {
-        addNewArrayPageForBuilding();
+        this->addInMemoryArrayPage(true /*setToZero*/);
     }
     this->header.numElements = newNumElements;
     this->header.numAPs = newNumArrayPages;
+    for (uint64_t i = 0; i < newNumElements - oldNumElements; i++) {
+        memcpy(operator[](oldNumElements + i), defaultVal.data(), defaultVal.size());
+    }
 }
 
 } // namespace storage

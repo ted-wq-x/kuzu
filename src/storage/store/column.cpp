@@ -236,9 +236,9 @@ Column::Column(std::string name, LogicalType dataType, const MetadataDAHInfo& me
       dataFH{dataFH}, metadataFH{metadataFH}, bufferManager{bufferManager}, wal{wal},
       propertyStatistics{propertyStatistics}, enableCompression{enableCompression},
       readOnly{readOnly} {
-    metadataDA = std::make_unique<InMemDiskArray<ColumnChunkMetadata>>(*metadataFH,
-        DBFileID::newMetadataFileID(), metaDAHeaderInfo.dataDAHPageIdx, bufferManager, wal,
-        transaction, readOnly);
+    metadataDA =
+        std::make_unique<DiskArray<ColumnChunkMetadata>>(*metadataFH, DBFileID::newMetadataFileID(),
+            metaDAHeaderInfo.dataDAHPageIdx, bufferManager, wal, transaction, readOnly);
     numBytesPerFixedSizedValue = getDataTypeSizeInChunk(this->dataType);
     readToVectorFunc = getReadValuesToVectorFunc(this->dataType);
     readToPageFunc = ReadCompressedValuesFromPage(this->dataType);
@@ -874,7 +874,7 @@ void Column::rollbackInMemory() {
 }
 
 void Column::populateWithDefaultVal(Transaction* transaction,
-    InMemDiskArray<ColumnChunkMetadata>* metadataDA_, ValueVector* defaultValueVector) {
+    DiskArray<ColumnChunkMetadata>* metadataDA_, ValueVector* defaultValueVector) {
     KU_ASSERT(metadataDA_ != nullptr);
     auto numNodeGroups = metadataDA_->getNumElements(transaction->getType());
     auto columnChunk = ColumnChunkFactory::createColumnChunk(*dataType.copy(), enableCompression);
