@@ -115,8 +115,7 @@ void DiskArrayInternal::get(uint64_t idx, TransactionType trxType, std::span<std
     }
 }
 
-void DiskArrayInternal::getNoLock(uint64_t idx, TransactionType trxType,
-    std::span<uint8_t> val) {
+void DiskArrayInternal::getNoLock(uint64_t idx, TransactionType trxType, std::span<std::byte> val) {
     KU_ASSERT(checkOutOfBoundAccess(trxType, idx));
     auto apCursor = getAPIdxAndOffsetInAP(header, idx);
     page_idx_t apPageIdx = getAPPageIdxNoLock(apCursor.pageIdx, trxType);
@@ -156,7 +155,7 @@ void DiskArrayInternal::updatePage(uint64_t pageIdx, bool isNewPage,
     }
 }
 
-void DiskArrayInternal::update(uint64_t idx, std::span<uint8_t> val) {
+void DiskArrayInternal::update(uint64_t idx, std::span<std::byte> val) {
     if (readOnly) {
         throw Exception("Cannot exec update operation under READ ONLY mode.");
     }
@@ -179,7 +178,7 @@ void DiskArrayInternal::update(uint64_t idx, std::span<uint8_t> val) {
     });
 }
 
-uint64_t DiskArrayInternal::pushBack(std::span<uint8_t> val) {
+uint64_t DiskArrayInternal::pushBack(std::span<std::byte> val) {
     if (readOnly) {
         throw Exception("Cannot exec pushBack operation under READ ONLY mode.");
     }
@@ -427,18 +426,6 @@ DiskArrayInternal::WriteIterator DiskArrayInternal::iter_mut(uint64_t valueSize)
     }
     return DiskArrayInternal::WriteIterator(valueSize, *this);
 }
-
-//BaseInMemDiskArray::BaseInMemDiskArray(FileHandle& fileHandle, DBFileID dbFileID,
-//    page_idx_t headerPageIdx, BufferManager* bufferManager, WAL* wal,
-//    transaction::Transaction* transaction, bool readOnly)
-//    : BaseDiskArrayInternal(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction,
-//          readOnly) {
-//    for (page_idx_t apIdx = 0; apIdx < this->header.numAPs; ++apIdx) {
-//        addInMemoryArrayPageAndReadFromFile(this->getAPPageIdxNoLock(apIdx));
-//    }
-//common::page_idx_t DiskArrayInternal::getAPIdx(uint64_t idx) const {
-//    return getAPIdxAndOffsetInAP(header, idx).pageIdx;
-//}
 
 // [] operator to be used when building an InMemDiskArrayBuilder without transactional updates.
 // This changes the contents directly in memory and not on disk (nor on the wal)

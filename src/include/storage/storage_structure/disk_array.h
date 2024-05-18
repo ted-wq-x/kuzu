@@ -27,7 +27,7 @@ static constexpr uint64_t NUM_PAGE_IDXS_PER_PIP =
  */
 struct DiskArrayHeader {
     // This constructor is needed when loading the database from file.
-    DiskArrayHeader() : DiskArrayHeader(1) {};
+    DiskArrayHeader() : DiskArrayHeader(1){};
 
     explicit DiskArrayHeader(uint64_t elementSize);
 
@@ -105,8 +105,8 @@ class DiskArrayInternal {
 public:
     // Used when loading from file
     DiskArrayInternal(FileHandle& fileHandle, DBFileID dbFileID, common::page_idx_t headerPageIdx,
-        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction, bool readOnly,
-        bool bypassWAL = false);
+        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
+        bool readOnly, bool bypassWAL = false);
 
     virtual ~DiskArrayInternal() = default;
 
@@ -225,7 +225,7 @@ private:
     bool checkOutOfBoundAccess(transaction::TransactionType trxType, uint64_t idx);
     bool hasPIPUpdatesNoLock(uint64_t pipIdx);
 
-    void getNoLock(uint64_t idx, transaction::TransactionType trxType, std::span<uint8_t> val);
+    void getNoLock(uint64_t idx, transaction::TransactionType trxType, std::span<std::byte> val);
 
     inline const DiskArrayHeader& getDiskArrayHeader(transaction::TransactionType trxType) {
         if (trxType == transaction::TransactionType::READ_ONLY) {
@@ -274,8 +274,8 @@ public:
     // original file, but does not handle flushing them. BufferManager::flushAllDirtyPagesInFrames
     // should be called on this file handle exactly once during prepare commit.
     DiskArray(FileHandle& fileHandle, DBFileID dbFileID, common::page_idx_t headerPageIdx,
-        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,bool readOnly,
-        bool bypassWAL = false)
+        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
+        bool readOnly, bool bypassWAL = false)
         : diskArray(fileHandle, dbFileID, headerPageIdx, bufferManager, wal, transaction, readOnly,
               bypassWAL) {}
 

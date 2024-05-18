@@ -130,14 +130,16 @@ RelTableData::RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
         RelDataDirectionUtils::relDirectionToString(direction));
     csrHeaderColumns.offset = std::make_unique<Column>(csrOffsetColumnName, *LogicalType::UINT64(),
         *csrOffsetMetadataDAHInfo, dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION,
-        RWPropertyStats::empty(), enableCompression, false /* requireNUllColumn */);
+        RWPropertyStats::empty(), enableCompression, readOnly /* readOnly */,
+        false /* requireNUllColumn */);
     auto csrLengthMetadataDAHInfo =
         relsStoreStats->getCSRLengthMetadataDAHInfo(&DUMMY_WRITE_TRANSACTION, tableID, direction);
     auto csrLengthColumnName = StorageUtils::getColumnName("", StorageUtils::ColumnType::CSR_LENGTH,
         RelDataDirectionUtils::relDirectionToString(direction));
     csrHeaderColumns.length = std::make_unique<Column>(csrLengthColumnName, *LogicalType::UINT64(),
         *csrLengthMetadataDAHInfo, dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION,
-        RWPropertyStats::empty(), enableCompression, false /* requireNUllColumn */);
+        RWPropertyStats::empty(), enableCompression, readOnly /* readOnly */,
+        false /* requireNUllColumn */);
     // Columns (nbrID + properties).
     auto& properties = tableEntry->getPropertiesRef();
     auto maxColumnID = std::max_element(properties.begin(), properties.end(), [](auto& a, auto& b) {

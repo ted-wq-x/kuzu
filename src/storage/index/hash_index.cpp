@@ -121,7 +121,7 @@ HashIndex<T>::HashIndex(const DBFileIDAndName& dbFileIDAndName,
         this->indexHeaderForReadTrx->keyDataTypeID == TypeUtils::getPhysicalTypeIDForType<T>());
     pSlots = std::make_unique<DiskArray<Slot<T>>>(*fileHandle, dbFileIDAndName.dbFileID,
         NUM_HEADER_PAGES * indexPos + P_SLOTS_HEADER_PAGE_IDX, &bm, wal,
-        Transaction::getDummyReadOnlyTrx().get(), true /*bypassWAL*/);
+        Transaction::getDummyReadOnlyTrx().get(), false /*readOnly*/, true /*bypassWAL*/);
     oSlots = std::make_unique<DiskArray<Slot<T>>>(*fileHandle, dbFileIDAndName.dbFileID,
         NUM_HEADER_PAGES * indexPos + O_SLOTS_HEADER_PAGE_IDX, &bm, wal,
         Transaction::getDummyReadOnlyTrx().get(), false /*readOnly*/, true /*bypassWAL*/);

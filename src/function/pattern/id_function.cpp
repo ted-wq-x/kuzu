@@ -48,7 +48,8 @@ static std::shared_ptr<binder::Expression> UIDrewriteFunc(const expression_vecto
     ExpressionBinder* binder) {
     KU_ASSERT(params.size() == 1);
     auto node = ku_dynamic_cast<Expression*, NodeExpression*>(params[0].get());
-    return node->getPropertyExpression(node->getPrimaryKeyName());
+    KU_ASSERT(node->getNumTableIDs()==1);
+    return node->getPrimaryKey(node->getSingleTableID());
 }
 
 function_set UIDFunction::getFunctionSet() {
