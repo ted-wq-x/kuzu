@@ -346,13 +346,12 @@ std::shared_ptr<Expression> ExpressionBinder::bindLabelsFunction(const Expressio
 std::unique_ptr<Expression> ExpressionBinder::createInternalLengthExpression(
     const Expression& expression) {
     auto& rel = (RelExpression&)expression;
-    std::unordered_map<table_id_t, property_id_t> propertyIDPerTable;
+    common::table_id_map_t<SingleLabelPropertyInfo> infos;
     for (auto tableID : rel.getTableIDs()) {
-        propertyIDPerTable.insert({tableID, INVALID_PROPERTY_ID});
+        infos.insert({tableID, SingleLabelPropertyInfo{false, INVALID_PROPERTY_ID}});
     }
     return std::make_unique<PropertyExpression>(LogicalType(LogicalTypeID::INT64),
-        InternalKeyword::LENGTH, rel.getUniqueName(), rel.getVariableName(),
-        std::move(propertyIDPerTable), false /* isPrimaryKey */);
+        InternalKeyword::LENGTH, rel.getUniqueName(), rel.getVariableName(), std::move(infos));
 }
 
 } // namespace binder
