@@ -115,7 +115,7 @@ void HashJoinSIPOptimizer::visitIntersect(planner::LogicalOperator* op) {
     for (auto& nodeID : intersect->getKeyNodeIDs()) {
         std::vector<planner::LogicalOperator*> ops;
         for (auto i = 1u; i < intersect->getNumChildren(); ++i) {
-            auto buildRoot = intersect->getChild(1);
+            auto buildRoot = intersect->getChild(i);
             for (auto& op_ : resolveOperatorsToApplySemiMask(*nodeID, buildRoot.get())) {
                 ops.push_back(op_);
             }
