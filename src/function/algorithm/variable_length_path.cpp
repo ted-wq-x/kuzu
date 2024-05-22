@@ -1,12 +1,12 @@
-#include "function/gds/gds_function_collection.h"
-#include "function/algorithm_function.h"
-#include "processor/result/factorized_table.h"
-#include "graph/graph.h"
-#include "function/gds/frontier.h"
 #include "binder/expression/expression_util.h"
 #include "binder/expression/literal_expression.h"
 #include "common/exception/binder.h"
+#include "function/algorithm_function.h"
+#include "function/gds/frontier.h"
+#include "function/gds/gds_function_collection.h"
+#include "graph/graph.h"
 #include "main/client_context.h"
+#include "processor/result/factorized_table.h"
 
 using namespace kuzu::processor;
 using namespace kuzu::common;
@@ -97,10 +97,11 @@ public:
     }
 
     std::vector<common::LogicalType> getResultColumnTypes() const override {
-        return {*LogicalType::INTERNAL_ID(), *LogicalType::INTERNAL_ID(), *LogicalType::INT64(), *LogicalType::INT64()};
+        return {*LogicalType::INTERNAL_ID(), *LogicalType::INTERNAL_ID(), *LogicalType::INT64(),
+            *LogicalType::INT64()};
     }
 
-    void bind(const binder::expression_vector & params) override {
+    void bind(const binder::expression_vector& params) override {
         KU_ASSERT(params.size() == 3);
         for (auto i = 1u; i < 3u; ++i) {
             ExpressionUtil::validateExpressionType(*params[i], ExpressionType::LITERAL);
@@ -114,7 +115,7 @@ public:
         bindData = std::make_unique<VariableLengthPathBindData>(lowerBound, upperBound);
     }
 
-    void initLocalState(main::ClientContext *context) override {
+    void initLocalState(main::ClientContext* context) override {
         localState = std::make_unique<VariableLengthPathLocalState>(context);
     }
 
@@ -122,13 +123,14 @@ public:
         auto extraData = bindData->ptrCast<VariableLengthPathBindData>();
         auto variableLengthPathLocalState = localState->ptrCast<VariableLengthPathLocalState>();
         for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
-            auto sourceNodeID = nodeID_t {offset, graph->getNodeTableID()};
+            auto sourceNodeID = nodeID_t{offset, graph->getNodeTableID()};
             auto sourceState = SourceState(sourceNodeID);
             // Start recursive computation for current source node ID.
             for (auto currentLevel = 1; currentLevel <= extraData->upperBound; ++currentLevel) {
                 // Compute next frontier.
                 for (auto currentNodeID : sourceState.currentFrontier.getNodeIDs()) {
-                    auto currentMultiplicity = sourceState.currentFrontier.getMultiplicity(currentNodeID);
+                    auto currentMultiplicity =
+                        sourceState.currentFrontier.getMultiplicity(currentNodeID);
                     auto numNbr = graph->scanNbrFwd(currentNodeID.offset);
                     for (auto i = 0u; i < numNbr; ++i) {
                         auto nbrID = graph->getNbr(i);
@@ -154,7 +156,6 @@ function_set VariableLengthPathFunction::getFunctionSet() {
     result.push_back(std::move(function));
     return result;
 }
-
 
 } // namespace function
 } // namespace kuzu

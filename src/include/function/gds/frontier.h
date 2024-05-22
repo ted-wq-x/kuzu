@@ -1,8 +1,8 @@
 #pragma once
 
-#include <vector>
-#include <unordered_map>
 #include <algorithm>
+#include <unordered_map>
+#include <vector>
 
 #include "function/hash/hash_functions.h"
 
@@ -14,24 +14,20 @@ public:
     void addNode(common::nodeID_t nodeID, uint32_t multiplicity) {
         if (nodeIDToMultiplicity.contains(nodeID)) {
             nodeIDToMultiplicity.at(nodeID) += multiplicity;
-            return ;
+            return;
         }
         nodeIDToMultiplicity.insert({nodeID, multiplicity});
         nodeIDs.push_back(nodeID);
     }
 
-    void sort() {
-        std::sort(nodeIDs.begin(), nodeIDs.end());
-    }
+    void sort() { std::sort(nodeIDs.begin(), nodeIDs.end()); }
 
     void clear() {
         nodeIDs.clear();
         nodeIDToMultiplicity.clear();
     }
 
-    const std::vector<common::nodeID_t>& getNodeIDs() const {
-        return nodeIDs;
-    }
+    const std::vector<common::nodeID_t>& getNodeIDs() const { return nodeIDs; }
 
     uint32_t getMultiplicity(common::nodeID_t nodeID) const {
         KU_ASSERT(nodeIDToMultiplicity.contains(nodeID));
@@ -43,5 +39,5 @@ private:
     common::node_id_map_t<uint32_t> nodeIDToMultiplicity;
 };
 
-}
-}
+} // namespace function
+} // namespace kuzu

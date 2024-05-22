@@ -78,8 +78,8 @@ std::unique_ptr<BoundReadingClause> Binder::bindInQueryCall(const ReadingClause&
         // Validate first child is a graph expression.
         ExpressionUtil::validateExpressionType(*children[0], ExpressionType::GRAPH);
         auto graphExpr = children[0];
-        boundReadingClause = std::make_unique<BoundGDSCall>(gdsFunc,
-            std::move(graphExpr), std::move(columns));
+        boundReadingClause =
+            std::make_unique<BoundGDSCall>(gdsFunc, std::move(graphExpr), std::move(columns));
     } break;
     default:
         throw BinderException(

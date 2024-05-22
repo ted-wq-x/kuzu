@@ -11,11 +11,10 @@ private:
     std::vector<common::offset_t> nbrs;
 };
 
-//class InMemoryGraph : public Graph {
-//public:
+// class InMemoryGraph : public Graph {
+// public:
 //
-//};
+// };
 
-}
-}
-
+} // namespace graph
+} // namespace kuzu

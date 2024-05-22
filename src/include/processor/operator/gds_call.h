@@ -23,13 +23,11 @@ struct GDSCallInfo {
 
     GDSCallInfo(std::unique_ptr<function::GDSAlgorithm> gds,
         std::shared_ptr<binder::Expression> graphExpr)
-        : gds{std::move(gds)},
-          graphExpr{std::move(graphExpr)} {}
+        : gds{std::move(gds)}, graphExpr{std::move(graphExpr)} {}
     EXPLICIT_COPY_DEFAULT_MOVE(GDSCallInfo);
 
 private:
-    GDSCallInfo(const GDSCallInfo& other)
-        : gds{other.gds->copy()}, graphExpr{other.graphExpr} {}
+    GDSCallInfo(const GDSCallInfo& other) : gds{other.gds->copy()}, graphExpr{other.graphExpr} {}
 };
 
 class GDSCall : public Sink {
@@ -53,8 +51,8 @@ public:
     void executeInternal(ExecutionContext* context) override;
 
     std::unique_ptr<PhysicalOperator> clone() override {
-        return std::make_unique<GDSCall>(resultSetDescriptor->copy(), info.copy(),
-            sharedState, id, paramsString);
+        return std::make_unique<GDSCall>(resultSetDescriptor->copy(), info.copy(), sharedState, id,
+            paramsString);
     }
 
 private:

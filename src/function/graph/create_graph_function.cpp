@@ -4,10 +4,10 @@
 #include "binder/expression/literal_expression.h"
 #include "binder/expression_binder.h"
 #include "catalog/catalog.h"
+#include "common/exception/binder.h"
 #include "function/graph/graph_functions.h"
 #include "function/rewrite_function.h"
 #include "main/client_context.h"
-#include "common/exception/binder.h"
 
 using namespace kuzu::binder;
 using namespace kuzu::common;
@@ -25,7 +25,8 @@ static std::shared_ptr<Expression> rewriteFunc(const expression_vector& params,
     ExpressionUtil::validateExpressionType(*params[1], ExpressionType::LITERAL);
     ExpressionUtil::validateDataType(*params[0], *LogicalType::STRING());
     ExpressionUtil::validateDataType(*params[1], *LogicalType::STRING());
-    auto nodeName = params[0]->constPtrCast<LiteralExpression>()->getValue().getValue<std::string>();
+    auto nodeName =
+        params[0]->constPtrCast<LiteralExpression>()->getValue().getValue<std::string>();
     auto relName = params[1]->constPtrCast<LiteralExpression>()->getValue().getValue<std::string>();
     return std::make_shared<GraphExpression>(std::move(uniqueName), nodeName, relName);
 }

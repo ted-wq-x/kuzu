@@ -5,7 +5,6 @@
 namespace kuzu {
 namespace function {
 
-
 struct VariableLengthPathFunction {
     static constexpr const char* name = "VARIABLE_LENGTH_PATH";
 

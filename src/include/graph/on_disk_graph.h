@@ -1,9 +1,9 @@
 #pragma once
 
+#include "catalog/catalog_entry/node_table_catalog_entry.h"
 #include "graph.h"
 #include "storage/store/node_table.h"
 #include "storage/store/rel_table.h"
-#include "catalog/catalog_entry/node_table_catalog_entry.h"
 
 namespace kuzu {
 namespace graph {
@@ -23,7 +23,8 @@ struct NbrScanState {
 
 class OnDiskGraph : public Graph {
 public:
-    OnDiskGraph(main::ClientContext* context, const std::string& nodeName, const std::string& relName);
+    OnDiskGraph(main::ClientContext* context, const std::string& nodeName,
+        const std::string& relName);
 
     common::table_id_t getNodeTableID() override { return nodeTable->getTableID(); }
 

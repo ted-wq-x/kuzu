@@ -20,7 +20,6 @@ public:
     // TODO: we may not need the following interface.
     virtual common::table_id_t getNodeTableID() = 0;
 
-
     // Get total number of nodes in the graph.
     virtual common::offset_t getNumNodes() = 0;
     // Get total number of edges in the graph.
@@ -33,11 +32,9 @@ public:
     virtual std::vector<common::nodeID_t> getNbrs() = 0;
     //
     virtual common::nodeID_t getNbr(common::idx_t idx) = 0;
-
 };
 
 } // namespace graph
 } // namespace kuzu
-
 
 // 1. Parall

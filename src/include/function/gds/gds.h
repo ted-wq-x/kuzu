@@ -1,7 +1,7 @@
 #pragma once
 
-#include "graph/graph.h"
 #include "binder/expression/expression.h"
+#include "graph/graph.h"
 
 namespace kuzu {
 namespace processor {
@@ -46,11 +46,10 @@ public:
     virtual std::vector<std::string> getResultColumnNames() const = 0;
     virtual std::vector<common::LogicalType> getResultColumnTypes() const = 0;
 
-    virtual void bind(const binder::expression_vector&) {
-        bindData = nullptr;
-    }
+    virtual void bind(const binder::expression_vector&) { bindData = nullptr; }
 
-    void init(graph::Graph* graph_, processor::FactorizedTable* table_, main::ClientContext* context) {
+    void init(graph::Graph* graph_, processor::FactorizedTable* table_,
+        main::ClientContext* context) {
         graph = graph_;
         table = table_;
         initLocalState(context);
@@ -78,5 +77,5 @@ protected:
     std::unique_ptr<GDSLocalState> localState;
 };
 
-}
-}
+} // namespace function
+} // namespace kuzu

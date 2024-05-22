@@ -17,7 +17,6 @@ struct CreateOffsetFunction {
     static function_set getFunctionSet();
 };
 
-
 struct IDFunction {
     static constexpr const char* name = "ID";
 
