@@ -1,9 +1,12 @@
-#include "function/algorithm/algorithm_function_collection.h"
+#include "function/gds/gds_function_collection.h"
 #include "function/algorithm_function.h"
 #include "processor/result/factorized_table.h"
 #include "graph/graph.h"
-#include "function/algorithm/frontier.h"
+#include "function/gds/frontier.h"
 #include "binder/expression/literal_expression.h"
+#include "function/gds/gds.h"
+#include "main/client_context.h"
+#include "binder/expression/expression_util.h"
 
 using namespace kuzu::processor;
 using namespace kuzu::common;
@@ -13,28 +16,15 @@ using namespace kuzu::storage;
 namespace kuzu {
 namespace function {
 
-struct ShortestPathExtraBindData final : public AlgoFuncExtraBindData {
+struct ShortestPathBindData final : public GDSBindData {
     uint8_t upperBound;
 
-    explicit ShortestPathExtraBindData(uint8_t upperBound) : upperBound{upperBound} {}
+    explicit ShortestPathBindData(uint8_t upperBound) : upperBound{upperBound} {}
 
-    std::unique_ptr<AlgoFuncExtraBindData> copy() const override {
-        return std::make_unique<ShortestPathExtraBindData>(upperBound);
+    std::unique_ptr<GDSBindData> copy() const override {
+        return std::make_unique<ShortestPathBindData>(upperBound);
     }
 };
-
-static AlgoFuncBindData bindFunc(const expression_vector& params) {
-    auto bindData = AlgoFuncBindData();
-    bindData.columnNames.push_back("src");
-    bindData.columnNames.push_back("dst");
-    bindData.columnNames.push_back("length");
-    bindData.columnTypes.push_back(*LogicalType::INTERNAL_ID());
-    bindData.columnTypes.push_back(*LogicalType::INTERNAL_ID());
-    bindData.columnTypes.push_back(*LogicalType::INT64());
-    auto upperBound = params[1]->constCast<LiteralExpression>().getValue().getValue<int64_t>();
-    bindData.extraData = std::make_unique<ShortestPathExtraBindData>(upperBound);
-    return bindData;
-}
 
 struct SourceState {
     nodeID_t sourceNodeID;
@@ -75,13 +65,10 @@ struct SourceState {
     }
 };
 
-struct ShortestPathLocalState : public AlgoFuncLocalState {
-    std::unique_ptr<ValueVector> srcNodeIDVector;
-    std::unique_ptr<ValueVector> dstNodeIDVector;
-    std::unique_ptr<ValueVector> lengthVector;
-    std::vector<ValueVector*> vectors;
-
-    explicit ShortestPathLocalState(MemoryManager* mm) {
+class ShortestPathLocalState : public GDSLocalState {
+public:
+    explicit ShortestPathLocalState(main::ClientContext* context) {
+        auto mm = context->getMemoryManager();
         srcNodeIDVector = std::make_unique<ValueVector>(*LogicalType::INTERNAL_ID(), mm);
         dstNodeIDVector = std::make_unique<ValueVector>(*LogicalType::INTERNAL_ID(), mm);
         lengthVector = std::make_unique<ValueVector>(*LogicalType::INT64(), mm);
@@ -105,50 +92,78 @@ struct ShortestPathLocalState : public AlgoFuncLocalState {
             table.append(vectors);
         }
     }
+
+private:
+    std::unique_ptr<ValueVector> srcNodeIDVector;
+    std::unique_ptr<ValueVector> dstNodeIDVector;
+    std::unique_ptr<ValueVector> lengthVector;
+    std::vector<ValueVector*> vectors;
 };
 
-static std::unique_ptr<AlgoFuncLocalState> initLocalStateFunc(storage::MemoryManager* mm) {
-    return std::make_unique<ShortestPathLocalState>(mm);
-}
+class ShortestPath final : public GDSAlgorithm {
+public:
+    ShortestPath() = default;
+    ShortestPath(const ShortestPath& other) : GDSAlgorithm{other} {}
 
-static void execFunc(const AlgoFuncInput& input, FactorizedTable& output) {
-    auto extraData = input.bindData.extraData->ptrCast<ShortestPathExtraBindData>();
-    auto graph = input.graph;
-    auto localState = input.localState->ptrCast<ShortestPathLocalState>();
-    for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
-        auto sourceNodeID = nodeID_t {offset, graph->getNodeTableID()};
-        auto sourceState = SourceState(sourceNodeID, graph->getNumNodes());
-        // Start recursive computation for current source node ID.
-        // TODO(Xiyang): we should do currentLevel < upperBound
-        for (auto currentLevel = 0; currentLevel <= extraData->upperBound; ++currentLevel) {
-            if (sourceState.allVisited()) {
-                continue ;
-            }
-            // Compute next frontier.
-            for (auto currentNodeID : sourceState.currentFrontier.getNodeIDs()) {
-                if (sourceState.visited(currentNodeID.offset)) {
-                    continue;
-                }
-                sourceState.markVisited(currentNodeID, currentLevel);
-                auto numNbr = graph->scanNbrFwd(currentNodeID.offset);
-                for (auto i = 0u; i < numNbr; ++i) {
-                    auto nbrID = graph->getNbr(i);
-                    sourceState.nextFrontier.addNode(nbrID, 1);
-                }
-            }
-            sourceState.initNextFrontier();
-        };
-        localState->materialize(graph, sourceState, output);
+    std::vector<common::LogicalTypeID> getParamTypeIDs() const override {
+        return {LogicalTypeID::ANY, LogicalTypeID::INT64};
     }
-}
 
+    std::vector<std::string> getResultColumnNames() const override {
+        return {"src", "dst", "length"};
+    }
+
+    std::vector<common::LogicalType> getResultColumnTypes() const override {
+        return {*LogicalType::INTERNAL_ID(), *LogicalType::INTERNAL_ID(), *LogicalType::INT64()};
+    }
+
+    void bind(const binder::expression_vector & params) override {
+        ExpressionUtil::validateExpressionType(*params[1], ExpressionType::LITERAL);
+        auto upperBound = params[1]->constCast<LiteralExpression>().getValue().getValue<int64_t>();
+        bindData = std::make_unique<ShortestPathBindData>(upperBound);
+    }
+
+    void initLocalState(main::ClientContext *context) override {
+        localState = std::make_unique<ShortestPathLocalState>(context);
+    }
+
+    void exec() override {
+        auto extraData = bindData->ptrCast<ShortestPathBindData>();
+        auto shortestPathLocalState = localState->ptrCast<ShortestPathLocalState>();
+        for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
+            auto sourceNodeID = nodeID_t {offset, graph->getNodeTableID()};
+            auto sourceState = SourceState(sourceNodeID, graph->getNumNodes());
+            // Start recursive computation for current source node ID.
+            for (auto currentLevel = 0; currentLevel <= extraData->upperBound; ++currentLevel) {
+                if (sourceState.allVisited()) {
+                    continue ;
+                }
+                // Compute next frontier.
+                for (auto currentNodeID : sourceState.currentFrontier.getNodeIDs()) {
+                    if (sourceState.visited(currentNodeID.offset)) {
+                        continue;
+                    }
+                    sourceState.markVisited(currentNodeID, currentLevel);
+                    auto numNbr = graph->scanNbrFwd(currentNodeID.offset);
+                    for (auto i = 0u; i < numNbr; ++i) {
+                        auto nbrID = graph->getNbr(i);
+                        sourceState.nextFrontier.addNode(nbrID, 1);
+                    }
+                }
+                sourceState.initNextFrontier();
+            };
+            shortestPathLocalState->materialize(graph, sourceState, *table);
+        }
+    }
+
+    std::unique_ptr<GDSAlgorithm> copy() const override {
+        return std::make_unique<ShortestPath>(*this);
+    }
+};
 
 function_set ShortestPathFunction::getFunctionSet() {
     function_set result;
-    auto function = std::make_unique<AlgorithmFunction>(name, std::vector<LogicalTypeID>{LogicalTypeID::ANY, LogicalTypeID::INT64});
-    function->bindFunc = bindFunc;
-    function->initLocalStateFunc = initLocalStateFunc;
-    function->execFunc = execFunc;
+    auto function = std::make_unique<GDSFunction>(name, std::make_unique<ShortestPath>());
     result.push_back(std::move(function));
     return result;
 }

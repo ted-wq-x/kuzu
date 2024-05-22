@@ -20,7 +20,7 @@ enum class CatalogEntryType : uint8_t {
     SCALAR_FUNCTION_ENTRY = 21,
     REWRITE_FUNCTION_ENTRY = 22,
     TABLE_FUNCTION_ENTRY = 23,
-    ALGORITHM_FUNCTION_ENTRY = 24,
+    GDS_FUNCTION_ENTRY = 24,
     // Sequence entries
     SEQUENCE_ENTRY = 40,
     // Dummy entry

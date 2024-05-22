@@ -3,7 +3,7 @@
 #include "function/aggregate/collect.h"
 #include "function/aggregate/count.h"
 #include "function/aggregate/count_star.h"
-#include "function/algorithm/algorithm_function_collection.h"
+#include "function/gds/gds_function_collection.h"
 #include "function/arithmetic/vector_arithmetic_functions.h"
 #include "function/array/vector_array_functions.h"
 #include "function/blob/vector_blob_functions.h"
@@ -49,7 +49,7 @@ namespace function {
 #define TABLE_FUNCTION(_PARAM)                                                                     \
     { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::TABLE_FUNCTION_ENTRY }
 #define ALGORITHM_FUNCTION(_PARAM)                                                                 \
-    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::ALGORITHM_FUNCTION_ENTRY }
+    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::GDS_FUNCTION_ENTRY }
 #define FINAL_FUNCTION                                                                             \
     { nullptr, nullptr, CatalogEntryType::SCALAR_FUNCTION_ENTRY }
 
@@ -225,7 +225,7 @@ FunctionCollection* FunctionCollection::getFunctions() {
         TABLE_FUNCTION(RdfLiteralTripleInMemScan), TABLE_FUNCTION(FTableScan),
 
         // Algorithm functions
-        ALGORITHM_FUNCTION(DemoAvgDegreeFunction), ALGORITHM_FUNCTION(VariableLengthPathFunction), ALGORITHM_FUNCTION(WeaklyConnectedComponentFunction),
+        ALGORITHM_FUNCTION(VariableLengthPathFunction), ALGORITHM_FUNCTION(WeaklyConnectedComponentFunction),
         ALGORITHM_FUNCTION(ShortestPathFunction), ALGORITHM_FUNCTION(PageRankFunction),
 
         // End of array

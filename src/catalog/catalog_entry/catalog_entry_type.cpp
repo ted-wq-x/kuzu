@@ -27,8 +27,8 @@ std::string CatalogEntryTypeUtils::toString(CatalogEntryType type) {
         return "REWRITE_FUNCTION_ENTRY";
     case CatalogEntryType::TABLE_FUNCTION_ENTRY:
         return "TABLE_FUNCTION_ENTRY";
-    case CatalogEntryType::ALGORITHM_FUNCTION_ENTRY:
-        return "ALGORITHM_FUNCTION_ENTRY";
+    case CatalogEntryType::GDS_FUNCTION_ENTRY:
+        return "GDS_FUNCTION_ENTRY";
     case CatalogEntryType::DUMMY_ENTRY:
         return "DUMMY_ENTRY";
     case CatalogEntryType::SEQUENCE_ENTRY:

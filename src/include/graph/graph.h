@@ -38,3 +38,6 @@ public:
 
 } // namespace graph
 } // namespace kuzu
+
+
+// 1. Parall

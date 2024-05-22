@@ -90,7 +90,7 @@ private:
         std::vector<std::unique_ptr<LogicalPlan>>& plans);
     void planInQueryCall(const binder::BoundReadingClause* readingClause,
         std::vector<std::unique_ptr<LogicalPlan>>& plans);
-    void planAlgorithmCall(const binder::BoundReadingClause* readingClause,
+    void planGDSCall(const binder::BoundReadingClause* readingClause,
         std::vector<std::unique_ptr<LogicalPlan>>& plans);
     void planReadOp(std::shared_ptr<LogicalOperator> op,
         const binder::expression_vector& predicates,

@@ -1,5 +1,5 @@
 #include "binder/expression_visitor.h"
-#include "binder/query/reading_clause/bound_algorithm_call.h"
+#include "binder/query/reading_clause/bound_gds_call.h"
 #include "binder/query/reading_clause/bound_in_query_call.h"
 #include "binder/query/reading_clause/bound_load_from.h"
 #include "binder/query/reading_clause/bound_match_clause.h"
@@ -25,8 +25,8 @@ void Planner::planReadingClause(const BoundReadingClause* readingClause,
     case ClauseType::IN_QUERY_CALL: {
         planInQueryCall(readingClause, prevPlans);
     } break;
-    case ClauseType::ALGORITHM_CALL: {
-        planAlgorithmCall(readingClause, prevPlans);
+    case ClauseType::GDS_CALL: {
+        planGDSCall(readingClause, prevPlans);
     } break;
     case ClauseType::LOAD_FROM: {
         planLoadFrom(readingClause, prevPlans);
@@ -122,18 +122,15 @@ void Planner::planInQueryCall(const BoundReadingClause* readingClause,
     }
 }
 
-void Planner::planAlgorithmCall(const BoundReadingClause* readingClause,
+void Planner::planGDSCall(const BoundReadingClause* readingClause,
     std::vector<std::unique_ptr<LogicalPlan>>& plans) {
-    auto algoCall = readingClause->constPtrCast<BoundAlgorithmCall>();
+    auto algoCall = readingClause->constPtrCast<BoundGDSCall>();
     expression_vector predicatesToPull;
     expression_vector predicatesToPush;
     splitPredicates(algoCall->getOutExprs(), algoCall->getConjunctivePredicates(), predicatesToPull,
         predicatesToPush);
+    // TODO(Xiyang): support join algorithm call with other plan.
     expression_vector joinConditions;
-    for (auto& e : algoCall->getNodeInputs()) {
-        auto node = e->constPtrCast<NodeExpression>();
-        joinConditions.push_back(node->getInternalID());
-    }
     for (auto& plan : plans) {
         planReadOp(getAlgorithm(*readingClause), predicatesToPush, joinConditions, *plan);
         if (!predicatesToPull.empty()) {

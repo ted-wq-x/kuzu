@@ -1,7 +1,8 @@
-#include "function/algorithm/algorithm_function_collection.h"
+#include "function/gds/gds_function_collection.h"
 #include "function/algorithm_function.h"
 #include "graph/graph.h"
 #include "processor/result/factorized_table.h"
+#include "main/client_context.h"
 
 using namespace kuzu::binder;
 using namespace kuzu::common;
@@ -11,21 +12,10 @@ using namespace kuzu::storage;
 namespace kuzu {
 namespace function {
 
-static AlgoFuncBindData bindFunc(const expression_vector&) {
-    auto bindData = AlgoFuncBindData();
-    bindData.columnNames.push_back("node_id");
-    bindData.columnNames.push_back("group_id");
-    bindData.columnTypes.push_back(*LogicalType::INTERNAL_ID());
-    bindData.columnTypes.push_back(*LogicalType::INT64());
-    return bindData;
-}
-
-struct WeaklyConnectedComponentLocalState : public AlgoFuncLocalState {
-    std::unique_ptr<ValueVector> nodeIDVector;
-    std::unique_ptr<ValueVector> groupVector;
-    std::vector<ValueVector*> vectors;
-
-    explicit WeaklyConnectedComponentLocalState(MemoryManager* mm) {
+class WeaklyConnectedComponentLocalState : public GDSLocalState {
+public:
+    explicit WeaklyConnectedComponentLocalState(main::ClientContext* context) {
+        auto mm = context->getMemoryManager();
         nodeIDVector = std::make_unique<ValueVector>(*LogicalType::INTERNAL_ID(), mm);
         groupVector = std::make_unique<ValueVector>(*LogicalType::INT64(), mm);
         nodeIDVector->state = DataChunkState::getSingleValueDataChunkState();
@@ -41,56 +31,81 @@ struct WeaklyConnectedComponentLocalState : public AlgoFuncLocalState {
             table.append(vectors);
         }
     }
+
+private:
+    std::unique_ptr<ValueVector> nodeIDVector;
+    std::unique_ptr<ValueVector> groupVector;
+    std::vector<ValueVector*> vectors;
 };
 
-static std::unique_ptr<AlgoFuncLocalState> initLocalStateFunc(storage::MemoryManager* mm) {
-    return std::make_unique<WeaklyConnectedComponentLocalState>(mm);
-}
+class WeaklyConnectedComponent final : public GDSAlgorithm {
+public:
+    WeaklyConnectedComponent() = default;
+    WeaklyConnectedComponent(const WeaklyConnectedComponent& other) : GDSAlgorithm{other} {}
 
-// DFS style
-static void findConnectedComponent(graph::Graph* graph, std::vector<bool>& visitedArray, std::vector<int64_t>& groupArray, common::offset_t offset, int64_t groupID) {
-    visitedArray[offset] = true;
-    groupArray[offset] = groupID;
-    auto numNbr = graph->scanNbrFwd(offset);
-    auto nbrs = graph->getNbrs();
-    for (auto nbrID : nbrs) {
-        if (visitedArray[nbrID.offset]) {
-            continue;
-        }
-        findConnectedComponent(graph, visitedArray, groupArray, nbrID.offset, groupID);
+    std::vector<common::LogicalTypeID> getParamTypeIDs() const override {
+        return std::vector<LogicalTypeID>{LogicalTypeID::ANY};
     }
-}
 
-static void execFunc(const AlgoFuncInput& input, FactorizedTable& output) {
-    auto graph = input.graph;
-    auto localState = input.localState->ptrCast<WeaklyConnectedComponentLocalState>();
-    // Initialize state.
+    std::vector<std::string> getResultColumnNames() const override {
+        return {"node_id", "group_id"};
+    }
+
+    std::vector<common::LogicalType> getResultColumnTypes() const override {
+        return {*LogicalType::INTERNAL_ID(), *LogicalType::INT64()};
+    }
+
+    void initLocalState(main::ClientContext *context) override {
+        localState = std::make_unique<WeaklyConnectedComponentLocalState>(context);
+    }
+
+    void exec() override {
+        auto wccLocalState = localState->ptrCast<WeaklyConnectedComponentLocalState>();
+        // Initialize state.
+        visitedArray.resize(graph->getNumNodes());
+        groupArray.resize(graph->getNumNodes());
+        for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
+            visitedArray[offset] = false;
+            groupArray[offset] = -1;
+        }
+        // Compute weakly connected component.
+        auto groupID = 0;
+        for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
+            if (visitedArray[offset]) {
+                continue;
+            }
+            findConnectedComponent(offset, groupID++);
+        }
+        // Materialize result.
+        wccLocalState->materialize(graph, groupArray, *table);
+    }
+
+    std::unique_ptr<GDSAlgorithm> copy() const override {
+        return std::make_unique<WeaklyConnectedComponent>(*this);
+    }
+
+private:
+    void findConnectedComponent(common::offset_t offset, int64_t groupID) {
+        visitedArray[offset] = true;
+        groupArray[offset] = groupID;
+        graph->scanNbrFwd(offset);
+        auto nbrs = graph->getNbrs();
+        for (auto nbrID : nbrs) {
+            if (visitedArray[nbrID.offset]) {
+                continue;
+            }
+            findConnectedComponent(nbrID.offset, groupID);
+        }
+    }
+
+private:
     std::vector<bool> visitedArray;
     std::vector<int64_t> groupArray;
-    visitedArray.resize(graph->getNumNodes());
-    groupArray.resize(graph->getNumNodes());
-    for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
-        visitedArray[offset] = false;
-        groupArray[offset] = -1;
-    }
-    // Compute weakly connected component.
-    auto groupID = 0;
-    for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
-        if (visitedArray[offset]) {
-            continue;
-        }
-        findConnectedComponent(graph, visitedArray, groupArray, offset, groupID++);
-    }
-    // Materialize result.
-    localState->materialize(graph, groupArray, output);
-}
+};
 
 function_set WeaklyConnectedComponentFunction::getFunctionSet() {
     function_set result;
-    auto function = std::make_unique<AlgorithmFunction>(name, std::vector<LogicalTypeID>{LogicalTypeID::ANY});
-    function->bindFunc = bindFunc;
-    function->initLocalStateFunc = initLocalStateFunc;
-    function->execFunc = execFunc;
+    auto function = std::make_unique<GDSFunction>(name, std::make_unique<WeaklyConnectedComponent>());
     result.push_back(std::move(function));
     return result;
 }

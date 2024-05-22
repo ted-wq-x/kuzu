@@ -1,7 +1,7 @@
 #include "binder/binder.h"
 #include "binder/expression/expression_util.h"
 #include "binder/expression/literal_expression.h"
-#include "binder/query/reading_clause/bound_algorithm_call.h"
+#include "binder/query/reading_clause/bound_gds_call.h"
 #include "binder/query/reading_clause/bound_in_query_call.h"
 #include "catalog/catalog.h"
 #include "common/exception/binder.h"
@@ -62,12 +62,14 @@ std::unique_ptr<BoundReadingClause> Binder::bindInQueryCall(const ReadingClause&
         boundReadingClause = std::make_unique<BoundInQueryCall>(*tableFunc, std::move(bindData),
             std::move(offset), std::move(columns));
     } break;
-    case CatalogEntryType::ALGORITHM_FUNCTION_ENTRY: {
+    case CatalogEntryType::GDS_FUNCTION_ENTRY: {
         // Bind CALL ALGORITHM_FUNCTION.
-        auto algoFunc = func->constPtrCast<AlgorithmFunction>();
-        auto bindData = algoFunc->bindFunc(children);
-        for (auto i = 0u; i < bindData.columnNames.size(); ++i) {
-            columns.push_back(createVariable(bindData.columnNames[i], bindData.columnTypes[i]));
+        auto gdsFunc = *func->constPtrCast<GDSFunction>();
+        gdsFunc.gds->bind(children);
+        auto columnNames = gdsFunc.gds->getResultColumnNames();
+        auto columnTypes = gdsFunc.gds->getResultColumnTypes();
+        for (auto i = 0u; i < columnNames.size(); ++i) {
+            columns.push_back(createVariable(columnNames[i], columnTypes[i]));
         }
         if (children.empty()) {
             throw BinderException(
@@ -76,17 +78,8 @@ std::unique_ptr<BoundReadingClause> Binder::bindInQueryCall(const ReadingClause&
         // Validate first child is a graph expression.
         ExpressionUtil::validateExpressionType(*children[0], ExpressionType::GRAPH);
         auto graphExpr = children[0];
-        // Validate the rest of inputs are nodes. I believe this can be our assumption for the near
-        // future. Technically speaking, I can also extend to arbitrary inputs but there is not yet
-        // an algorithm that requires doing so.
-        expression_vector nodeInputs;
-//        for (auto i = 1u; i < children.size(); ++i) {
-//            ExpressionUtil::validateExpressionType(*children[i], ExpressionType::VARIABLE);
-//            ExpressionUtil::validateDataType(*children[0], LogicalTypeID::NODE);
-//            nodeInputs.push_back(children[i]);
-//        };
-        boundReadingClause = std::make_unique<BoundAlgorithmCall>(*algoFunc, std::move(bindData),
-            std::move(graphExpr), std::move(nodeInputs), std::move(columns));
+        boundReadingClause = std::make_unique<BoundGDSCall>(gdsFunc,
+            std::move(graphExpr), std::move(columns));
     } break;
     default:
         throw BinderException(

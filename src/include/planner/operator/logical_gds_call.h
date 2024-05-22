@@ -6,36 +6,32 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalAlgorithmCall final : public LogicalOperator {
-    static constexpr LogicalOperatorType operatorType_ = LogicalOperatorType::ALGORITHM;
+class LogicalGDSCall final : public LogicalOperator {
+    static constexpr LogicalOperatorType operatorType_ = LogicalOperatorType::GDS_CALL;
 
 public:
-    LogicalAlgorithmCall(function::AlgorithmFunction algoFunc, function::AlgoFuncBindData bindData,
+    LogicalGDSCall(function::GDSFunction func,
         std::shared_ptr<binder::Expression> graphExpr, binder::expression_vector outExprs)
-        : LogicalOperator{operatorType_}, algoFunc{std::move(algoFunc)},
-          bindData{std::move(bindData)}, graphExpr{std::move(graphExpr)},
+        : LogicalOperator{operatorType_}, func{std::move(func)}, graphExpr{std::move(graphExpr)},
           outExprs{std::move(outExprs)} {}
 
     void computeFlatSchema() override;
     void computeFactorizedSchema() override;
 
-    function::AlgorithmFunction getFunction() const { return algoFunc; }
-    function::AlgoFuncBindData getBindData() const { return bindData.copy(); }
+    function::GDSFunction getFunction() const { return func; }
     std::shared_ptr<binder::Expression> getGraphExpr() const { return graphExpr; }
     binder::expression_vector getOutExprs() const { return outExprs; }
 
-    std::string getExpressionsForPrinting() const override { return algoFunc.name; }
+    std::string getExpressionsForPrinting() const override { return func.name; }
 
     std::unique_ptr<LogicalOperator> copy() override {
-        return std::make_unique<LogicalAlgorithmCall>(algoFunc, bindData.copy(), graphExpr,
+        return std::make_unique<LogicalGDSCall>(func, graphExpr,
             outExprs);
     }
 
 private:
     // Algorithm function.
-    function::AlgorithmFunction algoFunc;
-    // Algorithm bind data.
-    function::AlgoFuncBindData bindData;
+    function::GDSFunction func;
     // Input graph.
     std::shared_ptr<binder::Expression> graphExpr;
     // Algorithm output expressions.

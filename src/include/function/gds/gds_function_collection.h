@@ -5,12 +5,6 @@
 namespace kuzu {
 namespace function {
 
-// Calculate the average degree for an input graph.
-struct DemoAvgDegreeFunction {
-    static constexpr const char* name = "DEMO_AVG_DEGREE";
-
-    static function_set getFunctionSet();
-};
 
 struct VariableLengthPathFunction {
     static constexpr const char* name = "VARIABLE_LENGTH_PATH";

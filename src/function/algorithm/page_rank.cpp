@@ -1,7 +1,9 @@
-#include "function/algorithm/algorithm_function_collection.h"
+#include "function/gds/gds_function_collection.h"
 #include "function/algorithm_function.h"
 #include "processor/result/factorized_table.h"
 #include "graph/graph.h"
+#include "function/gds/gds.h"
+#include "main/client_context.h"
 
 using namespace kuzu::processor;
 using namespace kuzu::common;
@@ -11,34 +13,22 @@ using namespace kuzu::storage;
 namespace kuzu {
 namespace function {
 
-struct PageRankExtraBindData final : public AlgoFuncExtraBindData {
+struct PageRankBindData final : public GDSBindData {
     double dampingFactor = 0.85;
     int64_t maxIteration = 10;
     double delta = 0.0001; // detect convergence
 
-    PageRankExtraBindData() = default;
+    PageRankBindData() = default;
 
-    std::unique_ptr<AlgoFuncExtraBindData> copy() const override {
-        return std::make_unique<PageRankExtraBindData>();
+    std::unique_ptr<GDSBindData> copy() const override {
+        return std::make_unique<PageRankBindData>();
     }
 };
 
-static AlgoFuncBindData bindFunc(const expression_vector& params) {
-    auto bindData = AlgoFuncBindData();
-    bindData.columnNames.push_back("node_id");
-    bindData.columnNames.push_back("rank");
-    bindData.columnTypes.push_back(*LogicalType::INTERNAL_ID());
-    bindData.columnTypes.push_back(*LogicalType::DOUBLE());
-    bindData.extraData = std::make_unique<PageRankExtraBindData>();
-    return bindData;
-}
-
-struct PageRankLocalState : public AlgoFuncLocalState {
-    std::unique_ptr<ValueVector> nodeIDVector;
-    std::unique_ptr<ValueVector> rankVector;
-    std::vector<ValueVector*> vectors;
-
-    explicit PageRankLocalState(MemoryManager* mm) {
+class PageRankLocalState : public GDSLocalState {
+public:
+    explicit PageRankLocalState(main::ClientContext* context) {
+        auto mm = context->getMemoryManager();
         nodeIDVector = std::make_unique<ValueVector>(*LogicalType::INTERNAL_ID(), mm);
         rankVector = std::make_unique<ValueVector>(*LogicalType::DOUBLE(), mm);
         nodeIDVector->state = DataChunkState::getSingleValueDataChunkState();
@@ -54,56 +44,82 @@ struct PageRankLocalState : public AlgoFuncLocalState {
             table.append(vectors);
         }
     }
+
+private:
+    std::unique_ptr<ValueVector> nodeIDVector;
+    std::unique_ptr<ValueVector> rankVector;
+    std::vector<ValueVector*> vectors;
 };
 
-static std::unique_ptr<AlgoFuncLocalState> initLocalStateFunc(storage::MemoryManager* mm) {
-    return std::make_unique<PageRankLocalState>(mm);
-}
+class PageRank final : public GDSAlgorithm {
+public:
+    PageRank() = default;
+    PageRank(const PageRank& other) : GDSAlgorithm{other} {}
 
-static void execFunc(const AlgoFuncInput& input, FactorizedTable& output) {
-    auto extraData = input.bindData.extraData->ptrCast<PageRankExtraBindData>();
-    auto graph = input.graph;
-    auto localState = input.localState->ptrCast<PageRankLocalState>();
-    // Initialize state.
-    std::vector<double> ranks;
-    ranks.resize(graph->getNumNodes());
-    for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
-        ranks[offset] = (double )1 / graph->getNumNodes();
+    std::vector<common::LogicalTypeID> getParamTypeIDs() const override {
+        return {LogicalTypeID::ANY};
     }
-    auto dampingValue = (1 - extraData->dampingFactor) / graph->getNumNodes();
-    // Compute page rank.
-    for (auto i = 0u; i < extraData->maxIteration; ++i) {
-        auto change = 0.0;
+
+    std::vector<std::string> getResultColumnNames() const override {
+        return {"node_id", "rank"};
+    }
+
+    std::vector<common::LogicalType> getResultColumnTypes() const override {
+        return {*LogicalType::INTERNAL_ID(), *LogicalType::DOUBLE()};
+    }
+
+    void bind(const binder::expression_vector &) override {
+        bindData = std::make_unique<PageRankBindData>();
+    }
+
+    void initLocalState(main::ClientContext *context) override {
+        localState = std::make_unique<PageRankLocalState>(context);
+    }
+
+    void exec() override {
+        auto extraData = bindData->ptrCast<PageRankBindData>();
+        auto pageRankLocalState = localState->ptrCast<PageRankLocalState>();
+        // Initialize state.
+        std::vector<double> ranks;
+        ranks.resize(graph->getNumNodes());
         for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
-            auto rank = 0.0;
-            auto numNbr = graph->scanNbrFwd(offset);
-            auto nbrs = graph->getNbrs();
-            for (auto& nbr : nbrs) {
-                auto numNbrOfNbr = graph->scanNbrFwd(nbr.offset);
-                if (numNbrOfNbr == 0) {
-                    numNbrOfNbr = graph->getNumNodes();
+            ranks[offset] = (double )1 / graph->getNumNodes();
+        }
+        auto dampingValue = (1 - extraData->dampingFactor) / graph->getNumNodes();
+        // Compute page rank.
+        for (auto i = 0u; i < extraData->maxIteration; ++i) {
+            auto change = 0.0;
+            for (auto offset = 0u; offset < graph->getNumNodes(); ++offset) {
+                auto rank = 0.0;
+                graph->scanNbrFwd(offset);
+                auto nbrs = graph->getNbrs();
+                for (auto& nbr : nbrs) {
+                    auto numNbrOfNbr = graph->scanNbrFwd(nbr.offset);
+                    if (numNbrOfNbr == 0) {
+                        numNbrOfNbr = graph->getNumNodes();
+                    }
+                    rank += extraData->dampingFactor * (ranks[nbr.offset] / numNbrOfNbr);
                 }
-                rank += extraData->dampingFactor * (ranks[nbr.offset] / numNbrOfNbr);
+                rank += dampingValue;
+                change += abs(ranks[offset] - rank);
+                ranks[offset] = rank;
             }
-            rank += dampingValue;
-            change += abs(ranks[offset] - rank);
-            ranks[offset] = rank;
+            if (change < extraData->delta) {
+                break ;
+            }
         }
-        if (change < extraData->delta) {
-            break ;
-        }
+        // Materialize result.
+        pageRankLocalState->materialize(graph, ranks, *table);
     }
-    // Materialize result.
-    localState->materialize(graph, ranks, output);
-}
 
+    std::unique_ptr<GDSAlgorithm> copy() const override {
+        return std::make_unique<PageRank>(*this);
+    }
+};
 
 function_set PageRankFunction::getFunctionSet() {
     function_set result;
-    auto function = std::make_unique<AlgorithmFunction>(name, std::vector<LogicalTypeID>{LogicalTypeID::ANY});
-    function->bindFunc = bindFunc;
-    function->initLocalStateFunc = initLocalStateFunc;
-    function->execFunc = execFunc;
+    auto function = std::make_unique<GDSFunction>(name, std::make_unique<PageRank>());
     result.push_back(std::move(function));
     return result;
 }

@@ -1,9 +1,9 @@
-#include "planner/operator/logical_algorithm_call.h"
+#include "planner/operator/logical_gds_call.h"
 
 namespace kuzu {
 namespace planner {
 
-void LogicalAlgorithmCall::computeFlatSchema() {
+void LogicalGDSCall::computeFlatSchema() {
     createEmptySchema();
     schema->createGroup();
     for (auto& e : outExprs) {
@@ -11,7 +11,7 @@ void LogicalAlgorithmCall::computeFlatSchema() {
     }
 }
 
-void LogicalAlgorithmCall::computeFactorizedSchema() {
+void LogicalGDSCall::computeFactorizedSchema() {
     createEmptySchema();
     auto pos = schema->createGroup();
     for (auto& e : outExprs) {

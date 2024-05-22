@@ -171,7 +171,7 @@ void BoundStatementVisitor::visitReadingClause(const BoundReadingClause& reading
     case ClauseType::IN_QUERY_CALL: {
         visitInQueryCall(readingClause);
     } break;
-    case ClauseType::ALGORITHM_CALL: {
+    case ClauseType::GDS_CALL: {
         visitAlgorithmCall(readingClause);
     } break;
     case ClauseType::LOAD_FROM: {
@@ -193,7 +193,7 @@ void BoundStatementVisitor::visitReadingClauseUnsafe(BoundReadingClause& reading
     case ClauseType::IN_QUERY_CALL: {
         visitInQueryCall(readingClause);
     } break;
-    case ClauseType::ALGORITHM_CALL: {
+    case ClauseType::GDS_CALL: {
         visitAlgorithmCall(readingClause);
     } break;
     case ClauseType::LOAD_FROM: {

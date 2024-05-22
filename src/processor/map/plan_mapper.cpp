@@ -30,8 +30,8 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapOperator(LogicalOperator* logic
     std::unique_ptr<PhysicalOperator> physicalOperator;
     auto operatorType = logicalOperator->getOperatorType();
     switch (operatorType) {
-    case planner::LogicalOperatorType::ALGORITHM: {
-        physicalOperator = mapAlgorithm(logicalOperator);
+    case planner::LogicalOperatorType::GDS_CALL: {
+        physicalOperator = mapGDSCall(logicalOperator);
     } break;
     case planner::LogicalOperatorType::SCAN_FILE: {
         physicalOperator = mapScanFile(logicalOperator);

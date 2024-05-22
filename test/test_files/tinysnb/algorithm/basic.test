@@ -3,24 +3,64 @@
 --
 
 -CASE BasicAlgorithm
--STATEMENT RETURN demo_avg_degree(graph());
----- error
-Binder exception: DEMO_AVG_DEGREE is a ALGORITHM_FUNCTION_ENTRY. Scalar function, aggregate function or macro was expected.
--STATEMENT CALL demo_avg_degree(graph(1)) RETURN DEGREE;
----- error
-Binder exception: Graph function requires 2 parameters.
--STATEMENT CALL demo_avg_degree(graph("person", "knows")) RETURN DEGREE;
----- 1
-1.750000
-#-STATEMENT CALL variable_length_path(graph("person", "knows"), 1, 1) RETURN *;
-#---- 1
-#
-#-STATEMENT CALL variable_length_path(graph("person", "knows"), 2, 2) RETURN *;
-#---- 1
-
+-STATEMENT CALL variable_length_path(graph("person", "knows"), 1, 1) RETURN *;
+---- 14
+0:0|0:1|1|1
+0:0|0:2|1|1
+0:0|0:3|1|1
+0:1|0:0|1|1
+0:1|0:2|1|1
+0:1|0:3|1|1
+0:2|0:0|1|1
+0:2|0:1|1|1
+0:2|0:3|1|1
+0:3|0:0|1|1
+0:3|0:1|1|1
+0:3|0:2|1|1
+0:4|0:5|1|1
+0:4|0:6|1|1
+-STATEMENT CALL variable_length_path(graph("person", "knows"), 2, 2) RETURN *;
+---- 16
+0:0|0:0|2|3
+0:0|0:1|2|2
+0:0|0:2|2|2
+0:0|0:3|2|2
+0:1|0:0|2|2
+0:1|0:1|2|3
+0:1|0:2|2|2
+0:1|0:3|2|2
+0:2|0:0|2|2
+0:2|0:1|2|2
+0:2|0:2|2|3
+0:2|0:3|2|2
+0:3|0:0|2|2
+0:3|0:1|2|2
+0:3|0:2|2|2
+0:3|0:3|2|3
 -STATEMENT CALL shortest_path(graph("person", "knows"), 2) RETURN *;
----- 1
-
+---- 22
+0:0|0:0|0
+0:0|0:1|1
+0:0|0:2|1
+0:0|0:3|1
+0:1|0:0|1
+0:1|0:1|0
+0:1|0:2|1
+0:1|0:3|1
+0:2|0:0|1
+0:2|0:1|1
+0:2|0:2|0
+0:2|0:3|1
+0:3|0:0|1
+0:3|0:1|1
+0:3|0:2|1
+0:3|0:3|0
+0:4|0:4|0
+0:4|0:5|1
+0:4|0:6|1
+0:5|0:5|0
+0:6|0:6|0
+0:7|0:7|0
 -STATEMENT CALL weakly_connected_component(graph("person", "knows")) RETURN *;
 ---- 8
 0:0|0
@@ -31,7 +71,6 @@ Binder exception: Graph function requires 2 parameters.
 0:5|1
 0:6|1
 0:7|2
-
 -STATEMENT CALL page_rank(graph("person", "knows")) RETURN *;
 ---- 8
 0:0|0.125000

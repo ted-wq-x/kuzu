@@ -8,38 +8,36 @@
 namespace kuzu {
 namespace processor {
 
-struct AlgorithmCallSharedState {
+struct GDSCallSharedState {
     std::mutex mtx;
     std::shared_ptr<FactorizedTable> fTable;
     std::unique_ptr<graph::Graph> graph;
 
-    explicit AlgorithmCallSharedState(std::shared_ptr<FactorizedTable> fTable)
+    explicit GDSCallSharedState(std::shared_ptr<FactorizedTable> fTable)
         : fTable{std::move(fTable)} {}
 };
 
-struct AlgorithmCallInfo {
-    function::AlgorithmFunction function;
-    function::AlgoFuncBindData bindData;
+struct GDSCallInfo {
+    std::unique_ptr<function::GDSAlgorithm> gds;
     std::shared_ptr<binder::Expression> graphExpr;
 
-    AlgorithmCallInfo(function::AlgorithmFunction function, function::AlgoFuncBindData bindData,
+    GDSCallInfo(std::unique_ptr<function::GDSAlgorithm> gds,
         std::shared_ptr<binder::Expression> graphExpr)
-        : function{std::move(function)}, bindData{std::move(bindData)},
+        : gds{std::move(gds)},
           graphExpr{std::move(graphExpr)} {}
-    EXPLICIT_COPY_DEFAULT_MOVE(AlgorithmCallInfo);
+    EXPLICIT_COPY_DEFAULT_MOVE(GDSCallInfo);
 
 private:
-    AlgorithmCallInfo(const AlgorithmCallInfo& other)
-        : function{other.function}, bindData{other.bindData.copy()}, graphExpr{other.graphExpr} {}
+    GDSCallInfo(const GDSCallInfo& other)
+        : gds{other.gds->copy()}, graphExpr{other.graphExpr} {}
 };
 
-// TODO(Xiyang): add getProgress.
-class AlgorithmCall : public Sink {
-    static constexpr PhysicalOperatorType operatorType_ = PhysicalOperatorType::ALGORITHM;
+class GDSCall : public Sink {
+    static constexpr PhysicalOperatorType operatorType_ = PhysicalOperatorType::GDS_CALL;
 
 public:
-    AlgorithmCall(std::unique_ptr<ResultSetDescriptor> descriptor, AlgorithmCallInfo info,
-        std::shared_ptr<AlgorithmCallSharedState> sharedState, uint32_t id,
+    GDSCall(std::unique_ptr<ResultSetDescriptor> descriptor, GDSCallInfo info,
+        std::shared_ptr<GDSCallSharedState> sharedState, uint32_t id,
         const std::string& paramsString)
         : Sink{std::move(descriptor), operatorType_, id, paramsString}, info{std::move(info)},
           sharedState{std::move(sharedState)} {}
@@ -55,14 +53,13 @@ public:
     void executeInternal(ExecutionContext* context) override;
 
     std::unique_ptr<PhysicalOperator> clone() override {
-        return std::make_unique<AlgorithmCall>(resultSetDescriptor->copy(), info.copy(),
+        return std::make_unique<GDSCall>(resultSetDescriptor->copy(), info.copy(),
             sharedState, id, paramsString);
     }
 
 private:
-    AlgorithmCallInfo info;
-    std::shared_ptr<AlgorithmCallSharedState> sharedState;
-    function::AlgoFuncInput algoFuncInput;
+    GDSCallInfo info;
+    std::shared_ptr<GDSCallSharedState> sharedState;
 };
 
 } // namespace processor
