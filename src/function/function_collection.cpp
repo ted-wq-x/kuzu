@@ -9,6 +9,8 @@
 #include "function/cast/vector_cast_functions.h"
 #include "function/comparison/vector_comparison_functions.h"
 #include "function/date/vector_date_functions.h"
+#include "function/gds/gds_function_collection.h"
+#include "function/graph/graph_functions.h"
 #include "function/hash/vector_hash_functions.h"
 #include "function/interval/vector_interval_functions.h"
 #include "function/list/vector_list_functions.h"
@@ -48,6 +50,8 @@ namespace function {
     {_PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::AGGREGATE_FUNCTION_ENTRY}
 #define TABLE_FUNCTION(_PARAM)                                                                     \
     {_PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::TABLE_FUNCTION_ENTRY}
+#define ALGORITHM_FUNCTION(_PARAM)                                                                 \
+    {_PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::GDS_FUNCTION_ENTRY}
 #define FINAL_FUNCTION {nullptr, nullptr, CatalogEntryType::SCALAR_FUNCTION_ENTRY}
 
 FunctionCollection* FunctionCollection::getFunctions() {
@@ -190,6 +194,9 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(OffsetFunction), REWRITE_FUNCTION(IDFunction),
         REWRITE_FUNCTION(UIDFunction),
 
+        // Graph functions
+        REWRITE_FUNCTION(CreateGraphFunction),
+
         // Path functions
         SCALAR_FUNCTION(NodesFunction), SCALAR_FUNCTION(RelsFunction),
         SCALAR_FUNCTION(IsTrailFunction), SCALAR_FUNCTION(IsACyclicFunction),
@@ -225,7 +232,7 @@ FunctionCollection* FunctionCollection::getFunctions() {
         TABLE_FUNCTION(ShowAttachedDatabasesFunction), TABLE_FUNCTION(CheckpointFunction),
         TABLE_FUNCTION(ShowSequencesFunction),
 
-        // Read functions
+        // Scan functions
         TABLE_FUNCTION(ParquetScanFunction), TABLE_FUNCTION(NpyScanFunction),
         TABLE_FUNCTION(SerialCSVScan), TABLE_FUNCTION(ParallelCSVScan),
         TABLE_FUNCTION(RdfResourceScan), TABLE_FUNCTION(RdfLiteralScan),
@@ -233,6 +240,11 @@ FunctionCollection* FunctionCollection::getFunctions() {
         TABLE_FUNCTION(RdfAllTripleScan), TABLE_FUNCTION(RdfResourceInMemScan),
         TABLE_FUNCTION(RdfLiteralInMemScan), TABLE_FUNCTION(RdfResourceTripleInMemScan),
         TABLE_FUNCTION(RdfLiteralTripleInMemScan), TABLE_FUNCTION(FTableScan),
+
+        // Algorithm functions
+        ALGORITHM_FUNCTION(VariableLengthPathsFunction),
+        ALGORITHM_FUNCTION(WeaklyConnectedComponentsFunction),
+        ALGORITHM_FUNCTION(ShortestPathsFunction), ALGORITHM_FUNCTION(PageRankFunction),
 
         // End of array
         FINAL_FUNCTION};
