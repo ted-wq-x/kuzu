@@ -47,6 +47,9 @@ std::shared_ptr<Expression> ExpressionBinder::bindExpression(
     }
     if (parsedExpression.hasAlias()) {
         expression->setAlias(parsedExpression.getAlias());
+        if(ExpressionType::VARIABLE == expressionType){
+            expression->setVariableAs();
+        }
     }
     if (isExpressionAggregate(expression->expressionType)) {
         validateAggregationExpressionIsNotNested(*expression);

@@ -117,7 +117,7 @@ BoundProjectionBody Binder::bindProjectionBody(const parser::ProjectionBody& pro
     expression_vector groupByExpressions;
     expression_vector aggregateExpressions;
     for (auto& expression : projectionExpressions) {
-        if (isAggregateExpression(expression, scope)) {
+        if (isAggregateExpression(expression, scope) && !expression->isVariableAs()) {
             for (auto& agg : getAggregateExpressions(expression, scope)) {
                 aggregateExpressions.push_back(agg);
             }
