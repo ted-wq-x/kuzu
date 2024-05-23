@@ -831,6 +831,7 @@ kU_NonReservedKeywords
         | MAXVALUE
         | NO
         | CYCLE
+        | CONTAINS
         ;
 
 UnescapedSymbolicName
