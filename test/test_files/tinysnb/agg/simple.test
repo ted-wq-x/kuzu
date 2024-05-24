@@ -35,6 +35,22 @@
 ---- 1
 14
 
+-LOG SimpleCountTest3
+-STATEMENT MATCH (a:person) WITH COUNT(a.age) AS aa WITH aa AS bb RETURN bb;
+---- 1
+8
+
+-LOG SimpleCountTest4
+-STATEMENT MATCH (a:person) WITH COUNT(a.age) AS aa WITH aa AS bb WITH bb AS cc RETURN cc;
+---- 1
+8
+
+-LOG SimpleCountTest5
+-STATEMENT MATCH (a:person) WITH COUNT(a.age) + 1 AS aa WITH aa AS bb RETURN bb as cc;
+---- 1
+9
+
+
 -LOG SimpleSumTest
 -STATEMENT MATCH (a:person) RETURN SUM(a.age), SUM(a.eyeSight)
 ---- 1

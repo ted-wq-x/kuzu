@@ -50,7 +50,7 @@ f_group_pos_set LogicalAggregate::getGroupsPosToFlattenForAggregate() {
 }
 
 std::string LogicalAggregate::getExpressionsForPrinting() const {
-    std::string  result = "Group By [";;
+    std::string  result = "Group By [";
     binder::expression_vector groupExpr;
     groupExpr.insert(groupExpr.end(), keys.begin(), keys.end());
     groupExpr.insert(groupExpr.end(), dependentKeys.begin(), dependentKeys.end());
