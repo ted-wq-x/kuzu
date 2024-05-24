@@ -237,12 +237,15 @@ REL: ( 'R' | 'r' ) ( 'E' | 'e' ) ( 'L' | 'l' ) ;
 
 TO: ( 'T' | 't' ) ( 'O' | 'o' ) ;
 
+DECIMAL: ( 'D' | 'd' ) ( 'E' | 'e' ) ( 'C' | 'c' ) ( 'I' | 'i' ) ( 'M' | 'm' ) ( 'A' | 'a' ) ( 'L' | 'l' ) ;
+
 kU_DataType
     : oC_SymbolicName
         | kU_DataType kU_ListIdentifiers
         | UNION SP? '(' SP? kU_PropertyDefinitions SP? ')'
         | oC_SymbolicName SP? '(' SP? kU_PropertyDefinitions SP? ')'
-        | oC_SymbolicName SP? '(' SP? kU_DataType SP? ',' SP? kU_DataType SP? ')' ;
+        | oC_SymbolicName SP? '(' SP? kU_DataType SP? ',' SP? kU_DataType SP? ')'
+        | DECIMAL SP? '(' SP? oC_IntegerLiteral SP? ',' SP? oC_IntegerLiteral SP? ')' ;
 
 kU_ListIdentifiers : kU_ListIdentifier ( kU_ListIdentifier )* ;
 
@@ -831,6 +834,7 @@ kU_NonReservedKeywords
         | MAXVALUE
         | NO
         | CYCLE
+        | DECIMAL
         | CONTAINS
         ;
 
