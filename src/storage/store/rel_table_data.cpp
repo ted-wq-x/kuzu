@@ -130,16 +130,14 @@ RelTableData::RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
         RelDataDirectionUtils::relDirectionToString(direction));
     csrHeaderColumns.offset = std::make_unique<Column>(csrOffsetColumnName, *LogicalType::UINT64(),
         *csrOffsetMetadataDAHInfo, dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION,
-        RWPropertyStats::empty(), enableCompression, readOnly /* readOnly */,
-        false /* requireNUllColumn */);
+        enableCompression, readOnly /* readOnly */, false /* requireNUllColumn */);
     auto csrLengthMetadataDAHInfo =
         relsStoreStats->getCSRLengthMetadataDAHInfo(&DUMMY_WRITE_TRANSACTION, tableID, direction);
     auto csrLengthColumnName = StorageUtils::getColumnName("", StorageUtils::ColumnType::CSR_LENGTH,
         RelDataDirectionUtils::relDirectionToString(direction));
     csrHeaderColumns.length = std::make_unique<Column>(csrLengthColumnName, *LogicalType::UINT64(),
         *csrLengthMetadataDAHInfo, dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION,
-        RWPropertyStats::empty(), enableCompression, readOnly /* readOnly */,
-        false /* requireNUllColumn */);
+        enableCompression, readOnly /* readOnly */, false /* requireNUllColumn */);
     // Columns (nbrID + properties).
     auto& properties = tableEntry->getPropertiesRef();
     auto maxColumnID = std::max_element(properties.begin(), properties.end(), [](auto& a, auto& b) {
@@ -151,9 +149,9 @@ RelTableData::RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
         tableID, NBR_ID_COLUMN_ID, direction);
     auto nbrIDColName = StorageUtils::getColumnName("NBR_ID", StorageUtils::ColumnType::DEFAULT,
         RelDataDirectionUtils::relDirectionToString(direction));
-    auto nbrIDColumn = std::make_unique<InternalIDColumn>(nbrIDColName, *nbrIDMetadataDAHInfo,
-        dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION, RWPropertyStats::empty(),
-        enableCompression, readOnly);
+    auto nbrIDColumn =
+        std::make_unique<InternalIDColumn>(nbrIDColName, *nbrIDMetadataDAHInfo, dataFH, metadataFH,
+            bufferManager, wal, &DUMMY_WRITE_TRANSACTION, enableCompression, readOnly);
     columns[NBR_ID_COLUMN_ID] = std::move(nbrIDColumn);
     // Property columns.
     for (auto i = 0u; i < properties.size(); i++) {
@@ -166,8 +164,7 @@ RelTableData::RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH,
                 RelDataDirectionUtils::relDirectionToString(direction));
         columns[columnID] = ColumnFactory::createColumn(colName, *property.getDataType()->copy(),
             *metadataDAHInfo, dataFH, metadataFH, bufferManager, wal, &DUMMY_WRITE_TRANSACTION,
-            RWPropertyStats(relsStoreStats, tableID, property.getPropertyID()), enableCompression,
-            readOnly);
+            enableCompression, readOnly);
     }
     // Set common tableID for nbrIDColumn and relIDColumn.
     auto nbrTableID = ku_dynamic_cast<TableCatalogEntry*, RelTableCatalogEntry*>(tableEntry)

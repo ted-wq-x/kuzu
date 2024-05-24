@@ -13,16 +13,15 @@ using string_offset_t = DictionaryChunk::string_offset_t;
 
 DictionaryColumn::DictionaryColumn(const std::string& name, const MetadataDAHInfo& metaDAHeaderInfo,
     BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
-    transaction::Transaction* transaction, RWPropertyStats stats, bool enableCompression,
-    bool readOnly) {
+    Transaction* transaction, bool enableCompression, bool readOnly) {
     auto dataColName = StorageUtils::getColumnName(name, StorageUtils::ColumnType::DATA, "");
     dataColumn = std::make_unique<Column>(dataColName, *LogicalType::UINT8(),
         *metaDAHeaderInfo.childrenInfos[0], dataFH, metadataFH, bufferManager, wal, transaction,
-        stats, false /*enableCompression*/, readOnly, false /*requireNullColumn*/);
+        false /*enableCompression*/, readOnly, false /*requireNullColumn*/);
     auto offsetColName = StorageUtils::getColumnName(name, StorageUtils::ColumnType::OFFSET, "");
     offsetColumn = std::make_unique<Column>(offsetColName, *LogicalType::UINT64(),
         *metaDAHeaderInfo.childrenInfos[1], dataFH, metadataFH, bufferManager, wal, transaction,
-        stats, enableCompression, readOnly, false /*requireNullColumn*/);
+        enableCompression, readOnly, false /*requireNullColumn*/);
 }
 
 void DictionaryColumn::initChunkState(Transaction* transaction, node_group_idx_t nodeGroupIdx,

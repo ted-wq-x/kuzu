@@ -14,9 +14,9 @@ namespace storage {
 StructColumn::StructColumn(std::string name, LogicalType dataType,
     const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, BMFileHandle* metadataFH,
     BufferManager* bufferManager, WAL* wal, Transaction* transaction,
-    RWPropertyStats propertyStatistics, bool enableCompression, bool readOnly)
+    bool enableCompression, bool readOnly)
     : Column{name, std::move(dataType), metaDAHeaderInfo, dataFH, metadataFH, bufferManager, wal,
-          transaction, propertyStatistics, enableCompression, readOnly,
+          transaction, enableCompression, readOnly,
           true /* requireNullColumn */} {
     auto fieldTypes = StructType::getFieldTypes(this->dataType);
     KU_ASSERT(metaDAHeaderInfo.childrenInfos.size() == fieldTypes.size());
@@ -26,7 +26,7 @@ StructColumn::StructColumn(std::string name, LogicalType dataType,
             StorageUtils::ColumnType::STRUCT_CHILD, std::to_string(i));
         childColumns[i] = ColumnFactory::createColumn(childColName, *fieldTypes[i].copy(),
             *metaDAHeaderInfo.childrenInfos[i], dataFH, metadataFH, bufferManager, wal, transaction,
-            propertyStatistics, enableCompression, readOnly);
+            enableCompression, readOnly);
     }
 }
 

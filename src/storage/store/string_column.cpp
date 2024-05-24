@@ -19,9 +19,9 @@ using string_offset_t = DictionaryChunk::string_offset_t;
 StringColumn::StringColumn(std::string name, LogicalType dataType,
     const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, BMFileHandle* metadataFH,
     BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
-    RWPropertyStats stats, bool enableCompression, bool readOnly)
+    bool enableCompression, bool readOnly)
     : Column{name, std::move(dataType), metaDAHeaderInfo, dataFH, metadataFH, bufferManager, wal,
-          transaction, stats, enableCompression, readOnly, true /* requireNullColumn */},
+          transaction, enableCompression, readOnly, true /* requireNullColumn */},
       dictionary{name, metaDAHeaderInfo, dataFH, metadataFH, bufferManager, wal, transaction, stats,
           enableCompression, readOnly} {}
 

@@ -13,8 +13,7 @@ public:
 
     DictionaryColumn(const std::string& name, const MetadataDAHInfo& metaDAHeaderInfo,
         BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, RWPropertyStats stats, bool enableCompression,
-        bool readOnly);
+        transaction::Transaction* transaction, bool enableCompression, bool readOnly);
 
     void initChunkState(transaction::Transaction* transaction,
         common::node_group_idx_t nodeGroupIdx, Column::ChunkState& columnReadState);

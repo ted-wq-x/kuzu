@@ -3,7 +3,6 @@
 #include "catalog/catalog.h"
 #include "common/null_mask.h"
 #include "storage/stats/metadata_dah_info.h"
-#include "storage/stats/property_statistics.h"
 #include "storage/storage_structure/disk_array.h"
 #include "storage/store/column_chunk.h"
 
@@ -53,8 +52,8 @@ public:
 
     Column(std::string name, common::LogicalType dataType, const MetadataDAHInfo& metaDAHeaderInfo,
         BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, RWPropertyStats propertyStatistics,
-        bool enableCompression, bool readOnly, bool requireNullColumn = true);
+        transaction::Transaction* transaction, bool enableCompression, bool readOnly,
+        bool requireNullColumn = true);
     virtual ~Column();
 
     // Expose for feature store
@@ -236,7 +235,6 @@ protected:
     write_values_func_t writeFunc;
     read_values_to_page_func_t readToPageFunc;
     batch_lookup_func_t batchLookupFunc;
-    RWPropertyStats propertyStatistics;
     bool enableCompression;
     bool readOnly;
 };
@@ -245,8 +243,7 @@ class InternalIDColumn : public Column {
 public:
     InternalIDColumn(std::string name, const MetadataDAHInfo& metaDAHeaderInfo,
         BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, RWPropertyStats stats, bool enableCompression,
-        bool readOnly);
+        transaction::Transaction* transaction, bool enableCompression, bool readOnly);
 
     void scan(transaction::Transaction* transaction, ChunkState& state,
         common::ValueVector* nodeIDVector, common::ValueVector* resultVector) override {
@@ -291,7 +288,7 @@ struct ColumnFactory {
     static std::unique_ptr<Column> createColumn(std::string name, common::LogicalType dataType,
         const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, BMFileHandle* metadataFH,
         BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
-        RWPropertyStats propertyStatistics, bool enableCompression, bool readOnly);
+        bool enableCompression, bool readOnly);
 };
 
 } // namespace storage
