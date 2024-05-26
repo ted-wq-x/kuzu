@@ -22,7 +22,7 @@ StringColumn::StringColumn(std::string name, LogicalType dataType,
     bool enableCompression, bool readOnly)
     : Column{name, std::move(dataType), metaDAHeaderInfo, dataFH, metadataFH, bufferManager, wal,
           transaction, enableCompression, readOnly, true /* requireNullColumn */},
-      dictionary{name, metaDAHeaderInfo, dataFH, metadataFH, bufferManager, wal, transaction, stats,
+      dictionary{name, metaDAHeaderInfo, dataFH, metadataFH, bufferManager, wal, transaction,
           enableCompression, readOnly} {}
 
 void StringColumn::initChunkState(Transaction* transaction, node_group_idx_t nodeGroupIdx,
