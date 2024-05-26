@@ -68,7 +68,7 @@ struct LeftFunction : public VectorStringFunction {
 struct LowerFunction : public VectorStringFunction {
     static constexpr const char* name = "LOWER";
 
-    static constexpr const char* alias2 = "TOLOWER";
+    static constexpr const char* alias = "TOLOWER";
 
     static inline function_set getFunctionSet() { return getUnaryStrFunction<Lower>(name); }
 };
@@ -154,7 +154,7 @@ struct TrimFunction : public VectorStringFunction {
 struct UpperFunction : public VectorStringFunction {
     static constexpr const char* name = "UPPER";
 
-    static constexpr const char* alias2 = "TOUPPER";
+    static constexpr const char* alias = "TOUPPER";
 
     static inline function_set getFunctionSet() { return getUnaryStrFunction<Upper>(name); }
 };

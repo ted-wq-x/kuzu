@@ -23,7 +23,7 @@ struct ListRangeFunction {
 struct SizeFunction {
     static constexpr const char* name = "SIZE";
 
-    static constexpr const char* alias2 = "CRUX_SIZE";
+    static constexpr const char* alias = "CRUX_SIZE";
 
     static function_set getFunctionSet();
 };

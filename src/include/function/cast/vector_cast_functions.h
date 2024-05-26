@@ -57,9 +57,7 @@ struct IntervalFunctionAlias {
 struct CastToStringFunction {
     static constexpr const char* name = "TO_STRING";
 
-    static constexpr const char* alias = "STRING";
-
-    static constexpr const char* alias2 = "TOSTRING";
+    static constexpr const char* alias = "TOSTRING";
 
     static function_set getFunctionSet();
 };

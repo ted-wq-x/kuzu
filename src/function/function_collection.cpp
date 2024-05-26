@@ -42,6 +42,7 @@ namespace function {
     { _PARAM::getFunctionSet, _NAME, CatalogEntryType::SCALAR_FUNCTION_ENTRY }
 #define SCALAR_FUNCTION(_PARAM) SCALAR_FUNCTION_BASE(_PARAM, _PARAM::name)
 #define SCALAR_FUNCTION_ALIAS(_PARAM) SCALAR_FUNCTION_BASE(_PARAM::alias, _PARAM::name)
+#define SCALAR_FUNCTION_ALIAS2(_PARAM) SCALAR_FUNCTION_BASE(_PARAM, _PARAM::alias)
 #define REWRITE_FUNCTION(_PARAM)                                                                   \
     { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::REWRITE_FUNCTION_ENTRY }
 #define AGGREGATE_FUNCTION(_PARAM)                                                                 \
@@ -79,25 +80,23 @@ FunctionCollection* FunctionCollection::getFunctions() {
 
         // String Functions
         SCALAR_FUNCTION(ArrayExtractFunction), SCALAR_FUNCTION(ConcatFunction),
-        SCALAR_FUNCTION_ALIAS(ConcatFunction), SCALAR_FUNCTION(ContainsFunction),
-        SCALAR_FUNCTION(LowerFunction), SCALAR_FUNCTION_ALIAS(LcaseFunction),
-        SCALAR_FUNCTION_ALIAS2(LowerFunction), SCALAR_FUNCTION(LeftFunction),
+        SCALAR_FUNCTION(ContainsFunction), SCALAR_FUNCTION(LowerFunction),
+        SCALAR_FUNCTION_ALIAS(LcaseFunction), SCALAR_FUNCTION(LeftFunction),
         SCALAR_FUNCTION(LpadFunction), SCALAR_FUNCTION(LtrimFunction),
         SCALAR_FUNCTION(StartsWithFunction), SCALAR_FUNCTION_ALIAS(PrefixFunction),
         SCALAR_FUNCTION(RepeatFunction), SCALAR_FUNCTION(ReverseFunction),
         SCALAR_FUNCTION(RightFunction), SCALAR_FUNCTION(RpadFunction),
         SCALAR_FUNCTION(RtrimFunction), SCALAR_FUNCTION(SubStrFunction),
-        SCALAR_FUNCTION_ALIAS(SubStrFunction), SCALAR_FUNCTION(EndsWithFunction),
         SCALAR_FUNCTION_ALIAS(SubstringFunction), SCALAR_FUNCTION(EndsWithFunction),
         SCALAR_FUNCTION_ALIAS(SuffixFunction), SCALAR_FUNCTION(TrimFunction),
         SCALAR_FUNCTION(UpperFunction), SCALAR_FUNCTION_ALIAS(UCaseFunction),
-        SCALAR_FUNCTION_ALIAS(UpperFunction), SCALAR_FUNCTION_ALIAS2(UpperFunction),
         SCALAR_FUNCTION(RegexpFullMatchFunction), SCALAR_FUNCTION(RegexpMatchesFunction),
         SCALAR_FUNCTION(RegexpReplaceFunction), SCALAR_FUNCTION(RegexpExtractFunction),
         SCALAR_FUNCTION(RegexpExtractAllFunction), SCALAR_FUNCTION(LevenshteinFunction),
         SCALAR_FUNCTION(InitCapFunction), SCALAR_FUNCTION(StringSplitFunction),
         SCALAR_FUNCTION_ALIAS(StrSplitFunction), SCALAR_FUNCTION_ALIAS(StringToArrayFunction),
-        SCALAR_FUNCTION(SplitPartFunction), SCALAR_FUNCTION(InitcapFunction),
+        SCALAR_FUNCTION(SplitPartFunction), SCALAR_FUNCTION_ALIAS2(ConcatFunction),
+        SCALAR_FUNCTION_ALIAS2(LowerFunction), SCALAR_FUNCTION_ALIAS2(UpperFunction),
 
         // Array Functions
         SCALAR_FUNCTION(ArrayValueFunction), SCALAR_FUNCTION(ArrayCrossProductFunction),
@@ -106,14 +105,11 @@ FunctionCollection* FunctionCollection::getFunctions() {
 
         // List functions
         SCALAR_FUNCTION(ListCreationFunction), SCALAR_FUNCTION(ListRangeFunction),
-        SCALAR_FUNCTION(ListExtractFunction), SCALAR_FUNCTION_ALIAS(ListExtractFunction),
-        SCALAR_FUNCTION_ALIAS(ListElementFunction), SCALAR_FUNCTION_ALIAS(ListCatFunction),
-        SCALAR_FUNCTION(ListConcatFunction), SCALAR_FUNCTION_ALIAS(ListConcatFunction),
-        SCALAR_FUNCTION(ArrayConcatFunction), SCALAR_FUNCTION_ALIAS(ArrayConcatFunction),
-        SCALAR_FUNCTION_ALIAS(ArrayCatFunction), SCALAR_FUNCTION(ListAppendFunction),
-        SCALAR_FUNCTION_ALIAS(ListAppendFunction), SCALAR_FUNCTION(ArrayAppendFunction),
-        SCALAR_FUNCTION_ALIAS(ArrayAppendFunction), SCALAR_FUNCTION_ALIAS(ArrayPushFrontFunction),
-        SCALAR_FUNCTION(ListPrependFunction), SCALAR_FUNCTION(ArrayPrependFunction),
+        SCALAR_FUNCTION(ListExtractFunction), SCALAR_FUNCTION_ALIAS(ListElementFunction),
+        SCALAR_FUNCTION(ListConcatFunction), SCALAR_FUNCTION_ALIAS(ListCatFunction),
+        SCALAR_FUNCTION(ArrayConcatFunction), SCALAR_FUNCTION_ALIAS(ArrayCatFunction),
+        SCALAR_FUNCTION(ListAppendFunction), SCALAR_FUNCTION(ArrayAppendFunction),
+        SCALAR_FUNCTION_ALIAS(ArrayPushFrontFunction), SCALAR_FUNCTION(ListPrependFunction),
         SCALAR_FUNCTION(ArrayPrependFunction), SCALAR_FUNCTION_ALIAS(ArrayPushBackFunction),
         SCALAR_FUNCTION(ListPositionFunction), SCALAR_FUNCTION_ALIAS(ListIndexOfFunction),
         SCALAR_FUNCTION(ArrayPositionFunction), SCALAR_FUNCTION_ALIAS(ArrayIndexOfFunction),
@@ -124,29 +120,29 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(ListSumFunction), SCALAR_FUNCTION(ListProductFunction),
         SCALAR_FUNCTION(ListDistinctFunction), SCALAR_FUNCTION(ListUniqueFunction),
         SCALAR_FUNCTION(ListAnyValueFunction), SCALAR_FUNCTION(ListReverseFunction),
-        SCALAR_FUNCTION(SizeFunction), SCALAR_FUNCTION_ALIAS2(SizeFunction),
-        SCALAR_FUNCTION(ListApplyFunction), SCALAR_FUNCTION(ListHeadFunction),
-        SCALAR_FUNCTION(ListTailFunction), SCALAR_FUNCTION(ListLastFunction),
-        SCALAR_FUNCTION(ListCollectionContainsFunction), SCALAR_FUNCTION(ListToStringFunction),
+        SCALAR_FUNCTION(SizeFunction), SCALAR_FUNCTION(ListToStringFunction),
+        SCALAR_FUNCTION_ALIAS2(ListAppendFunction), SCALAR_FUNCTION_ALIAS2(ListSortFunction),
+        SCALAR_FUNCTION_ALIAS2(SizeFunction), SCALAR_FUNCTION(ListApplyFunction),
+        SCALAR_FUNCTION(ListHeadFunction), SCALAR_FUNCTION(ListTailFunction),
+        SCALAR_FUNCTION(ListLastFunction), SCALAR_FUNCTION(ListCollectionContainsFunction),
 
         // Cast functions
         SCALAR_FUNCTION(CastToDateFunction), SCALAR_FUNCTION_ALIAS(DateFunction),
         SCALAR_FUNCTION(CastToTimestampFunction), SCALAR_FUNCTION(CastToIntervalFunction),
-        SCALAR_FUNCTION_ALIAS(CastToIntervalFunction), SCALAR_FUNCTION_ALIAS(IntervalFunctionAlias),
-        SCALAR_FUNCTION(CastToStringFunction), SCALAR_FUNCTION_ALIAS(CastToStringFunction),
-        SCALAR_FUNCTION_ALIAS2(CastToStringFunction), SCALAR_FUNCTION_ALIAS(StringFunction),
-        SCALAR_FUNCTION(CastToBlobFunction), SCALAR_FUNCTION_ALIAS(CastToBlobFunction),
+        SCALAR_FUNCTION_ALIAS(IntervalFunctionAlias), SCALAR_FUNCTION(CastToStringFunction),
+        SCALAR_FUNCTION_ALIAS(StringFunction), SCALAR_FUNCTION(CastToBlobFunction),
         SCALAR_FUNCTION_ALIAS(BlobFunction), SCALAR_FUNCTION(CastToUUIDFunction),
-        SCALAR_FUNCTION(CastToInt64Function), SCALAR_FUNCTION_ALIAS(UUIDFunction),
-        SCALAR_FUNCTION(CastToDoubleFunction), SCALAR_FUNCTION(CastToFloatFunction),
-        SCALAR_FUNCTION(CastToSerialFunction), SCALAR_FUNCTION(CastToInt64Function),
-        SCALAR_FUNCTION(CastToInt32Function), SCALAR_FUNCTION_ALIAS(CastToInt32Function),
+        SCALAR_FUNCTION_ALIAS(UUIDFunction), SCALAR_FUNCTION(CastToDoubleFunction),
+        SCALAR_FUNCTION(CastToFloatFunction), SCALAR_FUNCTION(CastToSerialFunction),
+        SCALAR_FUNCTION(CastToInt64Function), SCALAR_FUNCTION(CastToInt32Function),
         SCALAR_FUNCTION(CastToInt16Function), SCALAR_FUNCTION(CastToInt8Function),
         SCALAR_FUNCTION(CastToUInt64Function), SCALAR_FUNCTION(CastToUInt32Function),
         SCALAR_FUNCTION(CastToUInt16Function), SCALAR_FUNCTION(CastToUInt8Function),
         SCALAR_FUNCTION(CastToInt128Function), SCALAR_FUNCTION(CastToBoolFunction),
-        SCALAR_FUNCTION_ALIAS(CastToBoolFunction), SCALAR_FUNCTION(CastAnyFunction),
-        SCALAR_FUNCTION_ALIAS(CastToTimestampFunction),
+        SCALAR_FUNCTION(CastAnyFunction), SCALAR_FUNCTION_ALIAS2(CastToTimestampFunction),
+        SCALAR_FUNCTION_ALIAS2(CastToStringFunction), SCALAR_FUNCTION_ALIAS2(CastToDoubleFunction),
+        SCALAR_FUNCTION_ALIAS2(CastToFloatFunction), SCALAR_FUNCTION_ALIAS2(CastToInt64Function),
+        SCALAR_FUNCTION_ALIAS2(CastToInt32Function), SCALAR_FUNCTION_ALIAS2(CastToBoolFunction),
 
         // Comparison functions
         SCALAR_FUNCTION(EqualsFunction), SCALAR_FUNCTION(NotEqualsFunction),
@@ -159,17 +155,17 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(DayNameFunction), SCALAR_FUNCTION(GreatestFunction),
         SCALAR_FUNCTION(LastDayFunction), SCALAR_FUNCTION(LeastFunction),
         SCALAR_FUNCTION(MakeDateFunction), SCALAR_FUNCTION(MonthNameFunction),
-        SCALAR_FUNCTION(DateYearFunction), SCALAR_FUNCTION(DateMonthFunction),
-        SCALAR_FUNCTION(DateDayFunction), SCALAR_FUNCTION(DateHourFunction),
-        SCALAR_FUNCTION(DateMinuteFunction), SCALAR_FUNCTION(DateSecondFunction),
-        SCALAR_FUNCTION(AddDayFunction), SCALAR_FUNCTION(AddHourFunction),
-        SCALAR_FUNCTION(AddMinuteFunction), SCALAR_FUNCTION(AddSecondFunction),
-        SCALAR_FUNCTION(CurrentDateFunction),
+        SCALAR_FUNCTION(CurrentDateFunction), SCALAR_FUNCTION(DateYearFunction),
+        SCALAR_FUNCTION(DateMonthFunction), SCALAR_FUNCTION(DateDayFunction),
+        SCALAR_FUNCTION(DateHourFunction), SCALAR_FUNCTION(DateMinuteFunction),
+        SCALAR_FUNCTION(DateSecondFunction), SCALAR_FUNCTION(AddDayFunction),
+        SCALAR_FUNCTION(AddHourFunction), SCALAR_FUNCTION(AddMinuteFunction),
+        SCALAR_FUNCTION(AddSecondFunction),
 
         // Timestamp functions
         SCALAR_FUNCTION(CenturyFunction), SCALAR_FUNCTION(EpochMsFunction),
-        SCALAR_FUNCTION_ALIAS(EpochMsFunction), SCALAR_FUNCTION(ToTimestampFunction),
-        SCALAR_FUNCTION(TimeDiffFunction), SCALAR_FUNCTION(CurrentTimestampFunction),
+        SCALAR_FUNCTION(ToTimestampFunction), SCALAR_FUNCTION(CurrentTimestampFunction),
+        SCALAR_FUNCTION_ALIAS2(EpochMsFunction), SCALAR_FUNCTION(TimeDiffFunction),
 
         // Interval functions
         SCALAR_FUNCTION(ToYearsFunction), SCALAR_FUNCTION(ToMonthsFunction),
@@ -205,9 +201,9 @@ FunctionCollection* FunctionCollection::getFunctions() {
 
         // Path functions
         SCALAR_FUNCTION(NodesFunction), SCALAR_FUNCTION(RelsFunction),
-        SCALAR_FUNCTION(IsTrailFunction), SCALAR_FUNCTION(IsACyclicFunction),
-        REWRITE_FUNCTION(LengthFunction), SCALAR_FUNCTION_ALIAS(RelsFunction),
-        SCALAR_FUNCTION(PropertiesFunction),
+        SCALAR_FUNCTION(PropertiesFunction), SCALAR_FUNCTION(IsTrailFunction),
+        SCALAR_FUNCTION(IsACyclicFunction), REWRITE_FUNCTION(LengthFunction),
+        SCALAR_FUNCTION_ALIAS2(RelsFunction),
 
         // Rdf functions
         SCALAR_FUNCTION(RDFTypeFunction), SCALAR_FUNCTION(ValidatePredicateFunction),
