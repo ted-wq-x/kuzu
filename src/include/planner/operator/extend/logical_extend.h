@@ -9,8 +9,8 @@ class LogicalExtend : public BaseLogicalExtend {
 public:
     LogicalExtend(std::shared_ptr<binder::NodeExpression> boundNode,
         std::shared_ptr<binder::NodeExpression> nbrNode, std::shared_ptr<binder::RelExpression> rel,
-        ExtendDirection direction, binder::expression_vector properties, bool hasAtMostOneNbr,
-        std::shared_ptr<LogicalOperator> child)
+        common::ExtendDirection direction, binder::expression_vector properties,
+        bool hasAtMostOneNbr, std::shared_ptr<LogicalOperator> child)
         : BaseLogicalExtend{LogicalOperatorType::EXTEND, std::move(boundNode), std::move(nbrNode),
               std::move(rel), direction, std::move(child)},
           properties{std::move(properties)}, hasAtMostOneNbr{hasAtMostOneNbr} {}
@@ -20,7 +20,7 @@ public:
     void computeFactorizedSchema() override;
     void computeFlatSchema() override;
 
-    inline binder::expression_vector getProperties() const { return properties; }
+    binder::expression_vector getProperties() const { return properties; }
 
     std::string getExpressionsForPrinting() const override{
         auto str = BaseLogicalExtend::getExpressionsForPrinting();

@@ -75,7 +75,7 @@ public:
     std::shared_ptr<Expression> bindEndNodeExpression(const Expression& expression);
     std::shared_ptr<Expression> bindLabelFunction(const Expression& expression);
     std::shared_ptr<Expression> bindLabelsFunction(const Expression& expression);
-    std::unique_ptr<Expression> createInternalLengthExpression(const Expression& expression);
+
     // Parameter expressions.
     std::shared_ptr<Expression> bindParameterExpression(
         const parser::ParsedExpression& parsedExpression);
