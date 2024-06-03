@@ -125,9 +125,10 @@ public:
         void setRegion(const PackedCSRRegion& region_) { region = region_; }
     };
 
-    RelTableData(BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager,
-        WAL* wal, catalog::TableCatalogEntry* tableEntry, RelsStoreStats* relsStoreStats,
-        common::RelDataDirection direction, bool enableCompression, bool readOnly);
+    RelTableData(BMFileHandle* dataFH, DiskArrayCollection* metadataDAC,
+        BufferManager* bufferManager, WAL* wal, catalog::TableCatalogEntry* tableEntry,
+        RelsStoreStats* relsStoreStats, common::RelDataDirection direction, bool enableCompression,
+        bool readOnly);
 
     void initializeScanState(transaction::Transaction* transaction,
         TableScanState& scanState) const override;

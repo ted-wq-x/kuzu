@@ -12,12 +12,11 @@ namespace kuzu {
 namespace storage {
 
 StructColumn::StructColumn(std::string name, LogicalType dataType,
-    const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, BMFileHandle* metadataFH,
-    BufferManager* bufferManager, WAL* wal, Transaction* transaction,
-    bool enableCompression, bool readOnly)
-    : Column{name, std::move(dataType), metaDAHeaderInfo, dataFH, metadataFH, bufferManager, wal,
-          transaction, enableCompression, readOnly,
-          true /* requireNullColumn */} {
+    const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, DiskArrayCollection& metadataDAC,
+    BufferManager* bufferManager, WAL* wal, Transaction* transaction, bool enableCompression,
+    bool readOnly)
+    : Column{name, std::move(dataType), metaDAHeaderInfo, dataFH, metadataDAC, bufferManager, wal,
+          transaction, enableCompression, readOnly, true /* requireNullColumn */} {
     auto fieldTypes = StructType::getFieldTypes(this->dataType);
     KU_ASSERT(metaDAHeaderInfo.childrenInfos.size() == fieldTypes.size());
     childColumns.resize(fieldTypes.size());
@@ -25,8 +24,8 @@ StructColumn::StructColumn(std::string name, LogicalType dataType,
         auto childColName = StorageUtils::getColumnName(name,
             StorageUtils::ColumnType::STRUCT_CHILD, std::to_string(i));
         childColumns[i] = ColumnFactory::createColumn(childColName, *fieldTypes[i].copy(),
-            *metaDAHeaderInfo.childrenInfos[i], dataFH, metadataFH, bufferManager, wal, transaction,
-            enableCompression, readOnly);
+            *metaDAHeaderInfo.childrenInfos[i], dataFH, metadataDAC, bufferManager, wal,
+            transaction, enableCompression, readOnly);
     }
 }
 

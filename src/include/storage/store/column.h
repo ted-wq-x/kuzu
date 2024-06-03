@@ -11,6 +11,9 @@
 namespace kuzu {
 namespace storage {
 
+struct CompressionMetadata;
+class DiskArrayCollection;
+
 using read_values_to_vector_func_t =
     std::function<void(uint8_t* frame, PageCursor& pageCursor, common::ValueVector* resultVector,
         uint32_t posInVector, uint32_t numValuesToRead, const CompressionMetadata& metadata)>;
@@ -53,8 +56,8 @@ public:
     };
 
     Column(std::string name, common::LogicalType dataType, const MetadataDAHInfo& metaDAHeaderInfo,
-        BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, bool enableCompression, bool readOnly,
+        BMFileHandle* dataFH, DiskArrayCollection& metadataDAC, BufferManager* bufferManager,
+        WAL* wal, transaction::Transaction* transaction, bool enableCompression, bool readOnly,
         bool requireNullColumn = true);
     virtual ~Column();
 
@@ -230,7 +233,6 @@ protected:
     DBFileID dbFileID;
     common::LogicalType dataType;
     BMFileHandle* dataFH;
-    BMFileHandle* metadataFH;
     BufferManager* bufferManager;
     WAL* wal;
     std::unique_ptr<DiskArray<ColumnChunkMetadata>> metadataDA;
@@ -247,8 +249,8 @@ protected:
 class InternalIDColumn final : public Column {
 public:
     InternalIDColumn(std::string name, const MetadataDAHInfo& metaDAHeaderInfo,
-        BMFileHandle* dataFH, BMFileHandle* metadataFH, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, bool enableCompression, bool readOnly);
+        BMFileHandle* dataFH, DiskArrayCollection& metadataDAC, BufferManager* bufferManager,
+        WAL* wal, transaction::Transaction* transaction, bool enableCompression, bool readOnly);
 
     void scan(transaction::Transaction* transaction, const ChunkState& state,
         common::vector_idx_t vectorIdx, common::row_idx_t numValuesToScan,
@@ -292,9 +294,9 @@ private:
 
 struct ColumnFactory {
     static std::unique_ptr<Column> createColumn(std::string name, common::LogicalType dataType,
-        const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, BMFileHandle* metadataFH,
-        BufferManager* bufferManager, WAL* wal, transaction::Transaction* transaction,
-        bool enableCompression, bool readOnly);
+        const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH,
+        DiskArrayCollection& metadataDAC, BufferManager* bufferManager, WAL* wal,
+        transaction::Transaction* transaction, bool enableCompression, bool readOnly);
 };
 
 } // namespace storage
