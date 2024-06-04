@@ -32,7 +32,7 @@ class DiskArrayCollection {
 
 public:
     DiskArrayCollection(BMFileHandle& fileHandle, DBFileID dbFileID, BufferManager* bufferManager,
-        WAL* wal, common::page_idx_t firstHeaderPage = 0, bool bypassWAL = false);
+        WAL* wal, bool readOnly, common::page_idx_t firstHeaderPage = 0, bool bypassWAL = false);
 
     static void writeEmptyHeadersToFile(FileHandle& handle, common::page_idx_t firstHeaderPage,
         size_t numHeaders);
@@ -60,7 +60,7 @@ public:
         auto& writeHeader = headersForWriteTrx[idx / HeaderPage::NUM_HEADERS_PER_PAGE]
                                 ->headers[idx % HeaderPage::NUM_HEADERS_PER_PAGE];
         return std::make_unique<DiskArray<T>>(fileHandle, dbFileID, readHeader, writeHeader,
-            &bufferManager, &wal, bypassWAL);
+            &bufferManager, &wal, readOnly, bypassWAL);
     }
 
     size_t addDiskArray();
@@ -77,6 +77,7 @@ private:
     // List of indices used to store old header pages.
     std::vector<common::page_idx_t> headerPageIndices;
     uint64_t numHeaders;
+    bool readOnly;
 };
 
 } // namespace storage

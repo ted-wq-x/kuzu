@@ -635,7 +635,7 @@ PrimaryKeyIndex::PrimaryKeyIndex(const DBFileIDAndName& dbFileIDAndName, bool re
           BMFileHandle::FileVersionedType::VERSIONED_FILE, vfs, context)},
       bufferManager{bufferManager}, dbFileIDAndName{dbFileIDAndName}, wal{*wal},
       hashIndexDiskArrays{std::make_unique<DiskArrayCollection>(*fileHandle,
-          dbFileIDAndName.dbFileID, &bufferManager, wal,
+          dbFileIDAndName.dbFileID, &bufferManager, wal, readOnly,
           INDEX_HEADER_PAGES /*firstHeaderPage follows the index header pages*/,
           true /*bypassWAL*/)} {
 

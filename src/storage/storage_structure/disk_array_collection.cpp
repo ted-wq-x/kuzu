@@ -14,9 +14,10 @@ namespace kuzu {
 namespace storage {
 
 DiskArrayCollection::DiskArrayCollection(BMFileHandle& fileHandle, DBFileID dbFileID,
-    BufferManager* bufferManager, WAL* wal, common::page_idx_t firstHeaderPage, bool bypassWAL)
+    BufferManager* bufferManager, WAL* wal, bool readOnly, common::page_idx_t firstHeaderPage,
+    bool bypassWAL)
     : fileHandle{fileHandle}, dbFileID{dbFileID}, bufferManager{*bufferManager}, wal{*wal},
-      bypassWAL{bypassWAL}, headerPageIndices{firstHeaderPage}, numHeaders{0} {
+      bypassWAL{bypassWAL}, headerPageIndices{firstHeaderPage}, numHeaders{0}, readOnly{readOnly} {
     if (fileHandle.getNumPages() > firstHeaderPage) {
         // Read headers from disk
         common::page_idx_t headerPageIdx = firstHeaderPage;

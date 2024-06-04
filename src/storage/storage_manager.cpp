@@ -32,7 +32,7 @@ StorageManager::StorageManager(const std::string& databasePath, bool readOnly,
     wal = std::make_unique<WAL>(databasePath, readOnly, *memoryManager.getBufferManager(), vfs,
         context);
     metadataDAC = std::make_unique<DiskArrayCollection>(*metadataFH, DBFileID::newMetadataFileID(),
-        memoryManager.getBufferManager(), wal.get());
+        memoryManager.getBufferManager(), wal.get(), readOnly);
     nodesStatisticsAndDeletedIDs = std::make_unique<NodesStoreStatsAndDeletedIDs>(databasePath,
         *metadataDAC, memoryManager.getBufferManager(), wal.get(), vfs, context);
     relsStatistics = std::make_unique<RelsStoreStats>(databasePath, *metadataDAC,

@@ -21,15 +21,18 @@ RelDetachDeleteState::RelDetachDeleteState() {
     relIDVector->setState(tempSharedState);
 }
 
-RelTable::RelTable(BMFileHandle* dataFH, DiskArrayCollection* metadataDAC,
-    RelsStoreStats* relsStoreStats, MemoryManager* memoryManager,
-    RelTableCatalogEntry* relTableEntry, WAL* wal, bool enableCompression)
-    : Table{relTableEntry, relsStoreStats, memoryManager, wal} {
+RelTable::RelTable(StorageManager* storageManager, MemoryManager* memoryManager,
+    RelTableCatalogEntry* relTableEntry)
+    : Table{relTableEntry, storageManager->getRelsStatistics(), memoryManager, &storageManager->getWAL()} {
+    bool enableCompression = storageManager->compressionEnabled();
     bool readOnly = storageManager->isReadOnly();
+    BMFileHandle* dataFH = storageManager->getDataFH();
+    auto metadataDAC = storageManager->getMetadataDAC();
+    auto relsStoreStats = ku_dynamic_cast<TablesStatistics*, RelsStoreStats*>(tablesStatistics);
     fwdRelTableData = std::make_unique<RelTableData>(dataFH, metadataDAC, bufferManager, wal,
-        relTableEntry, relsStoreStats, RelDataDirection::FWD, enableCompression);
+        relTableEntry, relsStoreStats, RelDataDirection::FWD, enableCompression, readOnly);
     bwdRelTableData = std::make_unique<RelTableData>(dataFH, metadataDAC, bufferManager, wal,
-        relTableEntry, relsStoreStats, RelDataDirection::BWD, enableCompression);
+        relTableEntry, relsStoreStats, RelDataDirection::BWD, enableCompression, readOnly);
 }
 
 void RelTable::initializeScanState(Transaction* transaction, TableScanState& scanState) const {
