@@ -2,6 +2,8 @@
 
 #include "planner/operator/extend/base_logical_extend.h"
 #include "processor/data_pos.h"
+#include "storage/predicate/column_predicate.h"
+
 namespace kuzu {
 namespace planner {
 
@@ -21,6 +23,14 @@ public:
     void computeFlatSchema() override;
 
     binder::expression_vector getProperties() const { return properties; }
+    void setPropertyPredicates(std::vector<storage::ColumnPredicateSet> predicates) {
+        propertyPredicates = std::move(predicates);
+    }
+    const std::vector<storage::ColumnPredicateSet>& getPropertyPredicates() const {
+        return propertyPredicates;
+    }
+
+    std::unique_ptr<LogicalOperator> copy() override;
 
     std::string getExpressionsForPrinting() const override{
         auto str = BaseLogicalExtend::getExpressionsForPrinting();
@@ -38,13 +48,9 @@ public:
         return str;
     }
 
-    inline std::unique_ptr<LogicalOperator> copy() override {
-        return make_unique<LogicalExtend>(boundNode, nbrNode, rel, direction, properties,
-            hasAtMostOneNbr, children[0]->copy());
-    }
-
 private:
     binder::expression_vector properties;
+    std::vector<storage::ColumnPredicateSet> propertyPredicates;
     bool hasAtMostOneNbr;
 };
 
