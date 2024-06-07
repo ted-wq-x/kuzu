@@ -11,7 +11,6 @@
 #include "storage/store/node_table.h"
 #include "storage/wal/wal_record.h"
 #include "storage/wal_replayer.h"
-#include "storage/wal_replayer_utils.h"
 
 using namespace kuzu::catalog;
 using namespace kuzu::common;
@@ -115,8 +114,6 @@ void StorageManager::createNodeTable(table_id_t tableID, NodeTableCatalogEntry* 
     main::ClientContext* context) {
     KU_ASSERT(context != nullptr);
     nodesStatisticsAndDeletedIDs->addNodeStatisticsAndDeletedIDs(nodeTableEntry);
-    WALReplayerUtils::createEmptyHashIndexFiles(nodeTableEntry, databasePath,
-        context->getVFSUnsafe(), context);
     tables[tableID] = std::make_unique<NodeTable>(this, nodeTableEntry, &memoryManager,
         context->getVFSUnsafe(), context);
 }
@@ -205,7 +202,8 @@ void StorageManager::dropTable(table_id_t tableID, VirtualFileSystem* vfs) {
     switch (tableType) {
     case TableType::NODE: {
         nodesStatisticsAndDeletedIDs->removeTableStatistic(tableID);
-        WALReplayerUtils::removeHashIndexFile(vfs, tableID, databasePath);
+        vfs->removeFileIfExists(
+            StorageUtils::getNodeIndexFName(vfs, databasePath, tableID, FileVersionType::ORIGINAL));
     } break;
     case TableType::REL: {
         relsStatistics->removeTableStatistic(tableID);
