@@ -18,7 +18,7 @@ struct CastFunction {
 
     template<typename EXECUTOR = UnaryFunctionExecutor>
     static std::unique_ptr<ScalarFunction> bindCastFunction(const std::string& functionName,
-        common::LogicalTypeID sourceTypeID, common::LogicalTypeID targetTypeID);
+        const common::LogicalType& sourceType, const common::LogicalType& targetType);
 };
 
 struct CastToDateFunction {
@@ -112,12 +112,6 @@ struct CastToFloatFunction {
     static constexpr const char* name = "TO_FLOAT";
 
     static constexpr const char* alias = "TOFLOAT";
-
-    static function_set getFunctionSet();
-};
-
-struct CastToDecimalFunction {
-    static constexpr const char* name = "TO_DECIMAL";
 
     static function_set getFunctionSet();
 };
