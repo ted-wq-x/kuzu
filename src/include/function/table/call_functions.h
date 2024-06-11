@@ -104,5 +104,17 @@ struct CheckpointFunction final : public CallFunction {
     static function_set getFunctionSet();
 };
 
+struct GraphBspKhopFunction final : public CallFunction {
+    static constexpr const char* name = "GRAPH_BSP_KHOP";
+
+    static function_set getFunctionSet();
+};
+
+struct GraphBspKhopRcFunction final : public CallFunction {
+    static constexpr const char* name = "GRAPH_BSP_KHOP_RC";
+
+    static function_set getFunctionSet();
+};
+
 } // namespace function
 } // namespace kuzu
