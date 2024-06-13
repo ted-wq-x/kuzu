@@ -74,9 +74,13 @@ public:
     bool bindExportTableData(ExportedTableData& tableData, const catalog::TableCatalogEntry& entry,
         const catalog::Catalog& catalog, transaction::Transaction* tx);
 
-private:
     std::shared_ptr<Expression> bindWhereExpression(
         const parser::ParsedExpression& parsedExpression);
+
+    std::shared_ptr<RelExpression> bindQueryRel(const parser::RelPattern& relPattern,
+        const std::shared_ptr<NodeExpression>& leftNode,
+        const std::shared_ptr<NodeExpression>& rightNode, QueryGraph& queryGraph);
+private:
 
     common::table_id_t bindTableID(const std::string& tableName) const;
 
@@ -215,9 +219,7 @@ private:
     std::shared_ptr<Expression> createPath(const std::string& pathName,
         const expression_vector& children);
 
-    std::shared_ptr<RelExpression> bindQueryRel(const parser::RelPattern& relPattern,
-        const std::shared_ptr<NodeExpression>& leftNode,
-        const std::shared_ptr<NodeExpression>& rightNode, QueryGraph& queryGraph);
+
     std::shared_ptr<RelExpression> createNonRecursiveQueryRel(const std::string& parsedName,
         const std::vector<common::table_id_t>& tableIDs, std::shared_ptr<NodeExpression> srcNode,
         std::shared_ptr<NodeExpression> dstNode, RelDirectionType directionType);

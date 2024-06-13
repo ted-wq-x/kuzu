@@ -71,7 +71,7 @@ struct RelDetachDeleteState {
 class RelsStoreStats;
 class RelTable final : public Table {
 public:
-     RelTable(StorageManager* storageManager, MemoryManager* memoryManager,
+    RelTable(StorageManager* storageManager, MemoryManager* memoryManager,
         catalog::RelTableCatalogEntry* relTableEntry);
 
     void initializeScanState(transaction::Transaction* transaction,

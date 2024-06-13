@@ -5,83 +5,83 @@
 -CASE pre-KhopAlgorithmTest
 
 -LOG q1
--STATEMENT call graph_bsp_khop('2','person','both',3,0,1,[],[]) return *
+-STATEMENT call graph_bsp_khop('2','person','both',3,0,1,'','') return *
 ---- 1
 10
 
 -LOG q2
--STATEMENT call graph_bsp_khop_rc('2','person','both',3,0,1,[],[]) return *
+-STATEMENT call graph_bsp_khop_rc('2','person','both',3,0,1,'','') return *
 ---- 1
 30
 
 -LOG q3
--STATEMENT call graph_bsp_khop('0','person','in',5,0,2,[],[]) return *
+-STATEMENT call graph_bsp_khop('0','person','in',5,0,2,'','') return *
 ---- 1
 7
 
 -LOG q4
--STATEMENT call graph_bsp_khop_rc('7','person','out',5,0,2,[],[]) return *
+-STATEMENT call graph_bsp_khop_rc('7','person','out',5,0,2,'','') return *
 ---- 1
 29
 
 -LOG q5
--STATEMENT call graph_bsp_khop('2','person','both',3,0,4,[],[]) return *
+-STATEMENT call graph_bsp_khop('2','person','both',3,0,4,'','') return *
 ---- 1
 10
 
 -LOG q6
--STATEMENT call graph_bsp_khop_rc('2','person','both',3,0,4,[],[]) return *
+-STATEMENT call graph_bsp_khop_rc('2','person','both',3,0,4,'','') return *
 ---- 1
 30
 
 -LOG q7
--STATEMENT call graph_bsp_khop('2','','both',3,0,4,[],[]) return *
+-STATEMENT call graph_bsp_khop('2','','both',3,0,4,'','') return *
 ---- 1
 10
 
 -LOG q8
--STATEMENT call graph_bsp_khop_rc('2','','both',3,0,4,[],[]) return *
+-STATEMENT call graph_bsp_khop_rc('2','','both',3,0,4,'','') return *
 ---- 1
 30
 
 -CASE Kth-hopAlgorithmTest
 
 -LOG q9
--STATEMENT call graph_bsp_khop('2','person','both',3,1,1,[],[]) return *
+-STATEMENT call graph_bsp_khop('2','person','both',3,1,1,'','') return *
 ---- 1
 0
 
 -LOG q10
--STATEMENT call graph_bsp_khop_rc('2','person','both',3,1,1,[],[]) return *
+-STATEMENT call graph_bsp_khop_rc('2','person','both',3,1,1,'','') return *
 ---- 1
 8
 
 -LOG q11
--STATEMENT call graph_bsp_khop('0','person','in',5,1,2,[],[]) return *
+-STATEMENT call graph_bsp_khop('0','person','in',5,1,2,'','') return *
 ---- 1
 0
 
 -LOG q12
--STATEMENT call graph_bsp_khop_rc('7','person','out',5,1,2,[],[]) return *
+-STATEMENT call graph_bsp_khop_rc('7','person','out',5,1,2,'','') return *
 ---- 1
 15
 
 -LOG q13
--STATEMENT call graph_bsp_khop('2','person','both',3,1,4,[],[]) return *
+-STATEMENT call graph_bsp_khop('2','person','both',3,1,4,'','') return *
 ---- 1
 0
 
 -LOG q14
--STATEMENT call graph_bsp_khop_rc('2','person','both',3,1,4,[],[]) return *
+-STATEMENT call graph_bsp_khop_rc('2','person','both',3,1,4,'','') return *
 ---- 1
 8
 
 -LOG q15
--STATEMENT call graph_bsp_khop('2','','both',3,1,4,[],[]) return *
+-STATEMENT call graph_bsp_khop('2','','both',3,1,4,'','') return *
 ---- 1
 0
 
 -LOG q16
--STATEMENT call graph_bsp_khop_rc('2','','both',3,1,4,[],[]) return *
+-STATEMENT call graph_bsp_khop_rc('2','','both',3,1,4,'','') return *
 ---- 1
 8

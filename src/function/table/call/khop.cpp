@@ -1,4 +1,4 @@
-#include "algorithm/khop.h"
+#include "function/table/khop.h"
 
 namespace kuzu {
 namespace function {
@@ -18,7 +18,7 @@ function_set GraphBspKhopFunction::getFunctionSet() {
         initSharedState, initEmptyLocalState,
         std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::STRING,
             LogicalTypeID::STRING, LogicalTypeID::INT64, LogicalTypeID::INT64, LogicalTypeID::INT64,
-            LogicalTypeID::LIST, LogicalTypeID::LIST}));
+            LogicalTypeID::STRING, LogicalTypeID::STRING}));
     return functionSet;
 }
 

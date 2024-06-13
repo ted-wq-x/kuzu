@@ -12,12 +12,52 @@
 #include "parser/expression/parsed_subquery_expression.h"
 #include "parser/expression/parsed_variable_expression.h"
 #include "parser/transformer.h"
+#include "parser/query/algo_parameter.h"
 
 using namespace kuzu::common;
 using namespace kuzu::function;
 
 namespace kuzu {
 namespace parser {
+
+std::unique_ptr<AlgoParameter> Transformer::transformAlgoParameter(
+    CypherParser::OC_AlgoParameterContext& ctx) {
+    if (ctx.oC_NodePatternForAlgo() ) {
+
+        auto nodePatternForAlgo = ctx.oC_NodePatternForAlgo();
+        auto variable = std::string();
+        if (nodePatternForAlgo->oC_Variable()) {
+            variable = transformVariable(*nodePatternForAlgo->oC_Variable());
+        }
+        auto nodeLabels = std::vector<std::string>{};
+        if (nodePatternForAlgo->oC_NodeLabels()) {
+            nodeLabels = transformNodeLabels(*nodePatternForAlgo->oC_NodeLabels());
+        }
+        auto algo = std::make_unique<AlgoParameter>(std::move(variable), std::move(nodeLabels));
+        if(nodePatternForAlgo->oC_Where()){
+            algo->setWherePredicate(transformWhere(*nodePatternForAlgo->oC_Where()));
+        }
+        return algo;
+
+    } else if (ctx.oC_RelationshipDetailForAlgo()) {
+        auto relationshipDetailForAlgo = ctx.oC_RelationshipDetailForAlgo();
+        auto variable = std::string();
+        if (relationshipDetailForAlgo->oC_Variable()) {
+            variable = transformVariable(*relationshipDetailForAlgo->oC_Variable());
+        }
+        auto nodeLabels = std::vector<std::string>{};
+        if (relationshipDetailForAlgo->oC_RelationshipTypes()) {
+            nodeLabels = transformRelTypes(*relationshipDetailForAlgo->oC_RelationshipTypes());
+        }
+        auto algo = std::make_unique<AlgoParameter>(std::move(variable), std::move(nodeLabels));
+        if(relationshipDetailForAlgo->oC_Where()){
+            algo->setWherePredicate(transformWhere(*relationshipDetailForAlgo->oC_Where()));
+        }
+        return algo;
+    } else {
+        KU_ASSERT(false);
+    }
+}
 
 std::unique_ptr<ParsedExpression> Transformer::transformExpression(
     CypherParser::OC_ExpressionContext& ctx) {

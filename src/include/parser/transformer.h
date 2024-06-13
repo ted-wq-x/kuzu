@@ -7,6 +7,7 @@
 #pragma GCC diagnostic pop
 
 #include "parser/ddl/create_table_info.h"
+#include "parser/query/algo_parameter.h"
 #include "statement.h"
 
 namespace kuzu {
@@ -30,9 +31,11 @@ struct AttachOption;
 
 class Transformer {
 public:
-    explicit Transformer(CypherParser::Ku_StatementsContext& root) : root{root} {}
+    explicit Transformer( CypherParser::Ku_StatementsContext* root) : root{root} {}
 
     std::vector<std::shared_ptr<Statement>> transform();
+
+    std::unique_ptr<AlgoParameter> transformAlgoParameter(CypherParser::OC_AlgoParameterContext& ctx);
 
 private:
     std::unique_ptr<Statement> transformStatement(CypherParser::OC_StatementContext& ctx);
@@ -228,7 +231,7 @@ private:
     std::unique_ptr<Statement> transformUseDatabase(CypherParser::KU_UseDatabaseContext& ctx);
 
 private:
-    CypherParser::Ku_StatementsContext& root;
+    CypherParser::Ku_StatementsContext* root;
 };
 
 } // namespace parser

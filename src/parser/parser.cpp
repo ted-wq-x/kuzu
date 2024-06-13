@@ -18,31 +18,19 @@ namespace kuzu {
 namespace parser {
 
 std::vector<std::shared_ptr<Statement>> Parser::parseQuery(std::string_view query) {
-    // LCOV_EXCL_START
-    // We should have enforced this in connection, but I also realize empty query will cause
-    // antlr to hang. So enforce a duplicate check here.
-    if (query.empty()) {
-        throw common::ParserException(
-            "Cannot parse empty query. This should be handled in connection.");
-    }
-    // LCOV_EXCL_STOP
-    auto inputStream = ANTLRInputStream(query);
-    auto parserErrorListener = ParserErrorListener();
-
-    auto cypherLexer = CypherLexer(&inputStream);
-    cypherLexer.removeErrorListeners();
-    cypherLexer.addErrorListener(&parserErrorListener);
-    auto tokens = CommonTokenStream(&cypherLexer);
-    tokens.fill();
-
-    auto kuzuCypherParser = KuzuCypherParser(&tokens);
-    kuzuCypherParser.removeErrorListeners();
-    kuzuCypherParser.addErrorListener(&parserErrorListener);
-    kuzuCypherParser.setErrorHandler(std::make_shared<ParserErrorStrategy>());
-
-    Transformer transformer(*kuzuCypherParser.ku_Statements());
-    return transformer.transform();
+    return parse<std::vector<std::shared_ptr<Statement>>>(query,
+        [](KuzuCypherParser& kuzuCypherParser) -> std::vector<std::shared_ptr<Statement>> {
+            Transformer transformer((kuzuCypherParser.ku_Statements()));
+            return transformer.transform();
+        });
 }
 
+std::unique_ptr<AlgoParameter> Parser::parseAlgoParams(std::string_view parameter_str) {
+    return parse<std::unique_ptr<AlgoParameter>>(parameter_str,
+        [](KuzuCypherParser& kuzuCypherParser) -> std::unique_ptr<AlgoParameter> {
+                        Transformer transformer(nullptr);
+                        return transformer.transformAlgoParameter(*kuzuCypherParser.oC_AlgoParameter());
+        });
+}
 } // namespace parser
 } // namespace kuzu

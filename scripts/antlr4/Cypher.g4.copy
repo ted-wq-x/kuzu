@@ -509,6 +509,15 @@ oC_RelationshipPattern
 oC_RelationshipDetail
     : '[' SP? ( oC_Variable SP? )? ( oC_RelationshipTypes SP? )? ( oC_RangeLiteral SP? )? ( kU_Properties SP? )? ']' ;
 
+oC_NodePatternForAlgo
+    : '(' SP? ( oC_Variable SP? )? ( oC_NodeLabels SP? )? (oC_Where SP? )? ')' ;
+
+oC_RelationshipDetailForAlgo
+    : '[' SP? ( oC_Variable SP? )? ( oC_RelationshipTypes SP? )? (oC_Where SP? )? ']' ;
+
+oC_AlgoParameter
+    : oC_NodePatternForAlgo | oC_RelationshipDetailForAlgo ;
+
 // The original oC_Properties definition is  oC_MapLiteral | oC_Parameter.
 // We choose to not support parameter as properties which will be the decision for a long time.
 // We then substitute with oC_MapLiteral definition. We create oC_MapLiteral only when we decide to add MAP type.

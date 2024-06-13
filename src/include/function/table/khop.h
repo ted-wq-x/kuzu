@@ -1,37 +1,80 @@
 #include <thread>
 
+#include "binder/binder.h"
+#include "binder/expression/expression_util.h"
+#include "binder/expression/property_expression.h"
+#include "binder/expression_visitor.h"
 #include "catalog/catalog.h"
+#include "common/cast.h"
+#include "common/data_chunk/sel_vector.h"
 #include "common/exception/binder.h"
 #include "common/types/value/nested.h"
+#include "expression_evaluator/expression_evaluator.h"
 #include "function/table/call_functions.h"
 #include "main/database_manager.h"
+#include "parser/parser.h"
+#include "parser/query/graph_pattern/rel_pattern.h"
+#include "planner/operator/schema.h"
+#include "processor/expression_mapper.h"
 #include "storage/store/node_table.h"
 #include "storage/store/rel_table.h"
 using namespace kuzu::catalog;
 using namespace kuzu::common;
+using namespace kuzu::binder;
 
 namespace kuzu {
 namespace function {
 
+class RelTableInfo {
+public:
+    explicit RelTableInfo(transaction::Transaction* tx, storage::StorageManager* storage,
+        catalog::Catalog* catalog, table_id_t tableID, std::vector<common::column_id_t> columnIDs)
+        : columnIDs(std::move(columnIDs)) {
+        relTable = storage->getTable(tableID)->ptrCast<storage::RelTable>();
+        auto relTableEntry =
+            ku_dynamic_cast<catalog::TableCatalogEntry*, catalog::RelTableCatalogEntry*>(
+                catalog->getTableCatalogEntry(tx, tableID));
+        srcTableID = relTableEntry->getSrcTableID();
+        dstTableID = relTableEntry->getDstTableID();
+    }
+    storage::RelTable* relTable;
+    std::vector<common::column_id_t> columnIDs;
+    common::table_id_t srcTableID, dstTableID;
+};
+
 struct KhopBindData : public CallTableFuncBindData {
     KhopBindData(main::ClientContext* context, std::string primaryKey, std::string tableName,
         std::string direction, int64_t maxHop, int64_t mode, int64_t numThreads,
-        std::unordered_set<std::string> nodeFilter, std::unordered_set<std::string> relFilter,
         std::vector<LogicalType> returnTypes, std::vector<std::string> returnColumnNames,
-        offset_t maxOffset)
+        offset_t maxOffset, std::unique_ptr<evaluator::ExpressionEvaluator> relFilter,
+        std::shared_ptr<std::vector<LogicalTypeID>> relColumnTypeIds,
+        std::shared_ptr<std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>>
+            relTableInfos)
         : CallTableFuncBindData{std::move(returnTypes), std::move(returnColumnNames), maxOffset},
           context(context), primaryKey(primaryKey), tableName(tableName), direction(direction),
-          maxHop(maxHop), mode(mode), numThreads(numThreads), nodeFilter(std::move(nodeFilter)),
-          relFilter(std::move(relFilter)) {}
+          maxHop(maxHop), mode(mode), numThreads(numThreads), relFilter(std::move(relFilter)),
+          relColumnTypeIds(std::move(relColumnTypeIds)), relTableInfos(std::move(relTableInfos)) {}
 
     std::unique_ptr<TableFuncBindData> copy() const override {
+        std::unique_ptr<evaluator::ExpressionEvaluator> localRelFilter = nullptr;
+        if (relFilter) {
+            localRelFilter = relFilter->clone();
+        }
+
         return std::make_unique<KhopBindData>(context, primaryKey, tableName, direction, maxHop,
-            mode, numThreads, nodeFilter, relFilter, columnTypes, columnNames, maxOffset);
+            mode, numThreads, columnTypes, columnNames, maxOffset, std::move(localRelFilter),
+            relColumnTypeIds, relTableInfos);
     }
     main::ClientContext* context;
     std::string primaryKey, tableName, direction;
     int64_t maxHop, mode, numThreads;
-    std::unordered_set<std::string> nodeFilter, relFilter;
+
+    // nullable
+    std::unique_ptr<evaluator::ExpressionEvaluator> relFilter;
+    // 边的输出列类型
+    std::shared_ptr<std::vector<LogicalTypeID>> relColumnTypeIds;
+    std::shared_ptr<std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>>
+        relTableInfos;
 };
 
 class BSet {
@@ -45,50 +88,21 @@ public:
     ~BSet() { pthread_mutex_destroy(&mtx); }
 };
 
-class RelTableInfo {
-public:
-    explicit RelTableInfo(transaction::Transaction* tx, storage::StorageManager* storage,
-        catalog::Catalog* catalog, table_id_t tableID) {
-        relTable = storage->getTable(tableID)->ptrCast<storage::RelTable>();
-        auto relTableEntry =
-            ku_dynamic_cast<catalog::TableCatalogEntry*, catalog::RelTableCatalogEntry*>(
-                catalog->getTableCatalogEntry(tx, tableID));
-        srcTableID = relTableEntry->getSrcTableID();
-        dstTableID = relTableEntry->getDstTableID();
-    }
-    storage::RelTable* relTable;
-    common::table_id_t srcTableID, dstTableID;
-};
-
 class SharedData {
 public:
     explicit SharedData(const KhopBindData* bindData) {
-        auto context = bindData->context;
+        context = bindData->context;
         mm = context->getMemoryManager();
+        relFilter = bindData->relFilter.get();
+        relColumnTypeIds = bindData->relColumnTypeIds;
         direction = bindData->direction;
         tx = context->getTx();
         catalog = context->getCatalog();
         storage = context->getStorageManager();
-        for (auto& nodeTableName : bindData->nodeFilter) {
-            auto tableID = context->getCatalog()->getTableID(context->getTx(), nodeTableName);
-            nodeFilter.insert(tableID);
-        }
-        std::unordered_set<table_id_t> relFilter;
-        for (auto& relTableName : bindData->relFilter) {
-            auto tableID = context->getCatalog()->getTableID(context->getTx(), relTableName);
-            relFilter.insert(tableID);
-        }
-        hasNodeFilter = nodeFilter.size() ? true : false;
-        bool hasRelFilter = relFilter.size() ? true : false;
-        auto relTableIDs = catalog->getRelTableIDs(tx);
-        for (auto& tableID : relTableIDs) {
-            if (!hasRelFilter || relFilter.count(tableID)) {
-                auto relTableInfo = std::make_unique<RelTableInfo>(tx, storage, catalog, tableID);
-                reltables.emplace_back(tableID, std::move(relTableInfo));
-            }
-        }
+
+        reltables = bindData->relTableInfos;
         auto nodeTableIDs = catalog->getNodeTableIDs(tx);
-        auto allTableSize = relTableIDs.size() + nodeTableIDs.size();
+        auto allTableSize = catalog->getRelTableIDs(tx).size() + nodeTableIDs.size();
         nodeIDMark.resize(allTableSize);
         nextMark.resize(allTableSize);
         for (auto tableID : nodeTableIDs) {
@@ -98,18 +112,46 @@ public:
             nextMark[tableID].resize((nodeNum + 63) >> 6);
         }
     }
+
+    std::unique_ptr<processor::ResultSet> createResultSet() {
+        processor::ResultSet resultSet(1);
+        auto columnType = *relColumnTypeIds.get();
+        auto numValueVectors = columnType.size();
+        auto dataChunk = std::make_shared<common::DataChunk>(numValueVectors);
+        for (auto j = 0u; j < numValueVectors; ++j) {
+            dataChunk->insert(j, std::make_shared<ValueVector>(columnType[j], mm));
+        }
+        resultSet.insert(0, dataChunk);
+        return std::make_unique<processor::ResultSet>(resultSet);
+    }
+
+    std::unique_ptr<evaluator::ExpressionEvaluator> initEvaluator(
+        const processor::ResultSet& resultSet) {
+        if (relFilter) {
+            auto evaluator = relFilter->clone();
+            evaluator->init(resultSet, mm);
+            return evaluator;
+        } else {
+            return nullptr;
+        }
+    }
+
     std::mutex mtx;
     uint32_t taskID;
-    bool hasNodeFilter;
+
     std::string direction;
     catalog::Catalog* catalog;
     storage::MemoryManager* mm;
     transaction::Transaction* tx;
     storage::StorageManager* storage;
-    std::unordered_set<table_id_t> nodeFilter;
+
     std::vector<std::vector<BSet>> nodeIDMark, nextMark;
     std::vector<std::vector<nodeID_t>> currentFrontier, nextFrontier;
-    std::vector<std::pair<common::table_id_t, std::unique_ptr<RelTableInfo>>> reltables;
+    std::shared_ptr<std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>>
+        reltables;
+    main::ClientContext* context;
+    evaluator::ExpressionEvaluator* relFilter;
+    std::shared_ptr<std::vector<LogicalTypeID>> relColumnTypeIds;
 };
 
 template<typename T>
@@ -208,40 +250,55 @@ static nodeID_t getNodeID(SharedData& sharedData, const KhopBindData* bindData) 
         return nodeID_t{offset, tableID};
     }
 }
-static void scanTask(SharedData& sharedData, storage::RelTableScanState& readState,
-    storage::RelDataReadState* relDataReadState, common::ValueVector& srcVector,
-    common::ValueVector& dstVector, common::DataChunkState* dstState, RelTableInfo* info,
+static void scanTask(SharedData& sharedData, std::shared_ptr<storage::RelTableScanState> readState,
+    common::ValueVector& srcVector, std::shared_ptr<RelTableInfo> info,
     std::vector<std::vector<uint64_t>>& threadMark, RelDataDirection relDataDirection,
-    int64_t& threadResult, uint32_t tid, bool isFinal) {
+    int64_t& threadResult, uint32_t tid, bool isFinal, const processor::ResultSet& resultSet,
+    evaluator::ExpressionEvaluator* relExpr) {
     auto prevTableID =
         relDataDirection == RelDataDirection::FWD ? info->srcTableID : info->dstTableID;
-    auto nextTableID =
-        relDataDirection == RelDataDirection::BWD ? info->srcTableID : info->dstTableID;
-    if (sharedData.hasNodeFilter && !sharedData.nodeFilter.count(nextTableID)) {
-        return;
-    }
+
     auto relTable = info->relTable;
-    readState.direction = relDataDirection;
+    readState->direction = relDataDirection;
+    auto relDataReadState =
+        common::ku_dynamic_cast<storage::TableDataScanState*, storage::RelDataReadState*>(
+            readState->dataScanState.get());
     relDataReadState->nodeGroupIdx = INVALID_NODE_GROUP_IDX;
     relDataReadState->numNodes = 0;
     relDataReadState->chunkStates.clear();
-    relDataReadState->chunkStates.resize(1);
+    relDataReadState->chunkStates.resize(relDataReadState->columnIDs.size());
+    //    relDataReadState->chunkStates[0]
+    auto dataChunkToSelect = resultSet.dataChunks[0];
+    auto& selectVector = dataChunkToSelect->state->getSelVectorUnsafe();
+    auto dstIdDataChunk = dataChunkToSelect->getValueVector(0);
     for (auto currentNodeID : sharedData.currentFrontier[tid]) {
         if (prevTableID != currentNodeID.tableID) {
             break;
         }
         /*we can quick check here (part of checkIfNodeHasRels)*/
         srcVector.setValue<nodeID_t>(0, currentNodeID);
-        relTable->initializeScanState(sharedData.tx, readState);
-        while (readState.hasMoreToRead(sharedData.tx)) {
-            relTable->scan(sharedData.tx, readState);
-            KU_ASSERT(dstState->getSelVector().isUnfiltered());
+        relTable->initializeScanState(sharedData.tx, *readState.get());
+        while (readState->hasMoreToRead(sharedData.tx)) {
+            relTable->scan(sharedData.tx, *readState.get());
+
+            if (relExpr) {
+                bool hasAtLeastOneSelectedValue = relExpr->select(selectVector, sharedData.context);
+                if (!dataChunkToSelect->state->isFlat() &&
+                    dataChunkToSelect->state->getSelVector().isUnfiltered()) {
+                    dataChunkToSelect->state->getSelVectorUnsafe().setToFiltered();
+                }
+                if (!hasAtLeastOneSelectedValue) {
+                    continue;
+                }
+            }
+
             if (relDataDirection == RelDataDirection::FWD ||
                 (relDataDirection == RelDataDirection::BWD && sharedData.direction == "in")) {
-                threadResult += dstState->getSelVector().getSelSize();
+                threadResult += selectVector.getSelSize();
             }
-            for (auto i = 0u; i < dstState->getSelVector().getSelSize(); ++i) {
-                auto nbrID = dstVector.getValue<nodeID_t>(i);
+
+            for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
+                auto nbrID = dstIdDataChunk->getValue<nodeID_t>(i);
                 uint64_t block = (nbrID.offset >> 6), pos = (nbrID.offset & 63);
                 if ((sharedData.nodeIDMark[nbrID.tableID][block].value >> pos) & 1) {
                     continue;
@@ -263,23 +320,28 @@ static void tableFuncTask(SharedData& sharedData, int64_t& edgeResult, bool isFi
     for (auto i = 0u; i < threadMark.size(); ++i) {
         threadMark[i].resize(sharedData.nodeIDMark[i].size(), 0);
     }
-    std::vector<common::column_id_t> columnIDs;
-    auto readState = storage::RelTableScanState(columnIDs, RelDataDirection::FWD);
-    auto relDataReadState =
-        common::ku_dynamic_cast<storage::TableDataScanState*, storage::RelDataReadState*>(
-            readState.dataScanState.get());
-    auto srcState = DataChunkState::getSingleValueDataChunkState();
-    auto dstState = std::make_shared<common::DataChunkState>();
+
+    auto rs = sharedData.createResultSet();
+    auto relEvaluate = sharedData.initEvaluator(*rs.get());
     auto srcVector = common::ValueVector(*LogicalType::INTERNAL_ID(), sharedData.mm);
-    auto dstVector = common::ValueVector(*LogicalType::INTERNAL_ID(), sharedData.mm);
-    srcVector.state = srcState;
-    dstVector.state = dstState;
-    readState.nodeIDVector = &srcVector;
-    readState.outputVectors.clear();
-    readState.outputVectors.emplace_back(&dstVector);
-    std::vector<common::column_id_t> dataScanColumnIDs{storage::NBR_ID_COLUMN_ID};
-    dataScanColumnIDs.insert(dataScanColumnIDs.end(), columnIDs.begin(), columnIDs.end());
-    relDataReadState->columnIDs = dataScanColumnIDs;
+    srcVector.state = DataChunkState::getSingleValueDataChunkState();
+
+    std::vector<
+        std::pair<std::shared_ptr<RelTableInfo>, std::shared_ptr<storage::RelTableScanState>>>
+        relTableScanStates;
+    for (auto& [tableID, info] : *sharedData.reltables) {
+        auto readState =
+            std::make_shared<storage::RelTableScanState>(info->columnIDs, RelDataDirection::FWD);
+        readState->nodeIDVector = &srcVector;
+        for (const auto& item : rs->getDataChunk(0)->valueVectors) {
+            readState->outputVectors.push_back(item.get());
+        }
+        relTableScanStates.emplace_back(info, std::move(readState));
+    }
+    evaluator::ExpressionEvaluator* relFilter = nullptr;
+    if (relEvaluate) {
+        relFilter = relEvaluate.get();
+    }
     while (true) {
         sharedData.mtx.lock();
         uint32_t tid = sharedData.taskID++;
@@ -287,27 +349,28 @@ static void tableFuncTask(SharedData& sharedData, int64_t& edgeResult, bool isFi
         if (tid >= sharedData.currentFrontier.size()) {
             break;
         }
-        for (auto& [tableID, info] : sharedData.reltables) {
+        for (auto& [info, relDataReadState] : relTableScanStates) {
             if (sharedData.direction == "out" || sharedData.direction == "both") {
-                scanTask(sharedData, readState, relDataReadState, srcVector, dstVector,
-                    dstState.get(), info.get(), threadMark, RelDataDirection::FWD, threadResult,
-                    tid, isFinal);
+                scanTask(sharedData, relDataReadState, srcVector, info, threadMark,
+                    RelDataDirection::FWD, threadResult, tid, isFinal, *rs.get(), relFilter);
             }
             if (sharedData.direction == "in" || sharedData.direction == "both") {
-                scanTask(sharedData, readState, relDataReadState, srcVector, dstVector,
-                    dstState.get(), info.get(), threadMark, RelDataDirection::BWD, threadResult,
-                    tid, isFinal);
+                scanTask(sharedData, relDataReadState, srcVector, info, threadMark,
+                    RelDataDirection::BWD, threadResult, tid, isFinal, *rs.get(), relFilter);
             }
         }
     }
     for (auto tableID = 0u; tableID < threadMark.size(); ++tableID) {
         for (auto blockID = 0u; blockID < threadMark[tableID].size(); ++blockID) {
-            if (!threadMark[tableID][blockID]) {
+            auto mark = threadMark[tableID][blockID];
+            if (!mark) {
                 continue;
             }
-            pthread_mutex_lock(&sharedData.nextMark[tableID][blockID].mtx);
-            sharedData.nextMark[tableID][blockID].value |= threadMark[tableID][blockID];
-            pthread_mutex_unlock(&sharedData.nextMark[tableID][blockID].mtx);
+            auto& bitSet = sharedData.nextMark[tableID][blockID];
+            auto mtx = &bitSet.mtx;
+            pthread_mutex_lock(mtx);
+            bitSet.value |= mark;
+            pthread_mutex_unlock(mtx);
         }
     }
     sharedData.mtx.lock();
@@ -332,7 +395,6 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
     auto pos = dataChunk.state->getSelVector()[0];
     auto bindData = input.bindData->constPtrCast<KhopBindData>();
     auto maxHop = bindData->maxHop;
-    auto numThreads = bindData->numThreads;
     if (maxHop == 0) {
         outputVector->setValue(pos, 0);
         outputVector->setNull(pos, false);
@@ -351,7 +413,7 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
         bool isFinal = (currentLevel == maxHop - 1);
         std::vector<std::thread> threads;
         sharedData.taskID = 0;
-        for (auto i = 0u; i < numThreads; i++) {
+        for (auto i = 0u; i < bindData->numThreads; i++) {
             threads.emplace_back([&sharedData, &edgeResult, isFinal] {
                 tableFuncTask(sharedData, edgeResult, isFinal);
             });
@@ -408,6 +470,64 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
     return 1;
 }
 
+static std::pair<std::shared_ptr<Expression>, std::shared_ptr<Expression>> parseExpr(
+    main::ClientContext* context, const parser::AlgoParameter* algoParameter) {
+    binder::Binder binder(context);
+    auto recursiveInfo = parser::RecursiveRelPatternInfo();
+    auto relPattern = parser::RelPattern(algoParameter->getVariableName(),
+        algoParameter->getTableNames(), QueryRelType::NON_RECURSIVE, parser::ArrowDirection::BOTH,
+        std::vector<parser::s_parsed_expr_pair>{}, std::move(recursiveInfo));
+
+    auto nodeTableIDs = context->getCatalog()->getNodeTableIDs(context->getTx());
+    auto leftNode =
+        std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_left", "", nodeTableIDs);
+    auto rightNode =
+        std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_right", "", nodeTableIDs);
+    rightNode->setInternalID(PropertyExpression::construct(*LogicalType::INTERNAL_ID(),
+        InternalKeyword::ID, *rightNode));
+
+    auto qg = binder::QueryGraph();
+    auto relExpression = binder.bindQueryRel(relPattern, leftNode, rightNode, qg);
+
+    return {binder.bindWhereExpression(*algoParameter->getWherePredicate()), rightNode->getInternalID()};
+}
+
+static std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>> makeRelTableInfos(
+    const binder::expression_vector* props, main::ClientContext* context,
+    std::unordered_set<std::string>& relLabels) {
+    auto catalog = context->getCatalog();
+    auto transaction = context->getTx();
+    std::vector<common::table_id_t> tableIDs;
+    if (!relLabels.empty()) {
+        for (const auto& label : relLabels) {
+            auto id = catalog->getTableID(transaction, label);
+            tableIDs.push_back(id);
+        }
+    } else {
+        tableIDs = catalog->getRelTableIDs(transaction);
+    }
+    std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>> reltables;
+
+    for (const auto& tableID : tableIDs) {
+        std::vector<column_id_t> columnIDs;
+        for (const auto& prop : *props) {
+            auto property = *ku_dynamic_cast<Expression*, PropertyExpression*>(prop.get());
+            if (!property.hasPropertyID(tableID)) {
+                columnIDs.push_back(UINT32_MAX);
+            } else {
+                auto propertyID = property.getPropertyID(tableID);
+                auto tableEntry = catalog->getTableCatalogEntry(transaction, tableID);
+                columnIDs.push_back(tableEntry->getColumnID(propertyID));
+            }
+        }
+        auto relTableInfo = std::make_shared<RelTableInfo>(transaction,
+            context->getStorageManager(), catalog, tableID, columnIDs);
+        reltables.emplace_back(tableID, std::move(relTableInfo));
+    }
+
+    return reltables;
+}
+
 static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* context,
     TableFuncBindInput* input, std::string columnName) {
     std::vector<std::string> returnColumnNames;
@@ -425,32 +545,69 @@ static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* c
     if (mode != 0 && mode != 1) {
         throw BinderException("wrong mode number");
     }
-    // filter
+
     auto numThreads = input->inputs[5].getValue<int64_t>();
     KU_ASSERT(numThreads >= 0);
-    auto nodeList = input->inputs[6];
-    auto relList = input->inputs[7];
-    std::unordered_set<std::string> nodeFilter, relFilter;
-    for (auto pos = 0u; pos < NestedVal::getChildrenSize(&nodeList); ++pos) {
-        auto node = NestedVal::getChildVal(&nodeList, pos);
-        if (node->getDataType()->getLogicalTypeID() != common::LogicalTypeID::STRING) {
-            throw BinderException("wrong node name type");
-        }
-        /*we can check whether the nodetable is exist here*/
-        nodeFilter.insert(node->getValue<std::string>());
+    auto nodeFilterStr = input->inputs[6].getValue<std::string>();
+
+    if (!nodeFilterStr.empty()) {
+        KU_ASSERT(false);
     }
-    for (auto pos = 0u; pos < NestedVal::getChildrenSize(&relList); ++pos) {
-        auto rel = NestedVal::getChildVal(&relList, pos);
-        if (rel->getDataType()->getLogicalTypeID() != common::LogicalTypeID::STRING) {
-            throw BinderException("wrong rel name type");
+
+    // fixme wq 当前只支持边的属性过滤
+    auto relFilterStr = input->inputs[7].getValue<std::string>();
+
+    std::unique_ptr<evaluator::ExpressionEvaluator> relFilter = nullptr;
+    std::shared_ptr<std::vector<LogicalTypeID>> relColumnTypeIds = nullptr;
+    // filter
+    std::unordered_set<std::string> relLabels;
+    expression_vector props;
+    if (!relFilterStr.empty()) {
+        auto algoPara = parser::Parser::parseAlgoParams(relFilterStr);
+
+        auto list = algoPara->getTableNames();
+        relLabels.insert(list.begin(), list.end());
+
+        if (algoPara->hasWherePredicate()) {
+
+            auto [whereExpression,nbrNodeExp] = parseExpr(context, algoPara.get());
+            // 确定属性的位置
+            auto expressionCollector = binder::ExpressionCollector();
+            props = binder::ExpressionUtil::removeDuplication(
+                expressionCollector.collectPropertyExpressions(whereExpression));
+
+            auto schema = planner::Schema();
+            schema.createGroup();
+            schema.insertToGroupAndScope(nbrNodeExp, 0);//nbr node id
+            for (auto& prop : props) {
+                schema.insertToGroupAndScope(prop, 0);
+            }
+            relFilter = processor::ExpressionMapper::getEvaluator(whereExpression, &schema);
+
+            std::vector<LogicalTypeID> relColumnTypes;
+            for (const auto& item : schema.getExpressionsInScope()) {
+                relColumnTypes.push_back(item->getDataType().getLogicalTypeID());
+            }
+
+            relColumnTypeIds = std::make_shared<std::vector<LogicalTypeID>>(relColumnTypes);
         }
-        /*we can check whether the reltable is exist here*/
-        relFilter.insert(rel->getValue<std::string>());
     }
-    auto bindData = std::make_unique<KhopBindData>(context,
-        input->inputs[0].getValue<std::string>(), input->inputs[1].getValue<std::string>(),
-        direction, maxHop, mode, numThreads, nodeFilter, relFilter, std::move(returnTypes),
-        std::move(returnColumnNames), 1 /* one line of results */);
+
+    auto relTableInfos =
+        std::make_shared<std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>>(
+            makeRelTableInfos(&props, context, relLabels));
+
+    if (!relColumnTypeIds) {
+        std::vector<LogicalTypeID> relColumnTypes;
+        relColumnTypes.push_back(LogicalTypeID::INTERNAL_ID);
+        relColumnTypeIds = std::make_shared<std::vector<LogicalTypeID>>(relColumnTypes);
+    }
+
+    auto bindData =
+        std::make_unique<KhopBindData>(context, input->inputs[0].getValue<std::string>(),
+            input->inputs[1].getValue<std::string>(), direction, maxHop, mode, numThreads,
+            std::move(returnTypes), std::move(returnColumnNames), 1 /* one line of results */,
+            std::move(relFilter), std::move(relColumnTypeIds), std::move(relTableInfos));
     return bindData;
 }
 

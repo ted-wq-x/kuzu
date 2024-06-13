@@ -11,7 +11,7 @@ public:
     BoundMatchClause(QueryGraphCollection collection, common::MatchClauseType matchClauseType,
         std::vector<std::vector<std::string>> hint)
         : BoundReadingClause{common::ClauseType::MATCH}, collection{std::move(collection)},
-          matchClauseType{matchClauseType} {}
+          matchClauseType{matchClauseType}, hint{std::move(hint)} {}
 
     QueryGraphCollection* getQueryGraphCollectionUnsafe() { return &collection; }
     const QueryGraphCollection* getQueryGraphCollection() const { return &collection; }
