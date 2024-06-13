@@ -9,6 +9,7 @@
 #include "function/cast/vector_cast_functions.h"
 #include "function/comparison/vector_comparison_functions.h"
 #include "function/date/vector_date_functions.h"
+#include "function/export/export_function.h"
 #include "function/gds/gds_function_collection.h"
 #include "function/hash/vector_hash_functions.h"
 #include "function/interval/vector_interval_functions.h"
@@ -46,6 +47,8 @@ namespace function {
     { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::REWRITE_FUNCTION_ENTRY }
 #define AGGREGATE_FUNCTION(_PARAM)                                                                 \
     { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::AGGREGATE_FUNCTION_ENTRY }
+#define EXPORT_FUNCTION(_PARAM)                                                                    \
+    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::COPY_FUNCTION_ENTRY }
 #define TABLE_FUNCTION(_PARAM)                                                                     \
     { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::TABLE_FUNCTION_ENTRY }
 #define ALGORITHM_FUNCTION(_PARAM)                                                                 \
@@ -228,7 +231,7 @@ FunctionCollection* FunctionCollection::getFunctions() {
         TABLE_FUNCTION(ShowTablesFunction), TABLE_FUNCTION(TableInfoFunction),
         TABLE_FUNCTION(ShowConnectionFunction), TABLE_FUNCTION(StorageInfoFunction),
         TABLE_FUNCTION(ShowAttachedDatabasesFunction), TABLE_FUNCTION(CheckpointFunction),
-        TABLE_FUNCTION(ShowSequencesFunction),TABLE_FUNCTION(GraphBspKhopFunction),
+        TABLE_FUNCTION(ShowSequencesFunction), TABLE_FUNCTION(GraphBspKhopFunction),
         TABLE_FUNCTION(GraphBspKhopRcFunction),
         // Scan functions
         TABLE_FUNCTION(ParquetScanFunction), TABLE_FUNCTION(NpyScanFunction),
@@ -243,6 +246,9 @@ FunctionCollection* FunctionCollection::getFunctions() {
         ALGORITHM_FUNCTION(VariableLengthPathsFunction),
         ALGORITHM_FUNCTION(WeaklyConnectedComponentsFunction),
         ALGORITHM_FUNCTION(ShortestPathsFunction), ALGORITHM_FUNCTION(PageRankFunction),
+
+        // Export functions
+        EXPORT_FUNCTION(ExportCSVFunction), EXPORT_FUNCTION(ExportParquetFunction),
 
         // End of array
         FINAL_FUNCTION};
