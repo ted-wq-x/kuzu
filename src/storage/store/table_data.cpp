@@ -23,8 +23,9 @@ void TableData::addColumn(Transaction* transaction, const std::string& colNamePr
     const catalog::Property& property, ExpressionEvaluator& defaultEvaluator) {
     auto colName = StorageUtils::getColumnName(property.getName(),
         StorageUtils::ColumnType::DEFAULT, colNamePrefix);
-    auto column = ColumnFactory::createColumn(colName, *property.getDataType()->copy(),
-        metadataDAHInfo, dataFH, *metadataDAC, bufferManager, wal, transaction, enableCompression, readOnly);
+    auto column =
+        ColumnFactory::createColumn(colName, property.getDataType().copy(), metadataDAHInfo, dataFH,
+            *metadataDAC, bufferManager, wal, transaction, enableCompression, readOnly);
     column->populateWithDefaultVal(transaction, metadataDA, defaultEvaluator);
     columns.push_back(std::move(column));
 }

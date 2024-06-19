@@ -25,14 +25,14 @@ static void UnaryExecListExtractFunction(const std::vector<std::shared_ptr<Value
 
 static std::unique_ptr<FunctionBindData> ListExtractBindFunc(
     const binder::expression_vector& arguments, Function* function) {
-    auto resultType = ListType::getChildType(arguments[0]->dataType);
+    const auto& resultType = ListType::getChildType(arguments[0]->dataType);
     auto scalarFunction = function->ptrCast<ScalarFunction>();
     TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
         scalarFunction->execFunc =
             BinaryExecListExtractFunction<list_entry_t, int64_t, T, ListExtract>;
     });
     std::vector<LogicalType> paramTypes;
-    paramTypes.push_back(arguments[0]->getDataType());
+    paramTypes.push_back(arguments[0]->getDataType().copy());
     paramTypes.push_back(LogicalType(function->parameterTypeIDs[1]));
     return std::make_unique<FunctionBindData>(std::move(paramTypes), resultType.copy());
 }

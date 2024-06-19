@@ -103,8 +103,8 @@ static write_values_func_t getWriteValuesFunc(const LogicalType& logicalType) {
 InternalIDColumn::InternalIDColumn(std::string name, const MetadataDAHInfo& metaDAHeaderInfo,
     BMFileHandle* dataFH, DiskArrayCollection& metadataDAC, BufferManager* bufferManager, WAL* wal,
     transaction::Transaction* transaction, bool enableCompression, bool readOnly)
-    : Column{name, *LogicalType::INTERNAL_ID(), metaDAHeaderInfo, dataFH, metadataDAC,
-          bufferManager, wal, transaction, enableCompression, readOnly, false /*requireNullColumn*/},
+    : Column{name, LogicalType::INTERNAL_ID(), metaDAHeaderInfo, dataFH, metadataDAC, bufferManager,
+          wal, transaction, enableCompression, readOnly, false /*requireNullColumn*/},
       commonTableID{INVALID_TABLE_ID} {}
 
 void InternalIDColumn::populateCommonTableIDFiltered(ValueVector* resultVector) const {
@@ -705,7 +705,7 @@ void Column::commitLocalChunkInPlace(ChunkState& state, const ChunkCollection& l
 }
 
 std::unique_ptr<ColumnChunkData> Column::getEmptyChunkForCommit(uint64_t capacity) {
-    return ColumnChunkFactory::createColumnChunkData(*dataType.copy(), enableCompression, capacity);
+    return ColumnChunkFactory::createColumnChunkData(dataType.copy(), enableCompression, capacity);
 }
 
 // TODO: Pass state in to avoid access metadata.
@@ -824,8 +824,8 @@ void Column::populateWithDefaultVal(Transaction* transaction,
         while (capacity < chunkMeta.numValues) {
             capacity *= CHUNK_RESIZE_RATIO;
         }
-        auto columnChunk = ColumnChunkFactory::createColumnChunkData(*dataType.copy(),
-            enableCompression, capacity);
+        auto columnChunk =
+            ColumnChunkFactory::createColumnChunkData(dataType.copy(), enableCompression, capacity);
         columnChunk->populateWithDefaultVal(defaultEvaluator, chunkMeta.numValues);
         append(columnChunk.get(), state);
     }

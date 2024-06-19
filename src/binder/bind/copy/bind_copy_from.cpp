@@ -114,7 +114,7 @@ std::unique_ptr<BoundStatement> Binder::bindCopyNodeFrom(const Statement& statem
             columnExprs.push_back(std::move(expr));
         }
     }
-    auto offset = expressionBinder.createVariableExpression(*LogicalType::INT64(),
+    auto offset = expressionBinder.createVariableExpression(LogicalType::INT64(),
         std::string(InternalKeyword::ANONYMOUS));
     auto boundCopyFromInfo =
         BoundCopyFromInfo(nodeTableEntry, std::move(boundSource), std::move(offset),
@@ -137,8 +137,8 @@ std::unique_ptr<BoundStatement> Binder::bindCopyRelFrom(
     auto boundSource = bindScanSource(copyStatement.getSource(),
         copyStatement.getParsingOptionsRef(), expectedColumnNames, expectedColumnTypes);
     auto columns = boundSource->getColumns();
-    auto offset = expressionBinder.createVariableExpression(
-        *LogicalType::INT64(), std::string(InternalKeyword::ROW_OFFSET));
+    auto offset = expressionBinder.createVariableExpression(LogicalType::INT64(),
+        std::string(InternalKeyword::ROW_OFFSET));
     auto srcTableID = relTableEntry->getSrcTableID();
     auto dstTableID = relTableEntry->getDstTableID();
     auto srcKey = columns[0];
@@ -177,7 +177,7 @@ static bool skipPropertyInFile(const Property& property) {
 }
 
 static bool skipPropertyInSchema(const Property& property) {
-    if (property.getDataType()->getLogicalTypeID() == LogicalTypeID::SERIAL) {
+    if (property.getDataType().getLogicalTypeID() == LogicalTypeID::SERIAL) {
         return true;
     }
     if (property.getName() == InternalKeyword::ID) {
@@ -210,7 +210,7 @@ static void bindExpectedColumns(TableCatalogEntry* tableEntry,
                 continue;
             }
             columnNames.push_back(columnName);
-            columnTypes.push_back(*property->getDataType());
+            columnTypes.push_back(property->getDataType().copy());
         }
     } else {
         // No column specified. Fall back to schema columns.
@@ -219,7 +219,7 @@ static void bindExpectedColumns(TableCatalogEntry* tableEntry,
                 continue;
             }
             columnNames.push_back(property.getName());
-            columnTypes.push_back(*property.getDataType());
+            columnTypes.push_back(property.getDataType().copy());
         }
     }
 }
@@ -242,13 +242,13 @@ void bindExpectedRelColumns(RelTableCatalogEntry* relTableEntry,
     auto dstTable = ku_dynamic_cast<TableCatalogEntry*, NodeTableCatalogEntry*>(dstEntry);
     columnNames.push_back("from");
     columnNames.push_back("to");
-    auto srcPKColumnType = *srcTable->getPrimaryKey()->getDataType();
+    auto srcPKColumnType = srcTable->getPrimaryKey()->getDataType().copy();
     if (srcPKColumnType.getLogicalTypeID() == LogicalTypeID::SERIAL) {
-        srcPKColumnType = *LogicalType::INT64();
+        srcPKColumnType = LogicalType::INT64();
     }
-    auto dstPKColumnType = *dstTable->getPrimaryKey()->getDataType();
+    auto dstPKColumnType = dstTable->getPrimaryKey()->getDataType().copy();
     if (dstPKColumnType.getLogicalTypeID() == LogicalTypeID::SERIAL) {
-        dstPKColumnType = *LogicalType::INT64();
+        dstPKColumnType = LogicalType::INT64();
     }
     columnTypes.push_back(std::move(srcPKColumnType));
     columnTypes.push_back(std::move(dstPKColumnType));
