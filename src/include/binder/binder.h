@@ -270,7 +270,9 @@ private:
 
     /*** helpers ***/
     std::string getUniqueExpressionName(const std::string& name);
-    static bool isReservedPropertyName(const std::string& name);
+
+    static bool reservedInColumnName(const std::string& name);
+    static bool reservedInPropertyLookup(const std::string& name);
 
     void addToScope(const std::string& name, std::shared_ptr<Expression> expr);
     BinderScope saveScope();
