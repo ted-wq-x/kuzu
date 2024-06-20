@@ -117,5 +117,11 @@ struct GraphBspKhopRcFunction final : public CallFunction {
     static function_set getFunctionSet();
 };
 
+struct GraphBspSsspFunction final : public CallFunction {
+    static constexpr const char* name = "GRAPH_BSP_SSSP";
+
+    static function_set getFunctionSet();
+};
+
 } // namespace function
 } // namespace kuzu
