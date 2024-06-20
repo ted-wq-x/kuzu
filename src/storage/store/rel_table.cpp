@@ -26,14 +26,13 @@ RelTable::RelTable(StorageManager* storageManager, MemoryManager* memoryManager,
     RelTableCatalogEntry* relTableEntry)
     : Table{relTableEntry, storageManager->getRelsStatistics(), memoryManager, &storageManager->getWAL()} {
     bool enableCompression = storageManager->compressionEnabled();
-    bool readOnly = storageManager->isReadOnly();
     BMFileHandle* dataFH = storageManager->getDataFH();
     auto metadataDAC = storageManager->getMetadataDAC();
     auto relsStoreStats = ku_dynamic_cast<TablesStatistics*, RelsStoreStats*>(tablesStatistics);
     fwdRelTableData = std::make_unique<RelTableData>(dataFH, metadataDAC, bufferManager, wal,
-        relTableEntry, relsStoreStats, RelDataDirection::FWD, enableCompression, readOnly);
+        relTableEntry, relsStoreStats, RelDataDirection::FWD, enableCompression);
     bwdRelTableData = std::make_unique<RelTableData>(dataFH, metadataDAC, bufferManager, wal,
-        relTableEntry, relsStoreStats, RelDataDirection::BWD, enableCompression, readOnly);
+        relTableEntry, relsStoreStats, RelDataDirection::BWD, enableCompression);
 }
 
 void RelTable::initializeScanState(Transaction* transaction, TableScanState& scanState) const {

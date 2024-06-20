@@ -132,8 +132,7 @@ public:
 
     RelTableData(BMFileHandle* dataFH, DiskArrayCollection* metadataDAC,
         BufferManager* bufferManager, WAL* wal, catalog::TableCatalogEntry* tableEntry,
-        RelsStoreStats* relsStoreStats, common::RelDataDirection direction, bool enableCompression,
-        bool readOnly);
+        RelsStoreStats* relsStoreStats, common::RelDataDirection direction, bool enableCompression);
 
     void initializeScanState(transaction::Transaction* transaction,
         TableScanState& scanState) const override;

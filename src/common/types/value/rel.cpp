@@ -74,7 +74,7 @@ std::string RelVal::toString(const Value* val) {
 }
 
 Value* RelVal::getRelIDVal(const Value* val) {
-    auto fieldIdx = StructType::getFieldIdx(*val->dataType.get(), InternalKeyword::ID);
+    auto fieldIdx = StructType::getFieldIdx(val->dataType, InternalKeyword::ID);
     return val->children[fieldIdx].get();
 }
 

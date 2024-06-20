@@ -72,7 +72,7 @@ public:
 
     Column(std::string name, common::LogicalType dataType, const MetadataDAHInfo& metaDAHeaderInfo,
         BMFileHandle* dataFH, DiskArrayCollection& metadataDAC, BufferManager* bufferManager,
-        WAL* wal, transaction::Transaction* transaction, bool enableCompression, bool readOnly,
+        WAL* wal, transaction::Transaction* transaction, bool enableCompression,
         bool requireNullColumn = true);
     virtual ~Column();
 
@@ -268,14 +268,13 @@ protected:
     read_values_to_page_func_t readToPageFunc;
     batch_lookup_func_t batchLookupFunc;
     bool enableCompression;
-    bool readOnly;
 };
 
 class InternalIDColumn final : public Column {
 public:
     InternalIDColumn(std::string name, const MetadataDAHInfo& metaDAHeaderInfo,
         BMFileHandle* dataFH, DiskArrayCollection& metadataDAC, BufferManager* bufferManager,
-        WAL* wal, transaction::Transaction* transaction, bool enableCompression, bool readOnly);
+        WAL* wal, transaction::Transaction* transaction, bool enableCompression);
 
     void scan(transaction::Transaction* transaction, const ChunkState& state,
         common::idx_t vectorIdx, common::row_idx_t numValuesToScan,
@@ -321,7 +320,7 @@ struct ColumnFactory {
     static std::unique_ptr<Column> createColumn(std::string name, common::LogicalType dataType,
         const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH,
         DiskArrayCollection& metadataDAC, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, bool enableCompression, bool readOnly);
+        transaction::Transaction* transaction, bool enableCompression);
 };
 
 } // namespace storage

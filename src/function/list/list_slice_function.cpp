@@ -38,10 +38,10 @@ function_set ListSliceFunction::getFunctionSet() {
 }
 
 static std::unique_ptr<FunctionBindData> ListLastBindFunc(
-    const binder::expression_vector& arguments, Function* function) {
+    const binder::expression_vector& arguments, Function* /*function*/) {
     KU_ASSERT(arguments.size() == 1);
     std::vector<LogicalType> paramTypes;
-    paramTypes.push_back(arguments[0]->getDataType());
+    paramTypes.push_back(arguments[0]->getDataType().copy());
     return std::make_unique<FunctionBindData>(std::move(paramTypes),
         arguments[0]->getDataType().copy());
 }

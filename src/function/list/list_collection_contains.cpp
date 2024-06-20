@@ -18,7 +18,7 @@ static std::unique_ptr<FunctionBindData> bindFunc(const binder::expression_vecto
                 list_entry_t, uint8_t, CollectionContains<T>>;
         },
         [](auto) { KU_UNREACHABLE; });
-    return FunctionBindData::getSimpleBindData(arguments, *LogicalType::BOOL());
+    return FunctionBindData::getSimpleBindData(arguments, LogicalType::BOOL());
 }
 
 function_set ListCollectionContainsFunction::getFunctionSet() {

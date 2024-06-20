@@ -15,7 +15,7 @@ public:
 
     NullColumn(std::string name, common::page_idx_t metaDAHIdx, BMFileHandle* dataFH,
         DiskArrayCollection& metadataDAC, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, bool enableCompression, bool readOnly);
+        transaction::Transaction* transaction, bool enableCompression);
 
     void scan(transaction::Transaction* transaction, const ChunkState& state,
         common::idx_t vectorIdx, common::row_idx_t numValuesToScan,

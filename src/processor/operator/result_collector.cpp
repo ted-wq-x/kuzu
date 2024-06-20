@@ -51,7 +51,7 @@ void ResultCollector::executeInternal(ExecutionContext* context) {
 }
 
 bool ResultCollector::IsOptional(){
-    return info->accumulateType == AccumulateType::OPTIONAL_;
+    return info.accumulateType == AccumulateType::OPTIONAL_;
 }
 
 void ResultCollector::finalize(ExecutionContext* /*context*/) {

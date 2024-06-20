@@ -62,8 +62,8 @@ struct KhopBindData : public CallTableFuncBindData {
         }
 
         return std::make_unique<KhopBindData>(context, primaryKey, tableName, direction, maxHop,
-            mode, numThreads, columnTypes, columnNames, maxOffset, std::move(localRelFilter),
-            relColumnTypeIds, relTableInfos);
+            mode, numThreads, common::LogicalType::copy(columnTypes), columnNames, maxOffset,
+            std::move(localRelFilter), relColumnTypeIds, relTableInfos);
     }
     main::ClientContext* context;
     std::string primaryKey, tableName, direction;
@@ -129,7 +129,7 @@ public:
         const processor::ResultSet& resultSet) {
         if (relFilter) {
             auto evaluator = relFilter->clone();
-            evaluator->init(resultSet, mm);
+            evaluator->init(resultSet, context);
             return evaluator;
         } else {
             return nullptr;
@@ -166,7 +166,7 @@ static common::offset_t lookupPK(transaction::Transaction* tx, storage::NodeTabl
 
 static common::offset_t getOffset(transaction::Transaction* tx, storage::NodeTable* nodeTable,
     std::string primaryKey) {
-    auto primaryKeyType = nodeTable->getColumn(nodeTable->getPKColumnID())->getDataType();
+    auto& primaryKeyType = nodeTable->getColumn(nodeTable->getPKColumnID())->getDataType();
     switch (primaryKeyType.getPhysicalType()) {
     case PhysicalTypeID::UINT8: {
         uint8_t key = std::stoull(primaryKey);
@@ -282,7 +282,7 @@ static void scanTask(SharedData& sharedData, std::shared_ptr<storage::RelTableSc
             relTable->scan(sharedData.tx, *readState.get());
 
             if (relExpr) {
-                bool hasAtLeastOneSelectedValue = relExpr->select(selectVector, sharedData.context);
+                bool hasAtLeastOneSelectedValue = relExpr->select(selectVector);
                 if (!dataChunkToSelect->state->isFlat() &&
                     dataChunkToSelect->state->getSelVector().isUnfiltered()) {
                     dataChunkToSelect->state->getSelVectorUnsafe().setToFiltered();
@@ -323,7 +323,7 @@ static void tableFuncTask(SharedData& sharedData, int64_t& edgeResult, bool isFi
 
     auto rs = sharedData.createResultSet();
     auto relEvaluate = sharedData.initEvaluator(*rs.get());
-    auto srcVector = common::ValueVector(*LogicalType::INTERNAL_ID(), sharedData.mm);
+    auto srcVector = common::ValueVector(LogicalType::INTERNAL_ID(), sharedData.mm);
     srcVector.state = DataChunkState::getSingleValueDataChunkState();
 
     std::vector<
@@ -479,17 +479,18 @@ static std::pair<std::shared_ptr<Expression>, std::shared_ptr<Expression>> parse
         std::vector<parser::s_parsed_expr_pair>{}, std::move(recursiveInfo));
 
     auto nodeTableIDs = context->getCatalog()->getNodeTableIDs(context->getTx());
-    auto leftNode =
-        std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_left", "", nodeTableIDs);
-    auto rightNode =
-        std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_right", "", nodeTableIDs);
-    rightNode->setInternalID(PropertyExpression::construct(*LogicalType::INTERNAL_ID(),
-        InternalKeyword::ID, *rightNode));
+    auto leftNode = std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_left",
+        "", nodeTableIDs);
+    auto rightNode = std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_right",
+        "", nodeTableIDs);
+    rightNode->setInternalID(
+        PropertyExpression::construct(LogicalType::INTERNAL_ID(), InternalKeyword::ID, *rightNode));
 
     auto qg = binder::QueryGraph();
     auto relExpression = binder.bindQueryRel(relPattern, leftNode, rightNode, qg);
 
-    return {binder.bindWhereExpression(*algoParameter->getWherePredicate()), rightNode->getInternalID()};
+    return {binder.bindWhereExpression(*algoParameter->getWherePredicate()),
+        rightNode->getInternalID()};
 }
 
 static std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>> makeRelTableInfos(
@@ -533,7 +534,7 @@ static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* c
     std::vector<std::string> returnColumnNames;
     std::vector<LogicalType> returnTypes;
     returnColumnNames.emplace_back(columnName);
-    returnTypes.emplace_back(*LogicalType::INT64());
+    returnTypes.emplace_back(LogicalType::INT64());
     auto direction = input->inputs[2].getValue<std::string>();
     if (direction != "in" && direction != "out" && direction != "both") {
         throw BinderException(
@@ -570,7 +571,7 @@ static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* c
 
         if (algoPara->hasWherePredicate()) {
 
-            auto [whereExpression,nbrNodeExp] = parseExpr(context, algoPara.get());
+            auto [whereExpression, nbrNodeExp] = parseExpr(context, algoPara.get());
             // 确定属性的位置
             auto expressionCollector = binder::ExpressionCollector();
             props = binder::ExpressionUtil::removeDuplication(
@@ -578,7 +579,7 @@ static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* c
 
             auto schema = planner::Schema();
             schema.createGroup();
-            schema.insertToGroupAndScope(nbrNodeExp, 0);//nbr node id
+            schema.insertToGroupAndScope(nbrNodeExp, 0); // nbr node id
             for (auto& prop : props) {
                 schema.insertToGroupAndScope(prop, 0);
             }

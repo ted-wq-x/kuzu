@@ -7,9 +7,12 @@
 #endif
 
 // This header is generated at build time. See CMakeLists.txt.
-#include "io_transwarp_stellardb_booster_BoosterNative.h"
+#include "common/constants.h"
 #include "common/exception/conversion.h"
 #include "common/exception/exception.h"
+#include "common/exception/not_implemented.h"
+#include "function/cast/functions/cast_string_non_nested_functions.h"
+#include "io_transwarp_stellardb_booster_BoosterNative.h"
 #include "main/kuzu.h"
 #include <jni.h>
 
@@ -19,97 +22,101 @@ using namespace kuzu::processor;
 
 static jint JNI_VERSION = JNI_VERSION_1_8;
 
-//map
+// map
 static jclass J_C_Map;
 static jmethodID J_C_Map_M_entrySet;
-//set
+// set
 static jclass J_C_Set;
 static jmethodID J_C_Set_M_iterator;
-//iterator
+// iterator
 static jclass J_C_Iterator;
 static jmethodID J_C_Iterator_M_hasNext;
 static jmethodID J_C_Iterator_M_next;
-//Map$Entry
+// Map$Entry
 static jclass J_C_Map$Entry;
 static jmethodID J_C_Map$Entry_M_getKey;
 static jmethodID J_C_Map$Entry_M_getValue;
-//Exception
+// Exception
 static jclass J_C_Exception;
-//BoosterQueryResult
+// BoosterQueryResult
 static jclass J_C_BoosterQueryResult;
-static jfieldID  J_C_BoosterQueryResult_F_qr_ref;
-//BoosterPreparedStatement
+static jfieldID J_C_BoosterQueryResult_F_qr_ref;
+// BoosterPreparedStatement
 static jclass J_C_BoosterPreparedStatement;
 static jfieldID J_C_BoosterPreparedStatement_F_ps_ref;
-//BoosterDataType
+// BoosterDataType
 static jclass J_C_BoosterDataType;
 static jfieldID J_C_BoosterDataType_F_dt_ref;
-//BoosterQuerySummary
+// BoosterQuerySummary
 static jclass J_C_BoosterQuerySummary;
 static jmethodID J_C_BoosterQuerySummary_M_ctor;
-//BoosterFlatTuple
+// BoosterFlatTuple
 static jclass J_C_BoosterFlatTuple;
 static jfieldID J_C_BoosterFlatTuple_F_ft_ref;
-//BoosterValue
+// BoosterValue
 static jclass J_C_BoosterValue;
 static jfieldID J_C_BoosterValue_F_v_ref;
 static jfieldID J_C_BoosterValue_F_isOwnedByCPP;
-//BoosterDataTypeID
+// BoosterDataTypeID
 static jclass J_C_BoosterDataTypeID;
 static jfieldID J_C_BoosterDataTypeID_F_value;
-//Boolean
+// Boolean
 static jclass J_C_Boolean;
 static jmethodID J_C_Boolean_M_init;
-//Long
+// Long
 static jclass J_C_Long;
 static jmethodID J_C_Long_M_init;
-//Integer
+// Integer
 static jclass J_C_Integer;
 static jmethodID J_C_Integer_M_init;
-//BoosterInternalID
+// BoosterInternalID
 static jclass J_C_BoosterInternalID;
 static jmethodID J_C_BoosterInternalID_M_init;
 static jfieldID J_C_BoosterInternalID_F_tableId;
 static jfieldID J_C_BoosterInternalID_F_offset;
-//Double
+// Double
 static jclass J_C_Double;
 static jmethodID J_C_Double_M_init;
-//LocalDate
+// BigDecimal
+static jclass J_C_BigDecimal;
+static jmethodID J_C_BigDecimal_M_init;
+static jmethodID J_C_BigDecimal_M_toString;
+static jmethodID J_C_BigDecimal_M_precision;
+static jmethodID J_C_BigDecimal_M_scale;
+// LocalDate
 static jclass J_C_LocalDate;
 static jmethodID J_C_LocalDate_M_ofEpochDay;
-//Instant
+// Instant
 static jclass J_C_Instant;
 static jmethodID J_C_Instant_M_ofEpochSecond;
-//Short
+// Short
 static jclass J_C_Short;
 static jmethodID J_C_Short_M_init;
-//Byte
+// Byte
 static jclass J_C_Byte;
 static jmethodID J_C_Byte_M_init;
-//BigInteger
+// BigInteger
 static jclass J_C_BigInteger;
 static jmethodID J_C_BigInteger_M_init;
-//Float
+// Float
 static jclass J_C_Float;
 static jmethodID J_C_Float_M_init;
-//Duration
+// Duration
 static jclass J_C_Duration;
 static jmethodID J_C_Duration_M_ofMillis;
-//UUID
+// UUID
 static jclass J_C_UUID;
 static jmethodID J_C_UUID_M_fromString;
-//Connection
+// Connection
 static jclass J_C_BoosterConnection;
 static jfieldID J_C_BoosterConnection_F_conn_ref;
 // Database
 static jclass J_C_BoosterDatabase;
 static jfieldID J_C_BoosterDatabase_db_ref;
-//String
+// String
 static jclass J_C_String;
 
-
-jobject createJavaObject(
-    JNIEnv* env, void* memAddress, jclass javaClass, jfieldID refID) {
+jobject createJavaObject(JNIEnv* env, void* memAddress, jclass javaClass, jfieldID refID) {
     auto address = reinterpret_cast<uint64_t>(memAddress);
     auto ref = static_cast<jlong>(address);
 
@@ -185,8 +192,8 @@ std::string dataTypeToString(const LogicalType& dataType) {
     return LogicalTypeUtils::toString(dataType.getLogicalTypeID());
 }
 
-std::unordered_map<std::string, std::unique_ptr<Value>> javaMapToCPPMap(
-    JNIEnv* env, jobject javaMap) {
+std::unordered_map<std::string, std::unique_ptr<Value>> javaMapToCPPMap(JNIEnv* env,
+    jobject javaMap) {
     jobject set = env->CallObjectMethod(javaMap, J_C_Map_M_entrySet);
     jobject iter = env->CallObjectMethod(set, J_C_Set_M_iterator);
 
@@ -228,8 +235,8 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_native
 #endif
 }
 
-JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_database_1init(JNIEnv* env, jclass,
-    jstring database_path, jlong buffer_pool_size, jboolean enable_compression,
+JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_database_1init(
+    JNIEnv* env, jclass, jstring database_path, jlong buffer_pool_size, jboolean enable_compression,
     jboolean read_only, jlong max_db_size) {
 
     const char* path = env->GetStringUTFChars(database_path, JNI_FALSE);
@@ -327,8 +334,8 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_con
         return nullptr;
     }
 
-    jobject ret =
-        createJavaObject(env, prepared_statement, J_C_BoosterPreparedStatement, J_C_BoosterPreparedStatement_F_ps_ref);
+    jobject ret = createJavaObject(env, prepared_statement, J_C_BoosterPreparedStatement,
+        J_C_BoosterPreparedStatement_F_ps_ref);
     return ret;
 }
 
@@ -345,7 +352,8 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_con
         return nullptr;
     }
 
-    jobject ret = createJavaObject(env, query_result, J_C_BoosterQueryResult, J_C_BoosterQueryResult_F_qr_ref);
+    jobject ret = createJavaObject(env, query_result, J_C_BoosterQueryResult,
+        J_C_BoosterQueryResult_F_qr_ref);
     return ret;
 }
 
@@ -355,8 +363,9 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connec
     conn->interrupt();
 }
 
-JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1set_1query_1timeout(
-    JNIEnv* env, jclass, jobject thisConn, jlong timeout_in_ms) {
+JNIEXPORT void JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1set_1query_1timeout(JNIEnv* env,
+    jclass, jobject thisConn, jlong timeout_in_ms) {
     Connection* conn = getConnection(env, thisConn);
     uint64_t timeout = static_cast<uint64_t>(timeout_in_ms);
     conn->setQueryTimeOut(timeout);
@@ -366,19 +375,22 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connec
  * All PreparedStatement native functions
  */
 
-JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_prepared_1statement_1destroy(
-    JNIEnv* env, jclass, jobject thisPS) {
+JNIEXPORT void JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_prepared_1statement_1destroy(JNIEnv* env, jclass,
+    jobject thisPS) {
     PreparedStatement* ps = getPreparedStatement(env, thisPS);
     delete ps;
 }
 
-JNIEXPORT jboolean JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_prepared_1statement_1is_1success(
-    JNIEnv* env, jclass, jobject thisPS) {
+JNIEXPORT jboolean JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_prepared_1statement_1is_1success(JNIEnv* env,
+    jclass, jobject thisPS) {
     PreparedStatement* ps = getPreparedStatement(env, thisPS);
     return static_cast<jboolean>(ps->isSuccess());
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_prepared_1statement_1get_1error_1message(
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_prepared_1statement_1get_1error_1message(
     JNIEnv* env, jclass, jobject thisPS) {
     PreparedStatement* ps = getPreparedStatement(env, thisPS);
     std::string errorMessage = ps->getErrorMessage();
@@ -396,28 +408,32 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_
     delete qr;
 }
 
-JNIEXPORT jboolean JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1is_1success(
-    JNIEnv* env, jclass, jobject thisQR) {
+JNIEXPORT jboolean JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1is_1success(JNIEnv* env, jclass,
+    jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     return static_cast<jboolean>(qr->isSuccess());
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1error_1message(
-    JNIEnv* env, jclass, jobject thisQR) {
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1error_1message(JNIEnv* env,
+    jclass, jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     std::string errorMessage = qr->getErrorMessage();
     jstring msg = env->NewStringUTF(errorMessage.c_str());
     return msg;
 }
 
-JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1num_1columns(
-    JNIEnv* env, jclass, jobject thisQR) {
+JNIEXPORT jlong JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1num_1columns(JNIEnv* env,
+    jclass, jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     return static_cast<jlong>(qr->getNumColumns());
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1column_1name(
-    JNIEnv* env, jclass, jobject thisQR, jlong index) {
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1column_1name(JNIEnv* env,
+    jclass, jobject thisQR, jlong index) {
     QueryResult* qr = getQueryResult(env, thisQR);
     auto column_names = qr->getColumnNames();
     uint64_t idx = static_cast<uint64_t>(index);
@@ -429,7 +445,8 @@ JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_que
     return name;
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1column_1data_1type(
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1column_1data_1type(
     JNIEnv* env, jclass, jobject thisQR, jlong index) {
     QueryResult* qr = getQueryResult(env, thisQR);
     auto column_datatypes = qr->getColumnDataTypes();
@@ -437,8 +454,8 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_que
     if (idx >= column_datatypes.size()) {
         return nullptr;
     }
-    auto column_datatype = column_datatypes[idx];
-    auto* cdt_copy = new LogicalType(column_datatype);
+    auto column_datatype = column_datatypes[idx].copy();
+    auto* cdt_copy = new LogicalType(std::move(column_datatype));
 
     uint64_t dtAddress = reinterpret_cast<uint64_t>(cdt_copy);
     jlong dt_ref = static_cast<jlong>(dtAddress);
@@ -448,14 +465,16 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_que
     return newDTObject;
 }
 
-JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1num_1tuples(
-    JNIEnv* env, jclass, jobject thisQR) {
+JNIEXPORT jlong JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1num_1tuples(JNIEnv* env,
+    jclass, jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     return static_cast<jlong>(qr->getNumTuples());
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1query_1summary(
-    JNIEnv* env, jclass, jobject thisQR) {
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1query_1summary(JNIEnv* env,
+    jclass, jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     auto query_summary = qr->getQuerySummary();
 
@@ -463,18 +482,21 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_que
     jdouble cmpTime = static_cast<jdouble>(query_summary->getCompilingTime());
     jdouble exeTime = static_cast<jdouble>(query_summary->getExecutionTime());
 
-    jobject newQSObject = env->NewObject(J_C_BoosterQuerySummary, J_C_BoosterQuerySummary_M_ctor, cmpTime, exeTime, parTime);
+    jobject newQSObject = env->NewObject(J_C_BoosterQuerySummary, J_C_BoosterQuerySummary_M_ctor,
+        cmpTime, exeTime, parTime);
     return newQSObject;
 }
 
-JNIEXPORT jboolean JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1has_1next(
-    JNIEnv* env, jclass, jobject thisQR) {
+JNIEXPORT jboolean JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1has_1next(JNIEnv* env, jclass,
+    jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     return static_cast<jboolean>(qr->hasNext());
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1next(
-    JNIEnv* env, jclass, jobject thisQR) {
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1next(JNIEnv* env, jclass,
+    jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     auto flat_tuple = qr->getNext();
 
@@ -487,16 +509,18 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_que
     return newFTObject;
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1to_1string(
-    JNIEnv* env, jclass, jobject thisQR) {
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1to_1string(JNIEnv* env, jclass,
+    jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     std::string result_string = qr->toString();
     jstring ret = env->NewStringUTF(result_string.c_str());
     return ret;
 }
 
-JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1reset_1iterator(
-    JNIEnv* env, jclass, jobject thisQR) {
+JNIEXPORT void JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1reset_1iterator(JNIEnv* env,
+    jclass, jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     qr->resetIterator();
 }
@@ -516,22 +540,26 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_flat_1
     delete flat_tuple_shared_ptr;
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_flat_1tuple_1get_1value(
-    JNIEnv* env, jclass, jobject thisFT, jlong index) {
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_flat_1tuple_1get_1value(JNIEnv* env, jclass,
+    jobject thisFT, jlong index) {
     FlatTuple* ft = getFlatTuple(env, thisFT);
     Value* value;
     try {
         value = ft->getValue(index);
-    } catch (Exception& e) { return nullptr; }
+    } catch (Exception& e) {
+        return nullptr;
+    }
 
-    jobject v = createJavaObject(env, value,J_C_BoosterValue, J_C_BoosterValue_F_v_ref);
+    jobject v = createJavaObject(env, value, J_C_BoosterValue, J_C_BoosterValue_F_v_ref);
     env->SetBooleanField(v, J_C_BoosterValue_F_isOwnedByCPP, static_cast<jboolean>(true));
 
     return v;
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_flat_1tuple_1to_1string(
-    JNIEnv* env, jclass, jobject thisFT) {
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_flat_1tuple_1to_1string(JNIEnv* env, jclass,
+    jobject thisFT) {
     FlatTuple* ft = getFlatTuple(env, thisFT);
     std::string result_string = ft->toString();
     jstring ret = env->NewStringUTF(result_string.c_str());
@@ -544,8 +572,8 @@ JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_fla
 
 namespace kuzu::common {
 struct JavaAPIHelper {
-    static inline LogicalType* createLogicalType(
-        LogicalTypeID typeID, std::unique_ptr<ExtraTypeInfo> extraTypeInfo) {
+    static inline LogicalType* createLogicalType(LogicalTypeID typeID,
+        std::unique_ptr<ExtraTypeInfo> extraTypeInfo) {
         return new LogicalType(typeID, std::move(extraTypeInfo));
     }
 };
@@ -561,11 +589,11 @@ JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_data_
     if (child_type == nullptr) {
         data_type = new LogicalType(logicalTypeID);
     } else {
-        auto child_type_pty = std::make_unique<LogicalType>(*getDataType(env, child_type));
-        auto extraTypeInfo = num_elements_in_array > 0 ?
-                                 std::make_unique<ArrayTypeInfo>(
-                                     std::move(child_type_pty), num_elements_in_array) :
-                                 std::make_unique<ListTypeInfo>(std::move(child_type_pty));
+        auto child_type_pty = getDataType(env, child_type)->copy();
+        auto extraTypeInfo =
+            num_elements_in_array > 0 ?
+                std::make_unique<ArrayTypeInfo>(std::move(child_type_pty), num_elements_in_array) :
+                std::make_unique<ListTypeInfo>(std::move(child_type_pty));
         data_type = JavaAPIHelper::createLogicalType(logicalTypeID, std::move(extraTypeInfo));
     }
     uint64_t address = reinterpret_cast<uint64_t>(data_type);
@@ -575,7 +603,7 @@ JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_data_
 JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_data_1type_1clone(
     JNIEnv* env, jclass, jobject thisDT) {
     auto* oldDT = getDataType(env, thisDT);
-    auto* newDT = new LogicalType(*oldDT);
+    auto* newDT = new LogicalType(oldDT->copy());
 
     jobject dt = createJavaObject(env, newDT, J_C_BoosterDataType, J_C_BoosterDataType_F_dt_ref);
     return dt;
@@ -600,25 +628,27 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_dat
 
     auto* dt = getDataType(env, thisDT);
     std::string id_str = dataTypeToString(*dt);
-    jfieldID idField =
-        env->GetStaticFieldID(J_C_BoosterDataTypeID, id_str.c_str(), "Lio/transwarp/stellardb_booster/BoosterDataTypeID;");
+    jfieldID idField = env->GetStaticFieldID(J_C_BoosterDataTypeID, id_str.c_str(),
+        "Lio/transwarp/stellardb_booster/BoosterDataTypeID;");
     jobject id = env->GetStaticObjectField(J_C_BoosterDataTypeID, idField);
     return id;
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_data_1type_1get_1child_1type(
-    JNIEnv* env, jclass, jobject thisDT) {
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_data_1type_1get_1child_1type(JNIEnv* env, jclass,
+    jobject thisDT) {
     auto* parent_type = getDataType(env, thisDT);
     LogicalType child_type;
     if (parent_type->getLogicalTypeID() == LogicalTypeID::ARRAY) {
-        child_type = ArrayType::getChildType(*parent_type);
+        child_type = ArrayType::getChildType(*parent_type).copy();
     } else if (parent_type->getLogicalTypeID() == LogicalTypeID::LIST) {
-        child_type = ListType::getChildType(*parent_type);
+        child_type = ListType::getChildType(*parent_type).copy();
     } else {
         return nullptr;
     }
-    auto* new_child_type = new LogicalType(child_type);
-    jobject ret = createJavaObject(env, new_child_type, J_C_BoosterDataType, J_C_BoosterDataType_F_dt_ref);
+    auto* new_child_type = new LogicalType(std::move(child_type));
+    jobject ret =
+        createJavaObject(env, new_child_type, J_C_BoosterDataType, J_C_BoosterDataType_F_dt_ref);
     return ret;
 }
 
@@ -643,7 +673,8 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
     return ret;
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1create_1null_1with_1data_1type(
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_value_1create_1null_1with_1data_1type(
     JNIEnv* env, jclass, jobject data_type) {
     auto* dt = getDataType(env, data_type);
     Value* v = new Value(Value::createNullValue(*dt));
@@ -695,6 +726,23 @@ JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value
         jdouble value =
             env->CallDoubleMethod(val, env->GetMethodID(val_class, "doubleValue", "()D"));
         v = new Value(static_cast<double>(value));
+    } else if (env->IsInstanceOf(val, J_C_BigDecimal)) {
+        jstring value = static_cast<jstring>(env->CallObjectMethod(val, J_C_BigDecimal_M_toString));
+        const char* str = env->GetStringUTFChars(value, JNI_FALSE);
+        auto precision = static_cast<int32_t>(env->CallIntMethod(val, J_C_BigDecimal_M_precision));
+        auto scale = static_cast<int32_t>(env->CallIntMethod(val, J_C_BigDecimal_M_scale));
+        if (precision > DECIMAL_PRECISION_LIMIT) {
+            throw NotImplementedException(
+                stringFormat("Decimal precision cannot be greater than {}"
+                             "Note: positive exponents contribute to precision",
+                    DECIMAL_PRECISION_LIMIT));
+        }
+        auto type = LogicalType::DECIMAL(precision, scale);
+        auto tmp = Value::createDefaultValue(type);
+        int128_t res;
+        kuzu::function::decimalCast(str, std::strlen(str), res, type);
+        tmp.val.int128Val = res;
+        v = new Value(tmp);
     } else if (env->IsInstanceOf(val, J_C_String)) {
         jstring value = static_cast<jstring>(val);
         const char* str = env->GetStringUTFChars(value, JNI_FALSE);
@@ -739,8 +787,8 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
     return createJavaObject(env, copy, J_C_BoosterValue, J_C_BoosterValue_F_v_ref);
 }
 
-JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1copy(
-    JNIEnv* env, jclass, jobject thisValue, jobject otherValue) {
+JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1copy(JNIEnv* env,
+    jclass, jobject thisValue, jobject otherValue) {
     Value* thisV = getValue(env, thisValue);
     Value* otherV = getValue(env, otherValue);
     thisV->copyValueFrom(*otherV);
@@ -758,8 +806,9 @@ JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value
     return static_cast<jlong>(NestedVal::getChildrenSize(v));
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1list_1element(
-    JNIEnv* env, jclass, jobject thisValue, jlong index) {
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1list_1element(JNIEnv* env, jclass,
+    jobject thisValue, jlong index) {
     Value* v = getValue(env, thisValue);
     uint64_t idx = static_cast<uint64_t>(index);
 
@@ -770,7 +819,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
 
     auto val = NestedVal::getChildVal(v, idx);
 
-    jobject element = createJavaObject(env, val,J_C_BoosterValue, J_C_BoosterValue_F_v_ref);
+    jobject element = createJavaObject(env, val, J_C_BoosterValue, J_C_BoosterValue_F_v_ref);
     env->SetBooleanField(element, J_C_BoosterValue_F_isOwnedByCPP, static_cast<jboolean>(true));
     return element;
 }
@@ -778,15 +827,15 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
 JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1data_1type(
     JNIEnv* env, jclass, jobject thisValue) {
     Value* v = getValue(env, thisValue);
-    auto* dt = new LogicalType(*v->getDataType());
+    auto* dt = new LogicalType(v->getDataType().copy());
     return createJavaObject(env, dt, J_C_BoosterDataType, J_C_BoosterDataType_F_dt_ref);
 }
 
 JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1value(
     JNIEnv* env, jclass, jobject thisValue) {
     Value* v = getValue(env, thisValue);
-    auto dt = v->getDataType();
-    auto logicalTypeId = dt->getLogicalTypeID();
+    const auto &dt = v->getDataType();
+    auto logicalTypeId = dt.getLogicalTypeID();
 
     switch (logicalTypeId) {
     case LogicalTypeID::BOOL: {
@@ -847,6 +896,11 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
         jobject ret = env->NewObject(J_C_Double, J_C_Double_M_init, val);
         return ret;
     }
+    case LogicalTypeID::DECIMAL: {
+        jstring val = env->NewStringUTF(v->toString().c_str());
+        jobject ret = env->NewObject(J_C_BigDecimal, J_C_BigDecimal_M_init, val);
+        return ret;
+    }
     case LogicalTypeID::FLOAT: {
         jfloat val = static_cast<jfloat>(v->getValue<float>());
         jobject ret = env->NewObject(J_C_Float, J_C_Float_M_init, val);
@@ -854,41 +908,46 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
     }
     case LogicalTypeID::DATE: {
         date_t date = v->getValue<date_t>();
-        jobject ret =
-            env->CallStaticObjectMethod(J_C_LocalDate, J_C_LocalDate_M_ofEpochDay, static_cast<jlong>(date.days));
+        jobject ret = env->CallStaticObjectMethod(J_C_LocalDate, J_C_LocalDate_M_ofEpochDay,
+            static_cast<jlong>(date.days));
         return ret;
     }
     case LogicalTypeID::TIMESTAMP_TZ: {
         timestamp_tz_t ts = v->getValue<timestamp_tz_t>();
         int64_t seconds = ts.value / 1000000L;
         int64_t nano = ts.value % 1000000L * 1000L;
-        jobject ret = env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
+        jobject ret =
+            env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
         return ret;
     }
     case LogicalTypeID::TIMESTAMP: {
         timestamp_t ts = v->getValue<timestamp_t>();
         int64_t seconds = ts.value / 1000000L;
         int64_t nano = ts.value % 1000000L * 1000L;
-        jobject ret = env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
+        jobject ret =
+            env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
         return ret;
     }
     case LogicalTypeID::TIMESTAMP_NS: {
         timestamp_ns_t ts = v->getValue<timestamp_ns_t>();
         int64_t seconds = ts.value / 1000000000L;
         int64_t nano = ts.value % 1000000000L;
-        jobject ret = env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
+        jobject ret =
+            env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
         return ret;
     }
     case LogicalTypeID::TIMESTAMP_MS: {
         timestamp_ms_t ts = v->getValue<timestamp_ms_t>();
         int64_t seconds = ts.value / 1000L;
         int64_t nano = ts.value % 1000L * 1000000L;
-        jobject ret = env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
+        jobject ret =
+            env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
         return ret;
     }
     case LogicalTypeID::TIMESTAMP_SEC: {
         timestamp_sec_t ts = v->getValue<timestamp_sec_t>();
-        jobject ret = env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, ts.value, 0);
+        jobject ret =
+            env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, ts.value, 0);
         return ret;
     }
     case LogicalTypeID::INTERVAL: {
@@ -899,7 +958,8 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
     }
     case LogicalTypeID::INTERNAL_ID: {
         internalID_t iid = v->getValue<internalID_t>();
-        jobject ret = env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init, iid.tableID, iid.offset);
+        jobject ret = env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init,
+            iid.tableID, iid.offset);
         return ret;
     }
     case LogicalTypeID::UUID: {
@@ -943,24 +1003,27 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_nod
         return NULL;
     }
     auto id = idVal->getValue<internalID_t>();
-    jobject ret = env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init, id.tableID, id.offset);
+    jobject ret =
+        env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init, id.tableID, id.offset);
     return ret;
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1id
-    (JNIEnv * env, jclass, jobject thisNV){
+JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1id(
+    JNIEnv* env, jclass, jobject thisNV) {
     auto nv = getValue(env, thisNV);
     auto idVal = RelVal::getRelIDVal(nv);
     if (idVal == nullptr) {
         return NULL;
     }
     auto id = idVal->getValue<internalID_t>();
-    jobject ret = env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init, id.tableID, id.offset);
+    jobject ret =
+        env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init, id.tableID, id.offset);
     return ret;
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_node_1val_1get_1label_1name(
-    JNIEnv* env, jclass, jobject thisNV) {
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_node_1val_1get_1label_1name(JNIEnv* env, jclass,
+    jobject thisNV) {
     auto* nv = getValue(env, thisNV);
     auto labelVal = NodeVal::getLabelVal(nv);
     if (labelVal == nullptr) {
@@ -970,22 +1033,25 @@ JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_nod
     return env->NewStringUTF(label.c_str());
 }
 
-JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_node_1val_1get_1property_1size(
-    JNIEnv* env, jclass, jobject thisNV) {
+JNIEXPORT jlong JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_node_1val_1get_1property_1size(JNIEnv* env,
+    jclass, jobject thisNV) {
     auto* nv = getValue(env, thisNV);
     auto size = NodeVal::getNumProperties(nv);
     return static_cast<jlong>(size);
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_node_1val_1get_1property_1name_1at(
-    JNIEnv* env, jclass, jobject thisNV, jlong index) {
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_node_1val_1get_1property_1name_1at(JNIEnv* env,
+    jclass, jobject thisNV, jlong index) {
     auto* nv = getValue(env, thisNV);
     auto propertyName = NodeVal::getPropertyName(nv, index);
     return env->NewStringUTF(propertyName.c_str());
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_node_1val_1get_1property_1value_1at(
-    JNIEnv* env, jclass, jobject thisNV, jlong index) {
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_node_1val_1get_1property_1value_1at(JNIEnv* env,
+    jclass, jobject thisNV, jlong index) {
     auto* nv = getValue(env, thisNV);
     auto propertyValue = NodeVal::getPropertyVal(nv, index);
     jobject ret = createJavaObject(env, propertyValue, J_C_BoosterValue, J_C_BoosterValue_F_v_ref);
@@ -1009,7 +1075,8 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel
         return NULL;
     }
     internalID_t id = srcIdVal->getValue<internalID_t>();
-    jobject ret = env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init, id.tableID, id.offset);
+    jobject ret =
+        env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init, id.tableID, id.offset);
     return ret;
 }
 
@@ -1021,12 +1088,14 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel
         return NULL;
     }
     internalID_t id = dstIdVal->getValue<internalID_t>();
-    jobject ret = env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init, id.tableID, id.offset);
+    jobject ret =
+        env->NewObject(J_C_BoosterInternalID, J_C_BoosterInternalID_M_init, id.tableID, id.offset);
     return ret;
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1label_1name(
-    JNIEnv* env, jclass, jobject thisRV) {
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1label_1name(JNIEnv* env, jclass,
+    jobject thisRV) {
     auto* rv = getValue(env, thisRV);
     auto labelVal = RelVal::getLabelVal(rv);
     if (labelVal == nullptr) {
@@ -1036,22 +1105,25 @@ JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel
     return env->NewStringUTF(label.c_str());
 }
 
-JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1property_1size(
-    JNIEnv* env, jclass, jobject thisRV) {
+JNIEXPORT jlong JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1property_1size(JNIEnv* env,
+    jclass, jobject thisRV) {
     auto* rv = getValue(env, thisRV);
     auto size = RelVal::getNumProperties(rv);
     return static_cast<jlong>(size);
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1property_1name_1at(
-    JNIEnv* env, jclass, jobject thisRV, jlong index) {
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1property_1name_1at(JNIEnv* env,
+    jclass, jobject thisRV, jlong index) {
     auto* rv = getValue(env, thisRV);
     auto name = RelVal::getPropertyName(rv, index);
     return env->NewStringUTF(name.c_str());
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1property_1value_1at(
-    JNIEnv* env, jclass, jobject thisRV, jlong index) {
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_rel_1val_1get_1property_1value_1at(JNIEnv* env,
+    jclass, jobject thisRV, jlong index) {
     auto* rv = getValue(env, thisRV);
     uint64_t idx = static_cast<uint64_t>(index);
     Value* val = RelVal::getPropertyVal(rv, idx);
@@ -1069,11 +1141,12 @@ JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rel
     return ret;
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1struct_1field_1name(
-    JNIEnv* env, jclass, jobject thisSV, jlong index) {
+JNIEXPORT jstring JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1struct_1field_1name(JNIEnv* env,
+    jclass, jobject thisSV, jlong index) {
     auto* sv = getValue(env, thisSV);
-    auto dataType = sv->getDataType();
-    auto fieldNames = StructType::getFieldNames(*dataType);
+    const auto &dataType = sv->getDataType();
+    auto fieldNames = StructType::getFieldNames(dataType);
     if ((uint64_t)index >= fieldNames.size() || index < 0) {
         return nullptr;
     }
@@ -1081,12 +1154,13 @@ JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
     return env->NewStringUTF(name.c_str());
 }
 
-JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1struct_1index(
-    JNIEnv* env, jclass, jobject thisSV, jstring field_name) {
+JNIEXPORT jlong JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1struct_1index(JNIEnv* env, jclass,
+    jobject thisSV, jstring field_name) {
     auto* sv = getValue(env, thisSV);
     const char* field_name_cstr = env->GetStringUTFChars(field_name, JNI_FALSE);
-    auto dataType = sv->getDataType();
-    auto index = StructType::getFieldIdx(*dataType, field_name_cstr);
+    const auto &dataType = sv->getDataType();
+    auto index = StructType::getFieldIdx(dataType, field_name_cstr);
     env->ReleaseStringUTFChars(field_name, field_name_cstr);
     if (index == INVALID_STRUCT_FIELD_IDX) {
         return -1;
@@ -1096,16 +1170,18 @@ JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value
 }
 
 // protected static native BoosterDataType rdf_variant_get_data_type(BoosterValue rdf_variant);
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rdf_1variant_1get_1data_1type(
-    JNIEnv* env, jclass, jobject thisValue) {
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_rdf_1variant_1get_1data_1type(JNIEnv* env,
+    jclass, jobject thisValue) {
     auto* value = getValue(env, thisValue);
     auto logicalTypeId = RdfVariant::getLogicalTypeID(value);
     auto* dt = new LogicalType(logicalTypeId);
     return createJavaObject(env, dt, J_C_BoosterDataType, J_C_BoosterDataType_F_dt_ref);
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rdf_1variant_1get_1value(
-    JNIEnv* env, jclass, jobject thisValue) {
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_rdf_1variant_1get_1value(JNIEnv* env, jclass,
+    jobject thisValue) {
     auto* value = getValue(env, thisValue);
     auto logicalTypeId = RdfVariant::getLogicalTypeID(value);
     switch (logicalTypeId) {
@@ -1183,7 +1259,8 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rdf
         timestamp_t ts = RdfVariant::getValue<timestamp_t>(value);
         int64_t seconds = ts.value / 1000000L;
         int64_t nano = ts.value % 1000000L * 1000L;
-        jobject ret = env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
+        jobject ret =
+            env->CallStaticObjectMethod(J_C_Instant, J_C_Instant_M_ofEpochSecond, seconds, nano);
         return ret;
     }
     case LogicalTypeID::INTERVAL: {
@@ -1197,130 +1274,83 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_rdf
     }
 }
 
-JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_get_1version(JNIEnv* env, jclass) {
+JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_get_1version(
+    JNIEnv* env, jclass) {
     return env->NewStringUTF(Version::getVersion());
 }
 
-JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_get_1storage_1version(JNIEnv*, jclass) {
+JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_get_1storage_1version(
+    JNIEnv*, jclass) {
     return static_cast<jlong>(Version::getStorageVersion());
 }
 
-void initGlobalClassRef(JNIEnv* env) {
-    jclass tempLocalClassRef;
-    tempLocalClassRef = env->FindClass("java/util/Map");
-    J_C_Map = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/util/Set");
-    J_C_Set = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/util/Iterator");
-    J_C_Iterator = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/util/Map$Entry");
-    J_C_Map$Entry = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/lang/Exception");
-    J_C_Exception = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterQueryResult");
-    J_C_BoosterQueryResult = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterPreparedStatement");
-    J_C_BoosterPreparedStatement = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterDataType");
-    J_C_BoosterDataType = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterQuerySummary");
-    J_C_BoosterQuerySummary = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterFlatTuple");
-    J_C_BoosterFlatTuple = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterValue");
-    J_C_BoosterValue = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterDataTypeID");
-    J_C_BoosterDataTypeID = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/lang/Boolean");
-    J_C_Boolean = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/lang/Long");
-    J_C_Long = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/lang/Integer");
-    J_C_Integer = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterInternalID");
-    J_C_BoosterInternalID = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/lang/Double");
-    J_C_Double = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/time/LocalDate");
-    J_C_LocalDate = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/time/Instant");
-    J_C_Instant = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/lang/Short");
-    J_C_Short = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/lang/Byte");
-    J_C_Byte = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/math/BigInteger");
-    J_C_BigInteger = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/lang/Float");
-    J_C_Float = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/time/Duration");
-    J_C_Duration = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/util/UUID");
-    J_C_UUID = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterConnection");
-    J_C_BoosterConnection = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("io/transwarp/stellardb_booster/BoosterDatabase");
-    J_C_BoosterDatabase = (jclass)env->NewGlobalRef(tempLocalClassRef);
-    env->DeleteLocalRef(tempLocalClassRef);
-
-    tempLocalClassRef = env->FindClass("java/lang/String");
-    J_C_String = (jclass)env->NewGlobalRef(tempLocalClassRef);
+void createGlobalClassRef(JNIEnv* env, jclass& globalClassRef, const char* className) {
+    jclass tempLocalClassRef = env->FindClass(className);
+    globalClassRef = (jclass)env->NewGlobalRef(tempLocalClassRef);
     env->DeleteLocalRef(tempLocalClassRef);
 }
 
-void initGlobalMethodRef(JNIEnv* env){
+void initGlobalClassRef(JNIEnv* env) {
+    createGlobalClassRef(env, J_C_Map, "java/util/Map");
+
+    createGlobalClassRef(env, J_C_Set, "java/util/Set");
+
+    createGlobalClassRef(env, J_C_Iterator, "java/util/Iterator");
+
+    createGlobalClassRef(env, J_C_Map$Entry, "java/util/Map$Entry");
+
+    createGlobalClassRef(env, J_C_Exception, "java/lang/Exception");
+
+    createGlobalClassRef(env, J_C_BoosterQueryResult, "io/transwarp/stellardb_booster/BoosterQueryResult");
+
+    createGlobalClassRef(env, J_C_BoosterPreparedStatement, "io/transwarp/stellardb_booster/BoosterPreparedStatement");
+
+    createGlobalClassRef(env, J_C_BoosterDataType, "io/transwarp/stellardb_booster/BoosterDataType");
+
+    createGlobalClassRef(env, J_C_BoosterQuerySummary, "io/transwarp/stellardb_booster/BoosterQuerySummary");
+
+    createGlobalClassRef(env, J_C_BoosterFlatTuple, "io/transwarp/stellardb_booster/BoosterFlatTuple");
+
+    createGlobalClassRef(env, J_C_BoosterValue, "io/transwarp/stellardb_booster/BoosterValue");
+
+    createGlobalClassRef(env, J_C_BoosterDataTypeID, "io/transwarp/stellardb_booster/BoosterDataTypeID");
+
+    createGlobalClassRef(env, J_C_Boolean, "java/lang/Boolean");
+
+    createGlobalClassRef(env, J_C_Long, "java/lang/Long");
+
+    createGlobalClassRef(env, J_C_Integer, "java/lang/Integer");
+
+    createGlobalClassRef(env, J_C_BoosterInternalID, "io/transwarp/stellardb_booster/BoosterInternalID");
+
+    createGlobalClassRef(env, J_C_Double, "java/lang/Double");
+
+    createGlobalClassRef(env, J_C_BigDecimal, "java/math/BigDecimal");
+
+    createGlobalClassRef(env, J_C_LocalDate, "java/time/LocalDate");
+
+    createGlobalClassRef(env, J_C_Instant, "java/time/Instant");
+
+    createGlobalClassRef(env, J_C_Short, "java/lang/Short");
+
+    createGlobalClassRef(env, J_C_Byte, "java/lang/Byte");
+
+    createGlobalClassRef(env, J_C_BigInteger, "java/math/BigInteger");
+
+    createGlobalClassRef(env, J_C_Float, "java/lang/Float");
+
+    createGlobalClassRef(env, J_C_Duration, "java/time/Duration");
+
+    createGlobalClassRef(env, J_C_UUID, "java/util/UUID");
+
+    createGlobalClassRef(env, J_C_BoosterConnection, "io/transwarp/stellardb_booster/BoosterConnection");
+
+    createGlobalClassRef(env, J_C_BoosterDatabase, "io/transwarp/stellardb_booster/BoosterDatabase");
+
+    createGlobalClassRef(env, J_C_String, "java/lang/String");
+}
+
+void initGlobalMethodRef(JNIEnv* env) {
     J_C_Map_M_entrySet = env->GetMethodID(J_C_Map, "entrySet", "()Ljava/util/Set;");
 
     J_C_Set_M_iterator = env->GetMethodID(J_C_Set, "iterator", "()Ljava/util/Iterator;");
@@ -1361,6 +1391,13 @@ void initGlobalMethodRef(JNIEnv* env){
     J_C_UUID_M_fromString =
         env->GetStaticMethodID(J_C_UUID, "fromString", "(Ljava/lang/String;)Ljava/util/UUID;");
 
+    J_C_BigDecimal_M_toString =
+        env->GetMethodID(J_C_BigDecimal, "toString", "()Ljava/lang/String;");
+
+    J_C_BigDecimal_M_precision = env->GetMethodID(J_C_BigDecimal, "precision", "()I");
+
+    J_C_BigDecimal_M_scale = env->GetMethodID(J_C_BigDecimal, "scale", "()I");
+
 }
 
 void initGlobalFieldRef(JNIEnv* env){
@@ -1386,7 +1423,7 @@ void initGlobalFieldRef(JNIEnv* env){
     J_C_BoosterDatabase_db_ref = env->GetFieldID(J_C_BoosterDatabase, "db_ref", "J");
 }
 
-JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved){
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     JNIEnv* env;
     if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION) != JNI_OK) {
         return JNI_ERR;
@@ -1397,9 +1434,9 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved){
     return JNI_VERSION;
 }
 
-JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved){
+JNIEXPORT void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved) {
     JNIEnv* env;
-    vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION);
+    vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION);
 
     env->DeleteGlobalRef(J_C_Map);
     env->DeleteGlobalRef(J_C_Set);
@@ -1418,6 +1455,7 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved){
     env->DeleteGlobalRef(J_C_Integer);
     env->DeleteGlobalRef(J_C_BoosterInternalID);
     env->DeleteGlobalRef(J_C_Double);
+    env->DeleteGlobalRef(J_C_BigDecimal);
     env->DeleteGlobalRef(J_C_LocalDate);
     env->DeleteGlobalRef(J_C_Instant);
     env->DeleteGlobalRef(J_C_Short);

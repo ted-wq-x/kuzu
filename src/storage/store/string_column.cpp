@@ -21,12 +21,11 @@ using string_offset_t = DictionaryChunk::string_offset_t;
 
 StringColumn::StringColumn(std::string name, LogicalType dataType,
     const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, DiskArrayCollection& metadataDAC,
-    BufferManager* bufferManager, WAL* wal, Transaction* transaction, bool enableCompression,
-    bool readOnly)
+    BufferManager* bufferManager, WAL* wal, Transaction* transaction, bool enableCompression)
     : Column{name, std::move(dataType), metaDAHeaderInfo, dataFH, metadataDAC, bufferManager, wal,
-          transaction, enableCompression, readOnly, true /* requireNullColumn */},
+          transaction, enableCompression, true /* requireNullColumn */},
       dictionary{name, metaDAHeaderInfo, dataFH, metadataDAC, bufferManager, wal, transaction,
-          enableCompression, readOnly} {
+          enableCompression} {
 
     auto indexColumnName =
         StorageUtils::getColumnName(name, StorageUtils::ColumnType::INDEX, "index");

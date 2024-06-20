@@ -38,8 +38,8 @@ PIPWrapper::PIPWrapper(FileHandle& fileHandle, page_idx_t pipPageIdx) : pipPageI
 
 DiskArrayInternal::DiskArrayInternal(BMFileHandle& fileHandle, DBFileID dbFileID,
     const DiskArrayHeader& headerForReadTrx, DiskArrayHeader& headerForWriteTrx,
-    BufferManager* bufferManager, WAL* wal, uint64_t elementSize, bool readOnly, bool bypassWAL)
-    : readOnly{readOnly}, storageInfo{elementSize}, fileHandle{fileHandle}, dbFileID{dbFileID},
+    BufferManager* bufferManager, WAL* wal, uint64_t elementSize, bool bypassWAL)
+    : storageInfo{elementSize}, fileHandle{fileHandle}, dbFileID{dbFileID},
       header{headerForReadTrx}, headerForWriteTrx{headerForWriteTrx},
       hasTransactionalUpdates{false}, bufferManager{bufferManager}, wal{wal},
       lastAPPageIdx{INVALID_PAGE_IDX}, lastPageOnDisk{INVALID_PAGE_IDX} {
@@ -67,12 +67,8 @@ void DiskArrayInternal::updateLastPageOnDisk() {
 }
 
 uint64_t DiskArrayInternal::getNumElements(TransactionType trxType) {
-    if (readOnly) {
-        return getNumElementsNoLock(trxType);
-    } else {
-        std::shared_lock sLck{diskArraySharedMtx};
-        return getNumElementsNoLock(trxType);
-    }
+    std::shared_lock sLck{diskArraySharedMtx};
+    return getNumElementsNoLock(trxType);
 }
 
 bool DiskArrayInternal::checkOutOfBoundAccess(TransactionType trxType, uint64_t idx) {
@@ -88,15 +84,7 @@ bool DiskArrayInternal::checkOutOfBoundAccess(TransactionType trxType, uint64_t 
 }
 
 void DiskArrayInternal::get(uint64_t idx, TransactionType trxType, std::span<std::byte> val) {
-    if (readOnly) {
-        getNoLock(idx, trxType, val);
-    } else {
-        std::shared_lock sLck{diskArraySharedMtx};
-        getNoLock(idx, trxType, val);
-    }
-}
-
-void DiskArrayInternal::getNoLock(uint64_t idx, TransactionType trxType, std::span<std::byte> val) {
+    std::shared_lock sLck{diskArraySharedMtx};
     KU_ASSERT(checkOutOfBoundAccess(trxType, idx));
     auto apCursor = getAPIdxAndOffsetInAP(storageInfo, idx);
     page_idx_t apPageIdx = getAPPageIdxNoLock(apCursor.pageIdx, trxType);
@@ -137,9 +125,6 @@ void DiskArrayInternal::updatePage(uint64_t pageIdx, bool isNewPage,
 }
 
 void DiskArrayInternal::update(uint64_t idx, std::span<std::byte> val) {
-    if (readOnly) {
-        throw Exception("Cannot exec update operation under READ ONLY mode.");
-    }
     std::unique_lock xLck{diskArraySharedMtx};
     hasTransactionalUpdates = true;
     KU_ASSERT(checkOutOfBoundAccess(TransactionType::WRITE, idx));
@@ -160,9 +145,6 @@ void DiskArrayInternal::update(uint64_t idx, std::span<std::byte> val) {
 }
 
 uint64_t DiskArrayInternal::pushBack(std::span<std::byte> val) {
-    if (readOnly) {
-        throw Exception("Cannot exec pushBack operation under READ ONLY mode.");
-    }
     std::unique_lock xLck{diskArraySharedMtx};
     auto it = iter_mut(val.size());
     auto originalNumElements = getNumElementsNoLock(TransactionType::WRITE);
@@ -383,9 +365,6 @@ void DiskArrayInternal::WriteIterator::getPage(common::page_idx_t newPageIdx, bo
 }
 
 DiskArrayInternal::WriteIterator DiskArrayInternal::iter_mut(uint64_t valueSize) {
-    if (readOnly) {
-        throw Exception("Cannot exec iter_mut operation under READ ONLY mode.");
-    }
     return DiskArrayInternal::WriteIterator(valueSize, *this);
 }
 

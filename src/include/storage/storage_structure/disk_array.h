@@ -102,8 +102,7 @@ public:
     // Used when loading from file
     DiskArrayInternal(BMFileHandle& fileHandle, DBFileID dbFileID,
         const DiskArrayHeader& headerForReadTrx, DiskArrayHeader& headerForWriteTrx,
-        BufferManager* bufferManager, WAL* wal, uint64_t elementSize, bool readOnly,
-        bool bypassWAL = false);
+        BufferManager* bufferManager, WAL* wal, uint64_t elementSize, bool bypassWAL = false);
 
     virtual ~DiskArrayInternal() = default;
 
@@ -223,8 +222,6 @@ private:
     bool checkOutOfBoundAccess(transaction::TransactionType trxType, uint64_t idx);
     bool hasPIPUpdatesNoLock(uint64_t pipIdx);
 
-    void getNoLock(uint64_t idx, transaction::TransactionType trxType, std::span<std::byte> val);
-
     inline const DiskArrayHeader& getDiskArrayHeader(transaction::TransactionType trxType) {
         if (trxType == transaction::TransactionType::READ_ONLY) {
             return header;
@@ -239,7 +236,6 @@ private:
         common::page_idx_t apIdx);
 
 protected:
-    bool readOnly;
     PageStorageInfo storageInfo;
     BMFileHandle& fileHandle;
     DBFileID dbFileID;
@@ -271,9 +267,9 @@ public:
     // should be called on this file handle exactly once during prepare commit.
     DiskArray(BMFileHandle& fileHandle, DBFileID dbFileID, const DiskArrayHeader& headerForReadTrx,
         DiskArrayHeader& headerForWriteTrx, BufferManager* bufferManager, WAL* wal,
-        bool readOnly, bool bypassWAL = false)
+        bool bypassWAL = false)
         : diskArray(fileHandle, dbFileID, headerForReadTrx, headerForWriteTrx, bufferManager, wal,
-              sizeof(U), readOnly, bypassWAL) {}
+              sizeof(U), bypassWAL) {}
 
     // Note: This function is to be used only by the WRITE trx.
     // The return value is the idx of val in array.

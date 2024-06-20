@@ -52,7 +52,7 @@ public:
     ListColumn(std::string name, common::LogicalType dataType,
         const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH,
         DiskArrayCollection& metadataDAC, BufferManager* bufferManager, WAL* wal,
-        transaction::Transaction* transaction, bool enableCompression, bool readOnly);
+        transaction::Transaction* transaction, bool enableCompression);
 
     void initChunkState(transaction::Transaction* transaction,
         common::node_group_idx_t nodeGroupIdx, ChunkState& chunkState) override;

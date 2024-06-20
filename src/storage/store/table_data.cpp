@@ -13,10 +13,10 @@ namespace storage {
 
 TableData::TableData(BMFileHandle* dataFH, DiskArrayCollection* metadataDAC,
     catalog::TableCatalogEntry* tableEntry, BufferManager* bufferManager, WAL* wal,
-    bool enableCompression, bool readOnly)
+    bool enableCompression)
     : dataFH{dataFH}, metadataDAC{metadataDAC}, tableID{tableEntry->getTableID()},
       tableName{tableEntry->getName()}, bufferManager{bufferManager}, wal{wal},
-      enableCompression{enableCompression}, readOnly{readOnly} {}
+      enableCompression{enableCompression} {}
 
 void TableData::addColumn(Transaction* transaction, const std::string& colNamePrefix,
     DiskArray<ColumnChunkMetadata>* metadataDA, const MetadataDAHInfo& metadataDAHInfo,
@@ -25,7 +25,7 @@ void TableData::addColumn(Transaction* transaction, const std::string& colNamePr
         StorageUtils::ColumnType::DEFAULT, colNamePrefix);
     auto column =
         ColumnFactory::createColumn(colName, property.getDataType().copy(), metadataDAHInfo, dataFH,
-            *metadataDAC, bufferManager, wal, transaction, enableCompression, readOnly);
+            *metadataDAC, bufferManager, wal, transaction, enableCompression);
     column->populateWithDefaultVal(transaction, metadataDA, defaultEvaluator);
     columns.push_back(std::move(column));
 }

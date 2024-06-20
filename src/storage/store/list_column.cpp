@@ -50,24 +50,23 @@ bool ListOffsetSizeInfo::isOffsetSortedAscending(uint64_t startPos, uint64_t end
 
 ListColumn::ListColumn(std::string name, LogicalType dataType,
     const MetadataDAHInfo& metaDAHeaderInfo, BMFileHandle* dataFH, DiskArrayCollection& metadataDAC,
-    BufferManager* bufferManager, WAL* wal, Transaction* transaction, bool enableCompression,
-    bool readOnly)
+    BufferManager* bufferManager, WAL* wal, Transaction* transaction, bool enableCompression)
     : Column{name, std::move(dataType), metaDAHeaderInfo, dataFH, metadataDAC, bufferManager, wal,
-          transaction, enableCompression, readOnly, true /* requireNullColumn */} {
+          transaction, enableCompression, true /* requireNullColumn */} {
     auto offsetColName =
         StorageUtils::getColumnName(name, StorageUtils::ColumnType::OFFSET, "offset_");
     auto sizeColName = StorageUtils::getColumnName(name, StorageUtils::ColumnType::OFFSET, "size_");
     auto dataColName = StorageUtils::getColumnName(name, StorageUtils::ColumnType::DATA, "");
     sizeColumn = ColumnFactory::createColumn(sizeColName, LogicalType::UINT32(),
         *metaDAHeaderInfo.childrenInfos[SIZE_COLUMN_CHILD_READ_STATE_IDX], dataFH, metadataDAC,
-        bufferManager, wal, transaction, enableCompression, readOnly);
+        bufferManager, wal, transaction, enableCompression);
     dataColumn =
         ColumnFactory::createColumn(dataColName, ListType::getChildType(this->dataType).copy(),
             *metaDAHeaderInfo.childrenInfos[DATA_COLUMN_CHILD_READ_STATE_IDX], dataFH, metadataDAC,
-            bufferManager, wal, transaction, enableCompression, readOnly);
+            bufferManager, wal, transaction, enableCompression);
     offsetColumn = ColumnFactory::createColumn(offsetColName, LogicalType::UINT64(),
         *metaDAHeaderInfo.childrenInfos[OFFSET_COLUMN_CHILD_READ_STATE_IDX], dataFH, metadataDAC,
-        bufferManager, wal, transaction, enableCompression, readOnly);
+        bufferManager, wal, transaction, enableCompression);
 }
 
 void ListColumn::initChunkState(Transaction* transaction, node_group_idx_t nodeGroupIdx,

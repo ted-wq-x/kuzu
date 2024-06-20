@@ -623,7 +623,7 @@ PrimaryKeyIndex::PrimaryKeyIndex(const DBFileIDAndName& dbFileIDAndName, bool re
         KU_ASSERT(headerIdx == NUM_HASH_INDEXES);
     }
     hashIndexDiskArrays = std::make_unique<DiskArrayCollection>(*fileHandle,
-        dbFileIDAndName.dbFileID, &bufferManager, wal, readOnly,
+        dbFileIDAndName.dbFileID, &bufferManager, wal,
         INDEX_HEADER_PAGES /*firstHeaderPage follows the index header pages*/, true /*bypassWAL*/);
 
     if (keyDataTypeID == PhysicalTypeID::STRING) {

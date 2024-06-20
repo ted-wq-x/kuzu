@@ -31,8 +31,8 @@ bool NodeDataScanState::nextVector() {
 NodeTableData::NodeTableData(BMFileHandle* dataFH, DiskArrayCollection* metadataDAC,
     TableCatalogEntry* tableEntry, BufferManager* bufferManager, WAL* wal,
     const std::vector<Property>& properties, TablesStatistics* tablesStatistics,
-    bool enableCompression, bool readOnly)
-    : TableData{dataFH, metadataDAC, tableEntry, bufferManager, wal, enableCompression, readOnly} {
+    bool enableCompression)
+    : TableData{dataFH, metadataDAC, tableEntry, bufferManager, wal, enableCompression} {
     const auto maxColumnID =
         std::max_element(properties.begin(), properties.end(), [](auto& a, auto& b) {
             return a.getColumnID() < b.getColumnID();
@@ -46,7 +46,7 @@ NodeTableData::NodeTableData(BMFileHandle* dataFH, DiskArrayCollection* metadata
             StorageUtils::getColumnName(property.getName(), StorageUtils::ColumnType::DEFAULT, "");
         columns[property.getColumnID()] = ColumnFactory::createColumn(columnName,
             property.getDataType().copy(), *metadataDAHInfo, dataFH, *metadataDAC, bufferManager,
-            wal, &DUMMY_WRITE_TRANSACTION, enableCompression, readOnly);
+            wal, &DUMMY_WRITE_TRANSACTION, enableCompression);
     }
 }
 

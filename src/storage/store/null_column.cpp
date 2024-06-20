@@ -41,10 +41,9 @@ struct NullColumnFunc {
 
 NullColumn::NullColumn(std::string name, page_idx_t metaDAHIdx, BMFileHandle* dataFH,
     DiskArrayCollection& metadataDAC, BufferManager* bufferManager, WAL* wal,
-    Transaction* transaction, bool enableCompression, bool readOnly)
+    Transaction* transaction, bool enableCompression)
     : Column{name, LogicalType::BOOL(), MetadataDAHInfo{metaDAHIdx}, dataFH, metadataDAC,
-          bufferManager, wal, transaction, enableCompression, readOnly,
-          false /*requireNullColumn*/} {
+          bufferManager, wal, transaction, enableCompression, false /*requireNullColumn*/} {
     readToVectorFunc = NullColumnFunc::readValuesFromPageToVector;
     writeFromVectorFunc = NullColumnFunc::writeValueToPageFromVector;
     // Should never be used

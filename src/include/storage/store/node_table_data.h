@@ -34,7 +34,7 @@ public:
     NodeTableData(BMFileHandle* dataFH, DiskArrayCollection* metadataDAC,
         catalog::TableCatalogEntry* tableEntry, BufferManager* bufferManager, WAL* wal,
         const std::vector<catalog::Property>& properties, TablesStatistics* tablesStatistics,
-        bool enableCompression, bool readOnly);
+        bool enableCompression);
 
     // This interface is node table specific, as rel table requires also relDataDirection.
     void initializeScanState(transaction::Transaction* transaction,
