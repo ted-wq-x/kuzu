@@ -30,16 +30,10 @@ void ProcessorTask::run() {
 }
 
 void ProcessorTask::finalizeIfNecessary() {
-    ResultCollector* collector = dynamic_cast<ResultCollector*>(sink);
-    if (collector && collector->IsOptional()) {
-        auto resultSet =
-            populateResultSet(sink, executionContext->clientContext->getMemoryManager());
-        collector->initLocalStateInternal(resultSet.get(), executionContext);
-        collector->finalize(executionContext);
-    } else {
-        sink->finalize(executionContext);
-    }
-    executionContext->clientContext->getProgressBar()->finishPipeline();
+    auto resultSet = populateResultSet(sink, executionContext->clientContext->getMemoryManager());
+    sink->initLocalState(resultSet.get(), executionContext);
+    executionContext->clientContext->getProgressBar()->finishPipeline(executionContext->queryID);
+    sink->finalize(executionContext);
 }
 
 std::unique_ptr<ResultSet> ProcessorTask::populateResultSet(Sink* op,
