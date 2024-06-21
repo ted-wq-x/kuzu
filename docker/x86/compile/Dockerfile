@@ -23,4 +23,6 @@ ENV JAVA8_312_HOME /usr/java/openjdk-8u312-b07
 #upgrate gcc
 RUN yum install -y gcc-toolset-11 && \
     echo "source /opt/rh/gcc-toolset-11/enable" >> /etc/bashrc && \
-    source /etc/bashrc
+    source /etc/bashrc \
+
+RUN yum install gcc-toolset-11-libatomic-devel
