@@ -389,7 +389,7 @@ static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* c
     }
 
     // fixme wq 当前只支持边的属性过滤
-    auto relFilterStr = input->inputs[9].getValue<std::string>();
+    auto relFilterStr = input->inputs[7].getValue<std::string>();
     std::unique_ptr<evaluator::ExpressionEvaluator> relFilter = nullptr;
     std::shared_ptr<std::vector<LogicalTypeID>> relColumnTypeIds = nullptr;
     std::shared_ptr<std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>>
