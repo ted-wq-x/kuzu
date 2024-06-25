@@ -39,8 +39,8 @@ StorageManager::StorageManager(const std::string& databasePath, bool readOnly,
     loadTables(catalog, vfs, context);
 }
 
-std::unique_ptr<BMFileHandle> StorageManager::initFileHandle(const std::string& filename,
-    VirtualFileSystem* vfs, main::ClientContext* context) {
+BMFileHandle* StorageManager::initFileHandle(const std::string& filename, VirtualFileSystem* vfs,
+    main::ClientContext* context) {
     return memoryManager.getBufferManager()->getBMFileHandle(filename,
         readOnly ? FileHandle::O_PERSISTENT_FILE_READ_ONLY :
                    FileHandle::O_PERSISTENT_FILE_CREATE_NOT_EXISTS,
@@ -88,9 +88,9 @@ void StorageManager::recover(main::ClientContext& clientContext) {
         return;
     }
     try {
-        auto shadowFH = clientContext.getMemoryManager()->getBufferManager()->getBMFileHandle(
-            vfs->joinPath(clientContext.getDatabasePath(),
-                std::string(StorageConstants::SHADOWING_SUFFIX)),
+        auto* bm = clientContext.getMemoryManager()->getBufferManager();
+        auto shadowFH = bm->getBMFileHandle(vfs->joinPath(clientContext.getDatabasePath(),
+                                                std::string(StorageConstants::SHADOWING_SUFFIX)),
             FileHandle::O_PERSISTENT_FILE_NO_CREATE,
             BMFileHandle::FileVersionedType::NON_VERSIONED_FILE, vfs, &clientContext);
         auto walReplayer = std::make_unique<WALReplayer>(clientContext, *shadowFH,
@@ -104,6 +104,7 @@ void StorageManager::recover(main::ClientContext& clientContext) {
         if (shadowFH->getFileInfo()->getFileSize() > 0) {
             shadowFH->getFileInfo()->truncate(0);
         }
+        bm->removeFilePagesFromFrames(*shadowFH);
         StorageUtils::removeCatalogAndStatsWALFiles(clientContext.getDatabasePath(), vfs);
     } catch (std::exception& e) {
         throw Exception(stringFormat("Error during recovery: {}", e.what()));
