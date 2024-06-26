@@ -1,3 +1,4 @@
+#include <future>
 #include <thread>
 
 #include "function/table/basic.h"
@@ -40,17 +41,6 @@ struct KhopBindData : public CallTableFuncBindData {
         relTableInfos;
 };
 
-class BSet {
-public:
-    uint64_t value;
-    pthread_mutex_t mtx;
-    BSet() {
-        value = 0;
-        pthread_mutex_init(&mtx, NULL);
-    }
-    ~BSet() { pthread_mutex_destroy(&mtx); }
-};
-
 class KhopSharedData {
 public:
     explicit KhopSharedData(const KhopBindData* bindData) {
@@ -66,12 +56,11 @@ public:
         auto nodeTableIDs = catalog->getNodeTableIDs(tx);
         auto allTableSize = catalog->getRelTableIDs(tx).size() + nodeTableIDs.size();
         nodeIDMark.resize(allTableSize);
-        nextMark.resize(allTableSize);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
-            auto nodeNum = nodeTable->getNumTuples(tx);
-            nodeIDMark[tableID].resize((nodeNum + 63) >> 6);
-            nextMark[tableID].resize((nodeNum + 63) >> 6);
+            auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
+            nodeIDMark[tableID].reserve(size);
+            nodeIDMark[tableID].resize(size, 0);
         }
     }
 
@@ -98,18 +87,17 @@ public:
         }
     }
 
-    std::mutex mtx;
-    uint32_t taskID;
+    std::atomic_int32_t taskID;
     std::string direction;
     Catalog* catalog;
     storage::MemoryManager* mm;
     main::ClientContext* context;
     transaction::Transaction* tx;
     storage::StorageManager* storage;
-    std::vector<std::vector<BSet>> nextMark;
-    std::vector<std::vector<uint64_t>> nodeIDMark;
+    std::vector<std::vector<uint64_t>> nodeIDMark; // tableID,全局记录点的count
     std::vector<std::vector<std::vector<uint64_t>>> threadMarks;
-    std::vector<std::vector<nodeID_t>> currentFrontier, nextFrontier;
+    // 内部的vector,是按照block大小划分的,都是相同的tableid
+    std::vector<std::vector<nodeID_t>> nextFrontier;
     std::shared_ptr<std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>>
         reltables;
     evaluator::ExpressionEvaluator* relFilter;
@@ -143,10 +131,10 @@ static nodeID_t getNodeID(KhopSharedData& sharedData, std::string tableName,
     }
 }
 
-static void scanTask(KhopSharedData& sharedData,
+static void doScan(KhopSharedData& sharedData,
     std::shared_ptr<storage::RelTableScanState> readState, common::ValueVector& srcVector,
     std::shared_ptr<RelTableInfo> info, std::vector<std::vector<uint64_t>>& threadMark,
-    RelDataDirection relDataDirection, int64_t& threadResult, uint32_t tid, bool isFinal,
+    RelDataDirection relDataDirection, uint64_t& threadResult, uint32_t tid, bool isFinal,
     const processor::ResultSet& resultSet, evaluator::ExpressionEvaluator* relExpr) {
     auto prevTableID =
         relDataDirection == RelDataDirection::FWD ? info->srcTableID : info->dstTableID;
@@ -164,7 +152,7 @@ static void scanTask(KhopSharedData& sharedData,
     auto dataChunkToSelect = resultSet.dataChunks[0];
     auto& selectVector = dataChunkToSelect->state->getSelVectorUnsafe();
     auto dstIdDataChunk = dataChunkToSelect->getValueVector(0);
-    for (auto currentNodeID : sharedData.currentFrontier[tid]) {
+    for (auto currentNodeID : sharedData.nextFrontier[tid]) {
         if (prevTableID != currentNodeID.tableID) {
             break;
         }
@@ -206,12 +194,13 @@ static void scanTask(KhopSharedData& sharedData,
     }
 }
 
-static void tableFuncTask(KhopSharedData& sharedData,
-    std::vector<std::vector<uint64_t>>& threadMark, int64_t& edgeResult, bool isFinal) {
-    int64_t threadResult = 0;
+static uint64_t funcTask(KhopSharedData& sharedData, uint32_t threadId, bool isFinal) {
+
+    auto& threadMark = sharedData.threadMarks[threadId];
     if (threadMark.empty()) {
         threadMark.resize((sharedData.nodeIDMark.size()));
         for (auto i = 0u; i < threadMark.size(); ++i) {
+            threadMark[i].reserve(sharedData.nodeIDMark[i].size());
             threadMark[i].resize(sharedData.nodeIDMark[i].size(), 0);
         }
     }
@@ -237,44 +226,81 @@ static void tableFuncTask(KhopSharedData& sharedData,
     if (relEvaluate) {
         relFilter = relEvaluate.get();
     }
+    uint64_t edgeCount = 0;
     while (true) {
-        sharedData.mtx.lock();
         uint32_t tid = sharedData.taskID++;
-        sharedData.mtx.unlock();
-        if (tid >= sharedData.currentFrontier.size()) {
+        if (tid >= sharedData.nextFrontier.size()) {
             break;
         }
         for (auto& [info, relDataReadState] : relTableScanStates) {
             if (sharedData.direction == "out" || sharedData.direction == "both") {
-                scanTask(sharedData, relDataReadState, srcVector, info, threadMark,
-                    RelDataDirection::FWD, threadResult, tid, isFinal, *rs.get(), relFilter);
+                doScan(sharedData, relDataReadState, srcVector, info, threadMark,
+                    RelDataDirection::FWD, edgeCount, tid, isFinal, *rs.get(), relFilter);
             }
             if (sharedData.direction == "in" || sharedData.direction == "both") {
-                scanTask(sharedData, relDataReadState, srcVector, info, threadMark,
-                    RelDataDirection::BWD, threadResult, tid, isFinal, *rs.get(), relFilter);
+                doScan(sharedData, relDataReadState, srcVector, info, threadMark,
+                    RelDataDirection::BWD, edgeCount, tid, isFinal, *rs.get(), relFilter);
             }
         }
     }
-    for (auto tableID = 0u; tableID < threadMark.size(); ++tableID) {
-        for (auto blockID = 0u; blockID < threadMark[tableID].size(); ++blockID) {
-            auto mark = threadMark[tableID][blockID];
-            if (!mark) {
-                continue;
+
+    return edgeCount;
+}
+
+static std::pair<uint64_t, std::vector<std::vector<nodeID_t>>> unionTask(KhopSharedData& sharedData,
+    int64_t numThreads, uint32_t tid, std::vector<uint8_t>& numTable) {
+    uint64_t nodeCount = 0;
+    std::vector<std::vector<nodeID_t>> nextFrontier;
+    for (auto tableID = 0u; tableID < sharedData.nodeIDMark.size(); ++tableID) {
+        uint32_t tableSize = sharedData.nodeIDMark[tableID].size();
+        if (!tableSize) {
+            continue;
+        }
+
+        uint32_t l = tableSize * tid / numThreads, r = tableSize * (tid + 1) / numThreads;
+        std::vector<uint64_t> tempMark;
+        tempMark.resize(r - l, 0);
+        for (auto i = 0u; i < numThreads; ++i) {
+            for (auto offset = l; offset < r; ++offset) {
+                if (!sharedData.threadMarks[i][tableID][offset]) {
+                    continue;
+                }
+                auto& mark = sharedData.threadMarks[i][tableID][offset];
+                tempMark[offset - l] |= mark;
+                mark = 0;
             }
-            auto& bitSet = sharedData.nextMark[tableID][blockID];
-            auto mtx = &bitSet.mtx;
-            pthread_mutex_lock(mtx);
-            bitSet.value |= mark;
-            pthread_mutex_unlock(mtx);
+        }
+
+        // 构建mission
+        std::vector<nodeID_t> nextMission;
+        for (auto i = l; i < r; ++i) {
+            uint64_t now = tempMark[i - l], pos = 0;
+            sharedData.nodeIDMark[tableID][i] |= now;
+            while (now) {
+                // now & (now - 1) 去掉最低位的1 ,取最低位的值  pos=now & -now
+                pos = now ^ (now & (now - 1));
+                /*bitset的每一个元素实际标记了64个元素是否存在,i<<6是该元素offset的起点位置，加上pos%67就是实际offset的值*/
+                auto nowNode = nodeID_t{(i << 6) + numTable[pos % 67], tableID};
+                if ((!nextMission.empty() && ((nextMission.back().offset ^ nowNode.offset) >>
+                                                 StorageConstants::NODE_GROUP_SIZE_LOG2))) {
+                    nodeCount += nextMission.size();
+                    nextFrontier.emplace_back(std::move(nextMission));
+                }
+                nextMission.emplace_back(nowNode);
+                // 还原成 now & (now - 1) ,和result配合,统计now中1的个数 now=now & (now - 1)
+                now ^= pos;
+            }
+        }
+        if (!nextMission.empty()) {
+            nodeCount += nextMission.size();
+            nextFrontier.emplace_back(std::move(nextMission));
         }
     }
-    sharedData.mtx.lock();
-    edgeResult += threadResult;
-    sharedData.mtx.unlock();
+    return {nodeCount, std::move(nextFrontier)};
 }
 
 static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput& output,
-    bool isEdge) {
+    bool isRc) {
     auto sharedState = input.sharedState->ptrCast<CallFuncSharedState>();
     if (!sharedState->getMorsel().hasMoreToOutput()) {
         return 0;
@@ -286,13 +312,12 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
         numTable[now % 67] = i;
     }
     auto& dataChunk = output.dataChunk;
-    auto outputVector = dataChunk.getValueVector(0);
     auto pos = dataChunk.state->getSelVector()[0];
     auto bindData = input.bindData->constPtrCast<KhopBindData>();
     auto maxHop = bindData->maxHop;
     auto numThreads = bindData->numThreads;
     if (maxHop == 0) {
-        outputVector->setValue<int64_t>(pos, 0);
+        dataChunk.getValueVector(0)->setValue<int64_t>(pos, 0);
         return 1;
     }
     KhopSharedData sharedData(bindData);
@@ -300,74 +325,68 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
     sharedData.nodeIDMark[nodeID.tableID][(nodeID.offset >> 6)] |= (1ULL << ((nodeID.offset & 63)));
     std::vector<nodeID_t> nextMission;
     nextMission.emplace_back(nodeID);
-    sharedData.currentFrontier.emplace_back(std::move(nextMission));
+    sharedData.nextFrontier.emplace_back(std::move(nextMission));
     sharedData.threadMarks.resize(numThreads);
     std::vector<int64_t> nodeResults, edgeResults;
     for (auto currentLevel = 0u; currentLevel < maxHop; ++currentLevel) {
-        int64_t nodeResult = 0, edgeResult = 0;
+
         bool isFinal = (currentLevel == maxHop - 1);
-        std::vector<std::thread> threads;
         sharedData.taskID = 0;
+        std::vector<std::future<uint64_t>> funcFuture;
+        for (uint32_t i = 0u; i < numThreads; i++) {
+            funcFuture.emplace_back(
+                std::async(std::launch::async, funcTask, std::ref(sharedData), i, isFinal));
+        }
+        uint64_t edgeResult = 0;
+        for (auto& future : funcFuture) {
+            edgeResult += future.get();
+        }
+        std::vector<std::future<std::pair<uint64_t, std::vector<std::vector<nodeID_t>>>>>
+            unionFuture;
         for (auto i = 0u; i < numThreads; i++) {
-            threads.emplace_back([&sharedData, i, &edgeResult, isFinal] {
-                tableFuncTask(sharedData, sharedData.threadMarks[i], edgeResult, isFinal);
-            });
+            unionFuture.emplace_back(std::async(std::launch::async, unionTask, std::ref(sharedData),
+                numThreads, i, std::ref(numTable)));
         }
-        for (auto& thread : threads) {
-            thread.join();
+        uint64_t nodeResult = 0;
+        sharedData.nextFrontier.clear();
+        for (auto& future : unionFuture) {
+            auto [nodeCount, nextFrontier] = future.get();
+            nodeResult += nodeCount;
+            sharedData.nextFrontier.insert(sharedData.nextFrontier.end(),
+                std::make_move_iterator(nextFrontier.begin()),
+                std::make_move_iterator(nextFrontier.end()));
         }
-        for (auto tableID = 0u; tableID < sharedData.nextMark.size(); ++tableID) {
-            for (auto i = 0u; i < sharedData.nextMark[tableID].size(); ++i) {
-                uint64_t now = sharedData.nextMark[tableID][i].value, pos = 0;
-                sharedData.nodeIDMark[tableID][i] |= now;
-                while (now) {
-                    pos = now ^ (now & (now - 1));
-                    /*bitset的每一个元素实际标记了64个元素是否存在,i<<6是该元素offset的起点位置，加上pos%67就是实际offset的值*/
-                    auto nowNode = nodeID_t{(i << 6) + numTable[pos % 67], tableID};
-                    if ((!nextMission.empty() && ((nextMission.back().offset ^ nowNode.offset) >>
-                                                     StorageConstants::NODE_GROUP_SIZE_LOG2))) {
-                        nodeResult += nextMission.size();
-                        sharedData.nextFrontier.emplace_back(std::move(nextMission));
-                    }
-                    nextMission.emplace_back(nowNode);
-                    now ^= pos;
-                }
-                sharedData.nextMark[tableID][i].value = 0;
-            }
-            if (!nextMission.empty()) {
-                nodeResult += nextMission.size();
-                sharedData.nextFrontier.emplace_back(std::move(nextMission));
-            }
-        }
-        sharedData.currentFrontier = std::move(sharedData.nextFrontier);
         edgeResults.emplace_back(edgeResult);
         nodeResults.emplace_back(nodeResult);
-        if (sharedData.currentFrontier.empty()) {
+        if (sharedData.nextFrontier.empty()) {
             break;
         }
     }
-    if (isEdge) {
-        int64_t result = 0;
-        for (auto& res : edgeResults) {
-            result += res;
-        }
-        outputVector->setValue(pos, (bindData->mode ? edgeResults.back() : result));
+    int64_t nodeResult = 0, edgeResult = 0;
+    for (auto i = 0u; i < nodeResults.size(); i++) {
+        nodeResult += nodeResults[i];
+        edgeResult += edgeResults[i];
+    }
+    if (isRc) {
+        dataChunk.getValueVector(0)->setValue(pos,
+            (bindData->mode ? nodeResults.back() : nodeResult));
+        dataChunk.getValueVector(1)->setValue(pos,
+            (bindData->mode ? edgeResults.back() : edgeResult));
     } else {
-        int64_t result = 0;
-        for (auto& res : nodeResults) {
-            result += res;
-        }
-        outputVector->setValue<int64_t>(pos, (bindData->mode ? nodeResults.back() : result));
+        dataChunk.getValueVector(0)->setValue(pos,
+            (bindData->mode ? nodeResults.back() : nodeResult));
     }
     return 1;
 }
 
 static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* context,
-    TableFuncBindInput* input, std::string columnName) {
+    TableFuncBindInput* input, std::vector<std::string> columnNames) {
     std::vector<std::string> returnColumnNames;
     std::vector<LogicalType> returnTypes;
-    returnColumnNames.emplace_back(columnName);
-    returnTypes.emplace_back(LogicalType::INT64());
+    for (auto i = 0u; i < columnNames.size(); i++) {
+        returnColumnNames.emplace_back(columnNames[i]);
+        returnTypes.emplace_back(LogicalType::INT64());
+    }
     auto direction = input->inputs[2].getValue<std::string>();
     if (direction != "in" && direction != "out" && direction != "both") {
         throw BinderException(
