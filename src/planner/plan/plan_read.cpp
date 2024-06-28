@@ -42,14 +42,16 @@ void Planner::planMatchClause(const BoundReadingClause& readingClause,
     auto& boundMatchClause = readingClause.constCast<BoundMatchClause>();
     auto queryGraphCollection = boundMatchClause.getQueryGraphCollection();
     auto predicates = boundMatchClause.getConjunctivePredicates();
-    auto hint = boundMatchClause.getHint();
     switch (boundMatchClause.getMatchClauseType()) {
     case MatchClauseType::MATCH: {
         if (plans.size() == 1 && plans[0]->isEmpty()) {
-            plans = enumerateQueryGraphCollection(*queryGraphCollection, predicates,*hint);
+            auto info = QueryGraphPlanningInfo();
+            info.predicates = predicates;
+            info.hint = boundMatchClause.getHint();
+            plans = enumerateQueryGraphCollection(*queryGraphCollection, info);
         } else {
             for (auto& plan : plans) {
-                planRegularMatch(*queryGraphCollection, predicates, *plan,*hint);
+                planRegularMatch(*queryGraphCollection, predicates, *plan);
             }
         }
     } break;
@@ -60,7 +62,7 @@ void Planner::planMatchClause(const BoundReadingClause& readingClause,
                 corrExprs =
                     getCorrelatedExprs(*queryGraphCollection, predicates, plan->getSchema());
             }
-            planOptionalMatch(*queryGraphCollection, predicates, corrExprs, *plan,*hint);
+            planOptionalMatch(*queryGraphCollection, predicates, corrExprs, *plan);
         }
     } break;
     default:

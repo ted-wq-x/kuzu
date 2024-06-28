@@ -29,27 +29,36 @@ std::unique_ptr<ReadingClause> Transformer::transformMatch(CypherParser::OC_Matc
         ctx.OPTIONAL() ? MatchClauseType::OPTIONAL_MATCH : MatchClauseType::MATCH;
     auto matchClause =
         std::make_unique<MatchClause>(transformPattern(*ctx.oC_Pattern()), matchClauseType);
-
-    if (ctx.oC_Hint()) {
-        matchClause->setHint(transformHint(*ctx.oC_Hint()));
-    }
-
     if (ctx.oC_Where()) {
         matchClause->setWherePredicate(transformWhere(*ctx.oC_Where()));
+    }
+    if (ctx.kU_Hint()) {
+        matchClause->setHint(transformJoinHint(*ctx.kU_Hint()->kU_JoinNode()));
     }
     return matchClause;
 }
 
-std::vector<std::vector<std::string>> Transformer::transformHint(CypherParser::OC_HintContext& ctx){
-    std::vector<std::vector<std::string>> hints;
-    for (const auto& hintPart : ctx.oC_Hint_Part()){
-        std::vector<std::string> group;
-        for (const auto& symbolicName : hintPart->oC_SymbolicName()){
-            group.push_back(transformSymbolicName(*symbolicName)) ;
+std::shared_ptr<JoinHintNode> Transformer::transformJoinHint(
+    CypherParser::KU_JoinNodeContext& ctx) {
+    if (!ctx.MULTI_JOIN().empty()) {
+        auto joinNode = std::make_shared<JoinHintNode>();
+        joinNode->addChild(transformJoinHint(*ctx.kU_JoinNode(0)));
+        for (auto& schemaNameCtx : ctx.oC_SchemaName()) {
+            joinNode->addChild(std::make_shared<JoinHintNode>(transformSchemaName(*schemaNameCtx)));
         }
-        hints.push_back(group);
+        return joinNode;
     }
-    return hints;
+    if (!ctx.oC_SchemaName().empty()) {
+        return std::make_shared<JoinHintNode>(transformSchemaName(*ctx.oC_SchemaName(0)));
+    }
+    if (ctx.kU_JoinNode().size() == 1) {
+        return transformJoinHint(*ctx.kU_JoinNode(0));
+    }
+    KU_ASSERT(ctx.kU_JoinNode().size() == 2);
+    auto joinNode = std::make_shared<JoinHintNode>();
+    joinNode->addChild(transformJoinHint(*ctx.kU_JoinNode(0)));
+    joinNode->addChild(transformJoinHint(*ctx.kU_JoinNode(1)));
+    return joinNode;
 }
 
 std::unique_ptr<ReadingClause> Transformer::transformUnwind(CypherParser::OC_UnwindContext& ctx) {
