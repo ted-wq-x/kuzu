@@ -24,7 +24,8 @@ RelDetachDeleteState::RelDetachDeleteState() {
 
 RelTable::RelTable(StorageManager* storageManager, MemoryManager* memoryManager,
     RelTableCatalogEntry* relTableEntry)
-    : Table{relTableEntry, storageManager->getRelsStatistics(), memoryManager, &storageManager->getWAL()} {
+    : Table{relTableEntry, storageManager->getRelsStatistics(), memoryManager, &storageManager->getWAL()},
+      toNodeTableID{relTableEntry->getDstTableID()} {
     bool enableCompression = storageManager->compressionEnabled();
     BMFileHandle* dataFH = storageManager->getDataFH();
     auto metadataDAC = storageManager->getMetadataDAC();
