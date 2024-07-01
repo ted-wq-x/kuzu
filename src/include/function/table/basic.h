@@ -23,6 +23,69 @@ using namespace kuzu::binder;
 namespace kuzu {
 namespace function {
 
+class InternalIDBitSet {
+public:
+    InternalIDBitSet(Catalog* catalog, storage::StorageManager* storage,
+        transaction::Transaction* tx) {
+        auto nodeTableIDs = catalog->getNodeTableIDs(tx);
+        auto maxNodeTableID = *std::max_element(nodeTableIDs.begin(), nodeTableIDs.end()) + 1;
+        nodeIDMark.resize(maxNodeTableID);
+        for (auto tableID : nodeTableIDs) {
+            auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
+            auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
+            nodeIDMark[tableID].reserve(size);
+            nodeIDMark[tableID].resize(size, 0);
+        }
+    }
+
+    inline bool isVisited(internalID_t& nodeID) {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        return (nodeIDMark[nodeID.tableID][block] >> pos) & 1;
+    }
+
+    inline void markVisited(internalID_t& nodeID) {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        nodeIDMark[nodeID.tableID][block] |= (1ULL << pos);
+    }
+
+    inline void markVisited(uint32_t tableID, uint32_t pos, uint64_t value) {
+        nodeIDMark[tableID][pos] |= value;
+    }
+
+    inline uint64_t getAndReset(uint32_t tableID, uint32_t pos) {
+        auto& val = nodeIDMark[tableID][pos];
+        uint64_t temp = val;
+        val = 0;
+        return temp;
+    }
+
+    inline bool markIfUnVisitedReturnVisited(InternalIDBitSet& visitedBitSet,
+        internalID_t& nodeID) {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        if ((visitedBitSet.nodeIDMark[nodeID.tableID][block] >> pos) & 1) {
+            return true;
+        } else {
+            nodeIDMark[nodeID.tableID][block] |= (1ULL << pos);
+            return false;
+        }
+    }
+
+    inline uint32_t getTableNum() { return nodeIDMark.size(); }
+
+    inline uint32_t getTableSize(uint32_t tableID) { return nodeIDMark[tableID].size(); }
+
+    inline static offset_t getNodeOffset(uint32_t blockID, uint64_t pos) {
+        // bitset的每一个元素实际标记了64个元素是否存在,i<<6是该元素offset的起点位置，加上pos%67就是实际offset的值
+        return (blockID << 6) + numTable[pos % 67];
+    }
+
+private:
+    // tableID==>blockID==>mark
+    std::vector<std::vector<uint64_t>> nodeIDMark;
+
+    const static std::vector<uint8_t> numTable;
+};
+
 class RelTableInfo {
 public:
     explicit RelTableInfo(transaction::Transaction* tx, storage::StorageManager* storage,
@@ -225,5 +288,34 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
     }
 }
 
+static nodeID_t getNodeID(main::ClientContext* context, std::string tableName,
+    std::string primaryKey) {
+    auto catalog = context->getCatalog();
+    auto tx = context->getTx();
+    auto storage = context->getStorageManager();
+    if (tableName.empty()) {
+        auto nodeTableIDs = catalog->getNodeTableIDs(tx);
+        std::vector<nodeID_t> nodeIDs;
+        for (auto tableID : nodeTableIDs) {
+            auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
+            auto offset = getOffset(tx, nodeTable, primaryKey);
+            if (offset != INVALID_OFFSET) {
+                nodeIDs.emplace_back(offset, tableID);
+            }
+        }
+        if (nodeIDs.size() != 1) {
+            throw RuntimeException("Invalid primary key");
+        }
+        return nodeIDs.back();
+    } else {
+        auto tableID = catalog->getTableID(tx, tableName);
+        auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
+        auto offset = getOffset(tx, nodeTable, primaryKey);
+        if (offset == INVALID_OFFSET) {
+            throw RuntimeException("Invalid primary key");
+        }
+        return nodeID_t{offset, tableID};
+    }
+}
 } // namespace function
 } // namespace kuzu

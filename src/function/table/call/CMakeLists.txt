@@ -12,6 +12,7 @@ add_library(kuzu_table_call
         sssp.cpp
         storage_info.cpp
         table_info.cpp
+        basic.cpp
         )
 
 set(ALL_OBJECT_FILES
