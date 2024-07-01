@@ -9,7 +9,7 @@ static common::offset_t tableFunc(TableFuncInput& input, TableFuncOutput& output
 
 static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* context,
     TableFuncBindInput* input) {
-    return rewriteBindFunc(context, input, {"khop_num"});
+    return rewriteBindFunc(context, input, {"node_num"});
 }
 
 function_set GraphBspKhopFunction::getFunctionSet() {

@@ -178,7 +178,7 @@ static uint64_t funcTask(KhopSharedData& sharedData, uint32_t threadId, bool isF
     }
     uint64_t edgeCount = 0;
     while (true) {
-        uint32_t tid = sharedData.taskID++;
+        uint32_t tid = sharedData.taskID.fetch_add(1, std::memory_order_relaxed);
         if (tid >= sharedData.nextFrontier.size()) {
             break;
         }
@@ -272,6 +272,9 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
     auto numThreads = bindData->numThreads;
     if (maxHop == 0) {
         dataChunk.getValueVector(0)->setValue<int64_t>(pos, 0);
+        if (isRc) {
+            dataChunk.getValueVector(1)->setValue<int64_t>(pos, 0);
+        }
         return 1;
     }
     KhopSharedData sharedData(bindData);
@@ -357,10 +360,7 @@ static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* c
     auto numThreads = input->inputs[5].getValue<int64_t>();
     KU_ASSERT(numThreads >= 0);
     auto nodeFilterStr = input->inputs[6].getValue<std::string>();
-
-    if (!nodeFilterStr.empty()) {
-        KU_ASSERT(false);
-    }
+    KU_ASSERT(nodeFilterStr.empty());
 
     // fixme wq 当前只支持边的属性过滤
     auto relFilterStr = input->inputs[7].getValue<std::string>();

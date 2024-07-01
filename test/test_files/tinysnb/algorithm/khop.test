@@ -12,7 +12,7 @@
 -LOG q2
 -STATEMENT call graph_bsp_khop_rc('2','person','both',3,0,1,'','') return *
 ---- 1
-30
+10|30
 
 -LOG q3
 -STATEMENT call graph_bsp_khop('0','person','in',5,0,2,'','') return *
@@ -22,7 +22,7 @@
 -LOG q4
 -STATEMENT call graph_bsp_khop_rc('7','person','out',5,0,2,'','') return *
 ---- 1
-29
+9|29
 
 -LOG q5
 -STATEMENT call graph_bsp_khop('2','person','both',3,0,4,'','') return *
@@ -32,7 +32,7 @@
 -LOG q6
 -STATEMENT call graph_bsp_khop_rc('2','person','both',3,0,4,'','') return *
 ---- 1
-30
+10|30
 
 -LOG q7
 -STATEMENT call graph_bsp_khop('2','','both',3,0,4,'','') return *
@@ -42,7 +42,7 @@
 -LOG q8
 -STATEMENT call graph_bsp_khop_rc('2','','both',3,0,4,'','') return *
 ---- 1
-30
+10|30
 
 -CASE Kth-hopAlgorithmTest
 
@@ -54,7 +54,7 @@
 -LOG q10
 -STATEMENT call graph_bsp_khop_rc('2','person','both',3,1,1,'','') return *
 ---- 1
-8
+0|8
 
 -LOG q11
 -STATEMENT call graph_bsp_khop('0','person','in',5,1,2,'','') return *
@@ -64,7 +64,7 @@
 -LOG q12
 -STATEMENT call graph_bsp_khop_rc('7','person','out',5,1,2,'','') return *
 ---- 1
-15
+0|15
 
 -LOG q13
 -STATEMENT call graph_bsp_khop('2','person','both',3,1,4,'','') return *
@@ -74,7 +74,7 @@
 -LOG q14
 -STATEMENT call graph_bsp_khop_rc('2','person','both',3,1,4,'','') return *
 ---- 1
-8
+0|8
 
 -LOG q15
 -STATEMENT call graph_bsp_khop('2','','both',3,1,4,'','') return *
@@ -84,4 +84,4 @@
 -LOG q16
 -STATEMENT call graph_bsp_khop_rc('2','','both',3,1,4,'','') return *
 ---- 1
-8
+0|8
