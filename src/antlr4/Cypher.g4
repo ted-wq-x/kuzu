@@ -189,10 +189,10 @@ oC_AnyCypherOption
         | oC_Profile ;
 
 oC_Explain
-    : EXPLAIN ;
+    : SP* EXPLAIN ;
 
 oC_Profile
-    : PROFILE ;
+    : SP* PROFILE ;
 
 kU_Transaction
     : BEGIN SP TRANSACTION
@@ -379,6 +379,15 @@ oC_RelationshipPattern
 oC_RelationshipDetail
     : '[' SP? ( oC_Variable SP? )? ( oC_RelationshipTypes SP? )? ( oC_RangeLiteral SP? )? ( kU_Properties SP? )? ']' ;
 
+oC_NodePatternForAlgo
+    : '(' SP? ( oC_Variable SP? )? ( oC_NodeLabels SP? )? (oC_Where SP? )? ')' ;
+
+oC_RelationshipDetailForAlgo
+    : '[' SP? ( oC_Variable SP? )? ( oC_RelationshipTypes SP? )? (oC_Where SP? )? ']' ;
+
+oC_AlgoParameter
+    : oC_NodePatternForAlgo | oC_RelationshipDetailForAlgo ;
+
 // The original oC_Properties definition is  oC_MapLiteral | oC_Parameter.
 // We choose to not support parameter as properties which will be the decision for a long time.
 // We then substitute with oC_MapLiteral definition. We create oC_MapLiteral only when we decide to add MAP type.
@@ -389,10 +398,7 @@ oC_RelationshipTypes
     :  ':' SP? oC_RelTypeName ( SP? '|' ':'? SP? oC_RelTypeName )* ;
 
 oC_NodeLabels
-    :  oC_NodeLabel ( SP? oC_NodeLabel )* ;
-
-oC_NodeLabel
-    : ':' SP? oC_LabelName ;
+    :  ':' SP? oC_LabelName ( SP? '|'? ':'? SP? oC_LabelName )* ;
 
 oC_RangeLiteral
     :  '*' SP? ( SHORTEST | ALL SP SHORTEST )? SP? (oC_LowerBound? SP? '..' SP? oC_UpperBound? | oC_IntegerLiteral)? (SP? kU_RecursiveRelationshipComprehension)? ;
@@ -434,14 +440,10 @@ oC_NotExpression
     : ( NOT SP? )*  oC_ComparisonExpression ;
 
 oC_ComparisonExpression
-    : kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )?
-        | kU_BitwiseOrOperatorExpression ( SP? INVALID_NOT_EQUAL SP? kU_BitwiseOrOperatorExpression ) { notifyInvalidNotEqualOperator($INVALID_NOT_EQUAL); }
-        | kU_BitwiseOrOperatorExpression SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )+ { notifyNonBinaryComparison($ctx->start); }
-        ;
+    : kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )*
+        | kU_BitwiseOrOperatorExpression SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression ( SP? kU_ComparisonOperator SP? kU_BitwiseOrOperatorExpression )+ { notifyNonBinaryComparison($ctx->start); } ;
 
-kU_ComparisonOperator : '=' | '<>' | '<' | '<=' | '>' | '>=' ;
-
-INVALID_NOT_EQUAL : '!=' ;
+kU_ComparisonOperator : '=' | '<>' | '<' | '<=' | '>' | '>='| '!=' ;
 
 kU_BitwiseOrOperatorExpression
     : kU_BitwiseAndOperatorExpression ( SP? '|' SP? kU_BitwiseAndOperatorExpression )* ;

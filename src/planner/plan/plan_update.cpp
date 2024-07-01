@@ -66,7 +66,6 @@ void Planner::planMergeClause(const BoundUpdatingClause* updatingClause, Logical
     }
     std::shared_ptr<Expression> distinctMark = nullptr;
     expression_vector corrExprs;
-    const std::vector<std::vector<std::string>> hint;
     if (!plan.isEmpty()) {
         distinctMark = mergeClause->getDistinctMark();
         corrExprs = getCorrelatedExprs(*mergeClause->getQueryGraphCollection(), predicates,
@@ -78,7 +77,7 @@ void Planner::planMergeClause(const BoundUpdatingClause* updatingClause, Logical
     }
     auto existenceMark = mergeClause->getExistenceMark();
     planOptionalMatch(*mergeClause->getQueryGraphCollection(), predicates, corrExprs, existenceMark,
-        plan, hint);
+        plan);
     auto merge =
         std::make_shared<LogicalMerge>(existenceMark, distinctMark, plan.getLastOperator());
     if (mergeClause->hasInsertNodeInfo()) {

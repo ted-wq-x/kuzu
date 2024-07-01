@@ -90,9 +90,7 @@ public:
     bool containsQueryNode(const std::string& queryNodeName) const {
         return queryNodeNameToPosMap.contains(queryNodeName);
     }
-    bool containsQueryNodeByAliasName(const std::string& queryNodeAliasName) const {
-        return queryNodeAliasNameToPosMap.contains(queryNodeAliasName);
-    }
+
     std::vector<std::shared_ptr<NodeExpression>> getQueryNodes() const { return queryNodes; }
     std::shared_ptr<NodeExpression> getQueryNode(const std::string& queryNodeName) const {
         return queryNodes[getQueryNodeIdx(queryNodeName)];
@@ -115,17 +113,11 @@ public:
     common::idx_t getQueryNodeIdx(const std::string& queryNodeName) const {
         return queryNodeNameToPosMap.at(queryNodeName);
     }
-    inline uint32_t getQueryNodePosByAliasName(const std::string& queryNodeAliasName) const {
-        return queryNodeAliasNameToPosMap.at(queryNodeAliasName);
-    }
     void addQueryNode(std::shared_ptr<NodeExpression> queryNode);
 
     common::idx_t getNumQueryRels() const { return queryRels.size(); }
     bool containsQueryRel(const std::string& queryRelName) const {
         return queryRelNameToPosMap.contains(queryRelName);
-    }
-    bool containsQueryRelByAliasName(const std::string& queryRelAliasName) const {
-        return queryRelAliasNameToPosMap.contains(queryRelAliasName);
     }
     std::vector<std::shared_ptr<RelExpression>> getQueryRels() const { return queryRels; }
     std::shared_ptr<RelExpression> getQueryRel(const std::string& queryRelName) const {
@@ -137,9 +129,6 @@ public:
     common::idx_t getQueryRelIdx(const std::string& queryRelName) const {
         return queryRelNameToPosMap.at(queryRelName);
     }
-    inline uint32_t getQueryRelPosByAliasName(const std::string& queryRelAliasName) const {
-        return queryRelAliasNameToPosMap.at(queryRelAliasName);
-    }
     void addQueryRel(std::shared_ptr<RelExpression> queryRel);
 
     bool canProjectExpression(const std::shared_ptr<Expression>& expression) const;
@@ -149,32 +138,11 @@ public:
     void merge(const QueryGraph& other);
 
     std::unique_ptr<QueryGraph> copy() const { return std::make_unique<QueryGraph>(*this); }
-
-    std::set<std::string> getQueryNodeNames() const { return getKeyFromMap(queryNodeNameToPosMap); }
-    std::set<std::string> getQueryNodeAliasNames() const {
-        return getKeyFromMap(queryNodeAliasNameToPosMap);
-    }
-    std::set<std::string> getQueryRelNames() const { return getKeyFromMap(queryRelNameToPosMap); }
-    std::set<std::string> getQueryRelAliasNames() const {
-        return getKeyFromMap(queryRelAliasNameToPosMap);
-    }
-
 private:
-    std::unordered_map<std::string, uint32_t> queryNodeAliasNameToPosMap;
-    std::unordered_map<std::string, uint32_t> queryRelAliasNameToPosMap;
     std::unordered_map<std::string, uint32_t> queryNodeNameToPosMap;
     std::unordered_map<std::string, uint32_t> queryRelNameToPosMap;
     std::vector<std::shared_ptr<NodeExpression>> queryNodes;
     std::vector<std::shared_ptr<RelExpression>> queryRels;
-
-    template<typename T>
-    static std::set<std::string> getKeyFromMap(const T& map) {
-        std::set<std::string> set;
-        for (const auto& item : map) {
-            set.insert(item.first);
-        }
-        return set;
-    }
 };
 
 // QueryGraphCollection represents a pattern (a set of connected components) specified in MATCH

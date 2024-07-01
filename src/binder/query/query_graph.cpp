@@ -196,9 +196,6 @@ void QueryGraph::addQueryNode(std::shared_ptr<NodeExpression> queryNode) {
         return;
     }
     queryNodeNameToPosMap.insert({queryNode->getUniqueName(), queryNodes.size()});
-    if (!queryNode->getAlias().empty()) {
-        queryNodeAliasNameToPosMap.insert({queryNode->getAlias(), queryNodes.size()});
-    }
     queryNodes.push_back(std::move(queryNode));
 }
 
@@ -207,9 +204,6 @@ void QueryGraph::addQueryRel(std::shared_ptr<RelExpression> queryRel) {
         return;
     }
     queryRelNameToPosMap.insert({queryRel->getUniqueName(), queryRels.size()});
-    if (!queryRel->getAlias().empty()) {
-        queryRelAliasNameToPosMap.insert({queryRel->getAlias(), queryRels.size()});
-    }
     queryRels.push_back(std::move(queryRel));
 }
 
