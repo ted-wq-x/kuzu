@@ -98,13 +98,14 @@ public:
     RuleOC_Atom = 140, RuleOC_Literal = 141, RuleOC_BooleanLiteral = 142, 
     RuleOC_ListLiteral = 143, RuleKU_ListEntry = 144, RuleKU_StructLiteral = 145, 
     RuleKU_StructField = 146, RuleOC_ParenthesizedExpression = 147, RuleOC_FunctionInvocation = 148, 
-    RuleOC_FunctionName = 149, RuleKU_FunctionParameter = 150, RuleOC_PathPatterns = 151, 
-    RuleOC_ExistSubquery = 152, RuleKU_CountSubquery = 153, RuleOC_PropertyLookup = 154, 
-    RuleOC_CaseExpression = 155, RuleOC_CaseAlternative = 156, RuleOC_Variable = 157, 
-    RuleOC_NumberLiteral = 158, RuleOC_Parameter = 159, RuleOC_PropertyExpression = 160, 
-    RuleOC_PropertyKeyName = 161, RuleOC_IntegerLiteral = 162, RuleOC_DoubleLiteral = 163, 
-    RuleOC_SchemaName = 164, RuleOC_SymbolicName = 165, RuleKU_NonReservedKeywords = 166, 
-    RuleOC_LeftArrowHead = 167, RuleOC_RightArrowHead = 168, RuleOC_Dash = 169
+    RuleOC_FunctionName = 149, RuleKU_FunctionParameter = 150, RuleKU_LambdaParameter = 151, 
+    RuleOC_PathPatterns = 152, RuleOC_ExistSubquery = 153, RuleKU_CountSubquery = 154, 
+    RuleOC_PropertyLookup = 155, RuleOC_CaseExpression = 156, RuleOC_CaseAlternative = 157, 
+    RuleOC_Variable = 158, RuleOC_NumberLiteral = 159, RuleOC_Parameter = 160, 
+    RuleOC_PropertyExpression = 161, RuleOC_PropertyKeyName = 162, RuleOC_IntegerLiteral = 163, 
+    RuleOC_DoubleLiteral = 164, RuleOC_SchemaName = 165, RuleOC_SymbolicName = 166, 
+    RuleKU_NonReservedKeywords = 167, RuleOC_LeftArrowHead = 168, RuleOC_RightArrowHead = 169, 
+    RuleOC_Dash = 170
   };
 
   explicit CypherParser(antlr4::TokenStream *input);
@@ -275,6 +276,7 @@ public:
   class OC_FunctionInvocationContext;
   class OC_FunctionNameContext;
   class KU_FunctionParameterContext;
+  class KU_LambdaParameterContext;
   class OC_PathPatternsContext;
   class OC_ExistSubqueryContext;
   class KU_CountSubqueryContext;
@@ -2564,11 +2566,28 @@ public:
     antlr4::tree::TerminalNode *COLON();
     std::vector<antlr4::tree::TerminalNode *> SP();
     antlr4::tree::TerminalNode* SP(size_t i);
+    KU_LambdaParameterContext *kU_LambdaParameter();
 
    
   };
 
   KU_FunctionParameterContext* kU_FunctionParameter();
+
+  class  KU_LambdaParameterContext : public antlr4::ParserRuleContext {
+  public:
+    KU_LambdaParameterContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<OC_SymbolicNameContext *> oC_SymbolicName();
+    OC_SymbolicNameContext* oC_SymbolicName(size_t i);
+    antlr4::tree::TerminalNode *MINUS();
+    OC_ExpressionContext *oC_Expression();
+    std::vector<antlr4::tree::TerminalNode *> SP();
+    antlr4::tree::TerminalNode* SP(size_t i);
+
+   
+  };
+
+  KU_LambdaParameterContext* kU_LambdaParameter();
 
   class  OC_PathPatternsContext : public antlr4::ParserRuleContext {
   public:

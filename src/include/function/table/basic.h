@@ -266,7 +266,8 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
             for (auto& prop : props) {
                 schema.insertToGroupAndScope(prop, 0);
             }
-            relFilter = processor::ExpressionMapper::getEvaluator(whereExpression, &schema);
+            processor::ExpressionMapper expressionMapper(&schema);
+            relFilter = expressionMapper.getEvaluator(whereExpression);
 
             std::vector<LogicalTypeID> relColumnTypes;
             for (const auto& item : schema.getExpressionsInScope()) {
