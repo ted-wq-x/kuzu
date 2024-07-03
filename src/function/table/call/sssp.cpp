@@ -10,6 +10,8 @@ namespace kuzu {
 namespace function {
 
 struct SsspBindData : public CallTableFuncBindData {
+    static constexpr uint32_t BLOCK_SIZE = 64 * sizeof(uint32_t);
+
     SsspBindData(main::ClientContext* context, std::string srcPrimaryKey, std::string srcTableName,
         std::string dstPrimaryKey, std::string dstTableName, std::string direction, int64_t maxHop,
         std::string mode, int64_t numThreads, std::unordered_set<std::string> nodeFilter,
@@ -35,8 +37,11 @@ struct SsspBindData : public CallTableFuncBindData {
 };
 
 struct MemoryPool {
+    ~MemoryPool() { munmap(memory, memorySize); }
+
     inline void init(uint32_t numBlocks) {
-        memorySize = numBlocks * BLOCK_SIZE;
+        memorySize = numBlocks * SsspBindData::BLOCK_SIZE;
+        // 默认初始化为0
         memory = mmap(NULL, memorySize, PROT_READ | PROT_WRITE,
             MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
         poolMemory = static_cast<uint32_t*>(memory);
@@ -46,10 +51,7 @@ struct MemoryPool {
         auto index = usedBlocks.fetch_add(1, std::memory_order_relaxed);
         return poolMemory + index * 64;
     }
-    
-    ~MemoryPool() { munmap(memory, memorySize); }
 
-    static constexpr uint32_t BLOCK_SIZE = 64 * sizeof(uint32_t);
     uint32_t memorySize;
     std::atomic_uint32_t usedBlocks = 0;
     void* memory;
@@ -65,6 +67,7 @@ struct UnionResult {
 struct Value {
     uint64_t mark = 0;
     uint32_t* count = nullptr;
+    // 以下方法都是unsafe的,需要自己保证count!=nullptr
     inline void merge(Value& other) {
         mark |= other.mark;
 
@@ -75,8 +78,10 @@ struct Value {
 
     inline void reset() {
         mark = 0;
-        std::memset(count, 0, sizeof(uint32_t) * 64);
+        std::memset(count, 0, SsspBindData::BLOCK_SIZE);
     }
+
+    inline void free() { delete[] count; }
 };
 
 class InternalIDValueBitSet {
@@ -96,7 +101,6 @@ public:
         }
         pool.init(numBlocks);
     }
-    // fixme copy new one,skip calc some additional info
 
     inline bool isVisited(internalID_t& nodeID) {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
@@ -128,11 +132,17 @@ public:
 
     inline uint32_t getTableSize(uint32_t tableID) const { return nodeIDMark[tableID].size(); }
 
-    inline MemoryPool& getMemoryPool() { return pool; }
+    inline void merge(uint32_t tableID, uint32_t pos, Value& other) {
+        auto& value = nodeIDMark[tableID][pos];
+        if (value.count == nullptr) {
+            value.count = pool.allocate();
+        }
+        value.merge(other);
+    }
 
 private:
-    // tableID==>blockID==>mark
     MemoryPool pool;
+    // tableID==>blockID==>mark
     std::vector<std::vector<Value>> nodeIDMark;
 };
 
@@ -226,13 +236,13 @@ public:
             }
             srcVector.setValue<nodeID_t>(0, currentNodeID);
             relTable->initializeScanState(sharedData.tx, readState);
-            // todo 先判断有没有再获取count?
+
             auto count = globalBitSet->getNodeValueCount(currentNodeID);
             while (readState.hasMoreToRead(sharedData.tx)) {
                 relTable->scan(sharedData.tx, readState);
                 KU_ASSERT(dstState->getSelVector().isUnfiltered());
                 for (auto i = 0u; i < dstState->getSelVector().getSelSize(); ++i) {
-                    auto nbrID = dstVector.getValue<nodeID_t>(i);             
+                    auto nbrID = dstVector.getValue<nodeID_t>(i);
                     if (globalBitSet->isVisited(nbrID)) {
                         continue;
                     }
@@ -312,13 +322,10 @@ public:
                 if (!now) {
                     continue;
                 }
-                auto& value = globalBitSet->getNodeValue(tableID, i);
-                if (value.count == nullptr) {
-                    value.count = globalBitSet->getMemoryPool().allocate();
-                }
-                value.merge(mark);
-                delete[] mark.count;
-                
+
+                globalBitSet->merge(tableID, i, mark);
+                mark.free();
+
                 uint64_t pos;
                 while (now) {
                     // now & (now - 1) 去掉最低位的1 ,取最低位的值  pos=now & -now
@@ -328,7 +335,7 @@ public:
                     auto otherSideCount = otherScanState.globalBitSet->getNodeValueCount(nowNode);
                     if (otherSideCount) {
                         ans += 1LL * globalBitSet->getNodeValueCount(nowNode) * otherSideCount;
-                    } 
+                    }
                     if (!ans) {
                         if ((!nextMission.empty() &&
                                 ((nextMission.back().offset ^ nowNode.offset) >>
@@ -362,7 +369,7 @@ public:
         for (auto& thread : threads) {
             thread.join();
         }
-        
+
         std::vector<std::future<UnionResult>> unionFuture;
         for (auto i = 0u; i < sharedData.numThreads; i++) {
             unionFuture.emplace_back(
