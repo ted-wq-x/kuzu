@@ -118,6 +118,11 @@ Bob|Dan
 2021-06-30|Carol
 2021-06-30|Dan
 
+-LOG DistinctRecursiveRel
+-STATEMENT MATCH (:person), (a:person)-[t:knows*2..2]->(b:person) RETURN count(DISTINCT t);
+---- 1
+36
+
 -LOG PathDistinct
 -STATEMENT MATCH p=(a:person)-[:knows]->(:person) WHERE a.ID = 5 RETURN count(distinct p);
 ---- 1
