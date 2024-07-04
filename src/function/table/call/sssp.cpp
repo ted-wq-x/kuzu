@@ -47,13 +47,19 @@ struct MemoryPool {
         poolMemory = static_cast<uint32_t*>(memory);
     }
 
+    inline uint32_t* allocateAtomic() {
+        auto index = atomicUsedBlocks.fetch_add(1, std::memory_order_relaxed);
+        return poolMemory + index * 64;
+    }
+
     inline uint32_t* allocate() {
-        auto index = usedBlocks.fetch_add(1, std::memory_order_relaxed);
+        auto index = usedBlocks++;
         return poolMemory + index * 64;
     }
 
     uint32_t memorySize;
-    std::atomic_uint32_t usedBlocks = 0;
+    uint32_t usedBlocks = 0;
+    std::atomic_uint32_t atomicUsedBlocks = 0;
     void* memory;
     uint32_t* poolMemory;
 };
@@ -135,7 +141,7 @@ public:
     inline void merge(uint32_t tableID, uint32_t pos, Value& other) {
         auto& value = nodeIDMark[tableID][pos];
         if (value.count == nullptr) {
-            value.count = pool.allocate();
+            value.count = pool.allocateAtomic();
         }
         value.merge(other);
     }
