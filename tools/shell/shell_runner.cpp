@@ -11,8 +11,7 @@ using namespace kuzu::common;
 
 int main(int argc, char* argv[]) {
     args::ArgumentParser parser("KuzuDB Shell");
-    args::Positional<std::string> inputDirFlag(parser, "databasePath", "Database path.",
-        args::Options::Required);
+    args::Positional<std::string> inputDirFlag(parser, "databasePath", "Database path.");
     args::HelpFlag help(parser, "help", "Display this help menu", {'h', "help"});
     args::ValueFlag<uint64_t> bpSizeInMBFlag(parser, "",
         "Size of buffer pool for default and large page sizes in megabytes", {'d', "defaultBPSize"},
@@ -27,14 +26,25 @@ int main(int argc, char* argv[]) {
     args::ValueFlag<std::string> explainQuery(parser, "", "Explain Query", {"eq"});
     try {
         parser.ParseCLI(argc, argv);
-    } catch (std::exception& e) {
+    } catch (const args::Help&) {
+        std::cout << parser;
+        return 0;
+    } catch (const args::ParseError& e) {
         std::cerr << e.what() << '\n';
         std::cerr << parser;
         return 1;
     }
-    auto databasePath = args::get(inputDirFlag);
-    auto pathToHistory = args::get(historyPathFlag);
-    auto explainQueryCypher = args::get(explainQuery);
+
+    if (version) {
+        std::cout << "Kuzu " << KUZU_CMAKE_VERSION << '\n';
+        return 0;
+    }
+    if (!inputDirFlag) {
+        std::cerr << "Option '" + inputDirFlag.Name() + "' is required" << '\n';
+        std::cerr << parser;
+        return 1;
+    }
+
     uint64_t bpSizeInMB = args::get(bpSizeInMBFlag);
     uint64_t bpSizeInBytes = -1u;
     if (bpSizeInMB != -1u) {
@@ -47,22 +57,12 @@ int main(int argc, char* argv[]) {
     if (readOnlyMode) {
         systemConfig.readOnly = true;
     }
+    auto databasePath = args::get(inputDirFlag);
     std::shared_ptr<Database> database = std::make_shared<Database>(databasePath, systemConfig);
     std::shared_ptr<Connection> conn = std::make_shared<Connection>(database.get());
-    if (version) {
-        auto queryResult = conn->query("CALL db_version() RETURN version");
-        if (queryResult->isSuccess()) {
-            std::string dbVersion = queryResult->getNext()->getValue(0)->toString();
-            std::cout << "Kuzu " << dbVersion << '\n';
-            return 0;
-        } else {
-            std::cerr << "Unable to find current database version" << '\n';
-            return 1;
-        }
-    }
+
+    auto explainQueryCypher = args::get(explainQuery);
     if (!explainQueryCypher.empty()) {
-        std::unique_ptr<Database> database = std::make_unique<Database>(databasePath, systemConfig);
-        std::unique_ptr<Connection> conn = std::make_unique<Connection>(database.get());
         auto queryResult = conn->query(explainQueryCypher);
         if (queryResult->isSuccess()) {
             if (queryResult->getQuerySummary()->isExplain()) {
@@ -76,6 +76,8 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     }
+
+    auto pathToHistory = args::get(historyPathFlag);
     if (!pathToHistory.empty() && pathToHistory.back() != '/') {
         pathToHistory += '/';
     }
