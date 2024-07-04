@@ -202,5 +202,11 @@ struct ListFilterFunction {
     static function_set getFunctionSet();
 };
 
+struct ListReduceFunction {
+    static constexpr const char* name = "LIST_REDUCE";
+
+    static function_set getFunctionSet();
+};
+
 } // namespace function
 } // namespace kuzu

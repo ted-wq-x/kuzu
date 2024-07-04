@@ -124,6 +124,7 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(ListAnyValueFunction), SCALAR_FUNCTION(ListReverseFunction),
         SCALAR_FUNCTION(SizeFunction), SCALAR_FUNCTION(ListToStringFunction),
         SCALAR_FUNCTION(ListTransformFunction), SCALAR_FUNCTION(ListFilterFunction),
+        SCALAR_FUNCTION(ListReduceFunction),
         SCALAR_FUNCTION_ALIAS2(ListAppendFunction), SCALAR_FUNCTION_ALIAS2(ListSortFunction),
         SCALAR_FUNCTION_ALIAS2(SizeFunction), SCALAR_FUNCTION(ListApplyFunction),
         SCALAR_FUNCTION(ListHeadFunction), SCALAR_FUNCTION(ListTailFunction),
