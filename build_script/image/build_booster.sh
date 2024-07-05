@@ -16,7 +16,9 @@ function build_booster
     sed -i 's|'${DEFAULT_BASE_IMAGE}'|'${EXPECTED_BASE_IMAGE}'|g' docker/x86/builder/Dockerfile
 
     source /opt/rh/gcc-toolset-11/enable
-    
+
+    make test NUM_THREADS=$(nproc)
+
     make booster NUM_THREADS=$(nproc)
 
     docker build --network=host -t ${IMAGE_NAME} -f docker/x86/builder/Dockerfile .

@@ -333,7 +333,7 @@ oC_ProjectionItem
         ;
 
 oC_Order
-    : ORDER SP BY SP oC_SortItem ( ',' SP? oC_SortItem )* ;
+    : ORDER SP BY SP oC_SortItem ( SP? ',' SP? oC_SortItem )* ;
 
 oC_Skip
     :  L_SKIP SP oC_Expression ;
