@@ -186,7 +186,7 @@ if (ENABLE_BACKTRACES)
         FetchContent_Declare(
           cpptrace
           GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-          GIT_TAG        v0.5.4
+          GIT_TAG        v0.6.2
           GIT_SHALLOW    TRUE
         )
         FetchContent_MakeAvailable(cpptrace)

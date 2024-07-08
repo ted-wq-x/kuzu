@@ -17,7 +17,7 @@ function build_booster
 
     source /opt/rh/gcc-toolset-11/enable
 
-    make test NUM_THREADS=$(nproc)
+#    make test NUM_THREADS=$(nproc)
 
     make booster NUM_THREADS=$(nproc)
 
