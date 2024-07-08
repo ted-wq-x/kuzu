@@ -256,9 +256,10 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
         if (algoPara->hasWherePredicate()) {
             auto [whereExpression, nbrNodeExp] = parseExpr(context, algoPara.get());
             // 确定属性的位置
-            auto expressionCollector = binder::ExpressionCollector();
-            props = binder::ExpressionUtil::removeDuplication(
-                expressionCollector.collectPropertyExpressions(whereExpression));
+            auto expressionCollector = binder::PropertyExprCollector();
+            expressionCollector.visit(whereExpression);
+            props =
+                binder::ExpressionUtil::removeDuplication(expressionCollector.getPropertyExprs());
 
             auto schema = planner::Schema();
             schema.createGroup();
