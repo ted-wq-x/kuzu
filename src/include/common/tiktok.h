@@ -21,15 +21,15 @@ public:
         auto stopTime = std::chrono::high_resolution_clock::now();
         auto duration = stopTime - startTime;
         runningTime +=
-            (double)std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+            (double)std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
         finished = true;
     }
 
     void add(TikTok& other) { runningTime += other.runningTime; }
-    
+
     double getElapsedTimeInMS() const {
         KU_ASSERT(finished);
-        return runningTime / 1000;
+        return runningTime / 1e6;
     }
 
 private:

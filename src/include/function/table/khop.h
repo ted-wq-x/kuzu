@@ -115,7 +115,7 @@ static void doScan(KhopSharedData& sharedData,
     auto& selectVector = dataChunkToSelect->state->getSelVectorUnsafe();
     auto dstIdDataChunk = dataChunkToSelect->getValueVector(0);
     auto tx = sharedData.context->getTx();
-    for (auto currentNodeID : data) {
+    for (auto &currentNodeID : data) {
         /*we can quick check here (part of checkIfNodeHasRels)*/
         srcVector.setValue<nodeID_t>(0, currentNodeID);
         relTable->initializeScanState(tx, *readState.get());
