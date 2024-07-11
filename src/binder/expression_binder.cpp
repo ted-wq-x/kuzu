@@ -55,7 +55,7 @@ std::shared_ptr<Expression> ExpressionBinder::bindExpression(
         }
     }
     validateAggregationExpressionIsNotNested(expression);
-    if (ExpressionVisitor::needFold(*expression)) {
+    if (ConstantExpressionVisitor::needFold(*expression)) {
         return foldExpression(expression);
     }
     return expression;
