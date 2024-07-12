@@ -145,7 +145,7 @@ private:
 
     void iterateCatalogEntries(transaction::Transaction* transaction,
         std::function<void(CatalogEntry*)> func) const {
-        for (auto& [_, entry] : tables->getEntries(transaction)) {
+        for (auto& entry : tables->getEntries(transaction)) {
             func(entry);
         }
     }
@@ -178,7 +178,7 @@ private:
     // ----------------------------- Sequence entries ----------------------------
     void iterateSequenceCatalogEntries(transaction::Transaction* transaction,
         std::function<void(CatalogEntry*)> func) const {
-        for (auto& [_, entry] : sequences->getEntries(transaction)) {
+        for (auto& entry : sequences->getEntries(transaction)) {
             func(entry);
         }
     }
