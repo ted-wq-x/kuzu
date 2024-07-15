@@ -33,9 +33,9 @@ void StringChunkData::updateNumValues(size_t newValue) {
     indexColumnChunk->setNumValues(newValue);
 }
 
-void StringChunkData::resize(uint64_t newCapacity, bool isInit) {
-    ColumnChunkData::resize(newCapacity, isInit);
-    indexColumnChunk->resize(newCapacity, isInit);
+void StringChunkData::resize(uint64_t newCapacity) {
+    ColumnChunkData::resize(newCapacity);
+    indexColumnChunk->resize(newCapacity);
 }
 
 void StringChunkData::resetToEmpty() {

@@ -132,7 +132,7 @@ std::vector<RDFGraphCatalogEntry*> Catalog::getRdfGraphEntries(Transaction* tx) 
 
 std::vector<TableCatalogEntry*> Catalog::getTableEntries(Transaction* transaction) const {
     std::vector<TableCatalogEntry*> result;
-    for (auto& entry : tables->getEntries(transaction)) {
+    for (auto& [_, entry] : tables->getEntries(transaction)) {
         result.push_back(ku_dynamic_cast<CatalogEntry*, TableCatalogEntry*>(entry));
     }
     return result;
@@ -290,7 +290,7 @@ SequenceCatalogEntry* Catalog::getSequenceCatalogEntry(Transaction* transaction,
 
 std::vector<SequenceCatalogEntry*> Catalog::getSequenceEntries(Transaction* transaction) const {
     std::vector<SequenceCatalogEntry*> result;
-    for (auto& entry : sequences->getEntries(transaction)) {
+    for (auto& [_, entry] : sequences->getEntries(transaction)) {
         result.push_back(ku_dynamic_cast<CatalogEntry*, SequenceCatalogEntry*>(entry));
     }
     return result;
@@ -391,7 +391,7 @@ void Catalog::addScalarMacroFunction(Transaction* transaction, std::string name,
 
 std::vector<std::string> Catalog::getMacroNames(Transaction* transaction) const {
     std::vector<std::string> macroNames;
-    for (auto& function : functions->getEntries(transaction)) {
+    for (auto& [_, function] : functions->getEntries(transaction)) {
         if (function->getType() == CatalogEntryType::SCALAR_MACRO_ENTRY) {
             macroNames.push_back(function->getName());
         }

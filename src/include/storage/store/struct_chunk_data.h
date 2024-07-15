@@ -37,7 +37,7 @@ protected:
     void copy(ColumnChunkData* srcChunk, common::offset_t srcOffsetInChunk,
         common::offset_t dstOffsetInChunk, common::offset_t numValuesToCopy) override;
 
-    void resize(uint64_t newCapacity, bool isInit = true) override;
+    void resize(uint64_t newCapacity) override;
 
     void resetToEmpty() override;
 

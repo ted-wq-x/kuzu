@@ -47,7 +47,7 @@ public:
 
     void finalize() override;
 
-    void resize(uint64_t newCapacity, bool isInit = true) override;
+    void resize(uint64_t newCapacity) override;
 
 private:
     void appendStringColumnChunk(StringChunkData* other, common::offset_t startPosInOtherChunk,

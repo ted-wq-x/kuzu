@@ -392,21 +392,16 @@ void ColumnChunkData::copy(ColumnChunkData* srcChunk, offset_t srcOffsetInChunk,
     append(srcChunk, srcOffsetInChunk, numValuesToCopy);
 }
 
-void ColumnChunkData::resize(uint64_t newCapacity, bool isInit) {
+void ColumnChunkData::resize(uint64_t newCapacity) {
     if (newCapacity > capacity) {
         capacity = newCapacity;
     }
     const auto numBytesAfterResize = getBufferSize(newCapacity);
     if (numBytesAfterResize > bufferSize) {
-        if (isInit) {
-            auto* resizedBuffer = new uint8_t[numBytesAfterResize];
-            memcpy(resizedBuffer, buffer.get(), bufferSize);
-            memset(resizedBuffer + bufferSize, 0, numBytesAfterResize - bufferSize);
-            buffer.reset(resizedBuffer);
-        } else {
-            buffer.reset(new uint8_t[numBytesAfterResize]);
-        }
+        auto resizedBuffer = std::make_unique<uint8_t[]>(numBytesAfterResize);
+        memcpy(resizedBuffer.get(), buffer.get(), bufferSize);
         bufferSize = numBytesAfterResize;
+        buffer = std::move(resizedBuffer);
     }
     if (nullChunk) {
         nullChunk->resize(newCapacity);

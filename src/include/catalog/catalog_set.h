@@ -16,7 +16,7 @@ namespace transaction {
 class Transaction;
 } // namespace transaction
 
-using CatalogEntryVector = std::vector<catalog::CatalogEntry*>;
+using CatalogEntrySet = common::case_insensitive_map_t<catalog::CatalogEntry*>;
 
 namespace catalog {
 class CatalogSet {
@@ -32,7 +32,7 @@ public:
         std::unique_ptr<CatalogEntry> entry);
     void dropEntry(transaction::Transaction* transaction, const std::string& name);
     void alterEntry(transaction::Transaction* transaction, const binder::BoundAlterInfo& alterInfo);
-    CatalogEntryVector getEntries(transaction::Transaction* transaction);
+    CatalogEntrySet getEntries(transaction::Transaction* transaction);
 
     uint64_t assignNextOID() { return nextOID++; }
 

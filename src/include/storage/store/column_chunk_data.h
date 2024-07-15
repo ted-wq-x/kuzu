@@ -105,7 +105,7 @@ public:
 
     // numValues must be at least the number of values the ColumnChunk was first initialized
     // with
-    virtual void resize(uint64_t newCapacity, bool isInit = true);
+    virtual void resize(uint64_t newCapacity);
 
     void populateWithDefaultVal(evaluator::ExpressionEvaluator& defaultEvaluator,
         uint64_t& numValues_);
