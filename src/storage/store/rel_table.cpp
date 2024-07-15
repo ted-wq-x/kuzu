@@ -24,16 +24,18 @@ RelDetachDeleteState::RelDetachDeleteState() {
 
 RelTable::RelTable(StorageManager* storageManager, MemoryManager* memoryManager,
     RelTableCatalogEntry* relTableEntry)
-    : Table{relTableEntry, storageManager->getRelsStatistics(), memoryManager, &storageManager->getWAL()},
+    : Table{relTableEntry, storageManager->getRelsStatistics(), memoryManager,
+          &storageManager->getWAL()},
       toNodeTableID{relTableEntry->getDstTableID()} {
     bool enableCompression = storageManager->compressionEnabled();
     BMFileHandle* dataFH = storageManager->getDataFH();
     auto metadataDAC = storageManager->getMetadataDAC();
     auto relsStoreStats = ku_dynamic_cast<TablesStatistics*, RelsStoreStats*>(tablesStatistics);
+    auto readOnly = storageManager->isReadOnly();
     fwdRelTableData = std::make_unique<RelTableData>(dataFH, metadataDAC, bufferManager, wal,
-        relTableEntry, relsStoreStats, RelDataDirection::FWD, enableCompression);
+        relTableEntry, relsStoreStats, RelDataDirection::FWD, enableCompression, readOnly);
     bwdRelTableData = std::make_unique<RelTableData>(dataFH, metadataDAC, bufferManager, wal,
-        relTableEntry, relsStoreStats, RelDataDirection::BWD, enableCompression);
+        relTableEntry, relsStoreStats, RelDataDirection::BWD, enableCompression, readOnly);
 }
 
 void RelTable::initializeScanState(Transaction* transaction, TableScanState& scanState) const {

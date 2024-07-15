@@ -66,8 +66,8 @@ private:
 };
 
 struct ChunkedCSRHeader {
-    std::unique_ptr<ColumnChunkData> offset;
-    std::unique_ptr<ColumnChunkData> length;
+    std::shared_ptr<ColumnChunkData> offset;
+    std::shared_ptr<ColumnChunkData> length;
 
     ChunkedCSRHeader() {}
     explicit ChunkedCSRHeader(bool enableCompression,

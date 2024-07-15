@@ -58,6 +58,8 @@ private:
     void runWorkerThread();
     std::shared_ptr<ScheduledTask> getTaskAndRegister();
 
+    void setCpuAffinity(int cpu_id);
+
 private:
     std::deque<std::shared_ptr<ScheduledTask>> taskQueue;
     bool stopWorkerThreads;

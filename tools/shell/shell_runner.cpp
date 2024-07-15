@@ -24,6 +24,11 @@ int main(int argc, char* argv[]) {
         {'p'});
     args::Flag version(parser, "version", "Display current database version", {'v', "version"});
     args::ValueFlag<std::string> explainQuery(parser, "", "Explain Query", {"eq"});
+    args::Flag enableCpuAffinity(parser, "cpuaffinity", "Enable cpu affinity",
+        {"ca", "cpuaffinity"});
+    args::ValueFlag<int32_t> lruCachaSizeFlag(parser, "lrusize", "csr header lru cache number",
+        {"lrusize"}, -1);
+
     try {
         parser.ParseCLI(argc, argv);
     } catch (const args::Help&) {
@@ -56,6 +61,11 @@ int main(int argc, char* argv[]) {
     }
     if (readOnlyMode) {
         systemConfig.readOnly = true;
+    }
+    systemConfig.enableCpuAffinity = enableCpuAffinity;
+    auto lruCacheSize = args::get(lruCachaSizeFlag);
+    if (lruCacheSize != -1) {
+        systemConfig.lruCacheSize = lruCacheSize;
     }
     auto databasePath = args::get(inputDirFlag);
     std::shared_ptr<Database> database = std::make_shared<Database>(databasePath, systemConfig);

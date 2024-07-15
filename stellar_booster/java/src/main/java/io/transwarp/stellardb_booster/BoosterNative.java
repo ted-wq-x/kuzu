@@ -63,7 +63,7 @@ public class BoosterNative {
     protected static native void native_reload_library(String lib_path);
 
     // Database
-    protected static native long database_init(String database_path, long buffer_pool_size, boolean enable_compression, boolean read_only, long max_db_size);
+    protected static native long database_init(String database_path, long buffer_pool_size, boolean enable_compression, boolean read_only, long max_db_size, boolean enableCpuAffinity, int lruCacheSize);
 
     protected static native void database_destroy(BoosterDatabase db);
 

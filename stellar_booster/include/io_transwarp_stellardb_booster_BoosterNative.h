@@ -18,10 +18,10 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_native
 /*
  * Class:     io_transwarp_stellardb_booster_BoosterNative
  * Method:    database_init
- * Signature: (Ljava/lang/String;JZZJ)J
+ * Signature: (Ljava/lang/String;JZZJZI)J
  */
 JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_database_1init
-  (JNIEnv *, jclass, jstring, jlong, jboolean, jboolean, jlong);
+  (JNIEnv *, jclass, jstring, jlong, jboolean, jboolean, jlong, jboolean, jint);
 
 /*
  * Class:     io_transwarp_stellardb_booster_BoosterNative

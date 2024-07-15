@@ -124,9 +124,9 @@ void PackedCSRRegion::setSizeChange(const std::vector<int64_t>& sizeChangesPerSe
 
 RelTableData::RelTableData(BMFileHandle* dataFH, DiskArrayCollection* metadataDAC,
     BufferManager* bufferManager, WAL* wal, TableCatalogEntry* tableEntry,
-    RelsStoreStats* relsStoreStats, RelDataDirection direction, bool enableCompression)
+    RelsStoreStats* relsStoreStats, RelDataDirection direction, bool enableCompression,bool readOnly)
     : TableData{dataFH, metadataDAC, tableEntry, bufferManager, wal, enableCompression},
-      direction{direction} {
+      direction{direction}, csrHeaderColumns(readOnly) {
     multiplicity = ku_dynamic_cast<TableCatalogEntry*, RelTableCatalogEntry*>(tableEntry)
                        ->getMultiplicity(direction);
     // No NULL values is allowed for the csr offset column.

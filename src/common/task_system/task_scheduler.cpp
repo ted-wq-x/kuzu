@@ -1,5 +1,7 @@
 #include "common/task_system/task_scheduler.h"
 
+#include "main/database.h"
+
 using namespace kuzu::common;
 
 namespace kuzu {
@@ -7,8 +9,16 @@ namespace common {
 
 TaskScheduler::TaskScheduler(uint64_t numWorkerThreads)
     : stopWorkerThreads{false}, nextScheduledTaskID{0} {
+    unsigned int numCores = std::thread::hardware_concurrency();
+    bool enableCpuAffinity =
+        numCores != 0 && main::SystemConfig::enableCpuAffinity && numWorkerThreads <= numCores;
     for (auto n = 0u; n < numWorkerThreads; ++n) {
-        workerThreads.emplace_back([&] { runWorkerThread(); });
+        workerThreads.emplace_back([&] {
+            if (enableCpuAffinity) {
+                setCpuAffinity(static_cast<int>(n));
+            }
+            runWorkerThread();
+        });
     }
 }
 
@@ -107,6 +117,36 @@ void TaskScheduler::removeErroringTask(uint64_t scheduledTaskID) {
         }
     }
 }
+
+#ifdef _WIN32
+#include <windows.h>
+
+void TaskScheduler::setCpuAffinity(int cpu_id) {
+    SetThreadAffinityMask(GetCurrentThread(), (DWORD)cpu_id);
+}
+#else
+#include <pthread.h>
+
+#if defined(__APPLE__)
+#include <mach/thread_act.h>
+#include <mach/thread_policy.h>
+#endif
+
+void TaskScheduler::setCpuAffinity(int cpu_id) {
+#if defined(__APPLE__)
+    thread_port_t mach_thread;
+    thread_affinity_policy_data_t policy = {cpu_id};
+
+    mach_thread = pthread_mach_thread_np(pthread_self());
+    thread_policy_set(mach_thread, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy, 1);
+#else
+    cpu_set_t mn;
+    CPU_ZERO(&mn);
+    CPU_SET(cpu_id, &mn);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &mn);
+#endif
+}
+#endif // _WIN32
 
 void TaskScheduler::runWorkerThread() {
     std::unique_lock<std::mutex> lck{mtx, std::defer_lock};

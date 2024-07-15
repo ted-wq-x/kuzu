@@ -237,10 +237,14 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_native
 
 JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_database_1init(
     JNIEnv* env, jclass, jstring database_path, jlong buffer_pool_size, jboolean enable_compression,
-    jboolean read_only, jlong max_db_size) {
+    jboolean read_only, jlong max_db_size, jboolean enableCpuAffinity, jint lruCacheSize) {
 
     const char* path = env->GetStringUTFChars(database_path, JNI_FALSE);
     uint64_t buffer = static_cast<uint64_t>(buffer_pool_size);
+    SystemConfig::enableCpuAffinity = enableCpuAffinity;
+    if (lruCacheSize != -1) {
+        SystemConfig::lruCacheSize = lruCacheSize;
+    }
     SystemConfig systemConfig;
     systemConfig.bufferPoolSize = buffer == 0 ? -1u : buffer;
     systemConfig.enableCompression = enable_compression;
@@ -834,7 +838,7 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
 JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1value(
     JNIEnv* env, jclass, jobject thisValue) {
     Value* v = getValue(env, thisValue);
-    const auto &dt = v->getDataType();
+    const auto& dt = v->getDataType();
     auto logicalTypeId = dt.getLogicalTypeID();
 
     switch (logicalTypeId) {
@@ -1145,7 +1149,7 @@ JNIEXPORT jstring JNICALL
 Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1struct_1field_1name(JNIEnv* env,
     jclass, jobject thisSV, jlong index) {
     auto* sv = getValue(env, thisSV);
-    const auto &dataType = sv->getDataType();
+    const auto& dataType = sv->getDataType();
     auto fieldNames = StructType::getFieldNames(dataType);
     if ((uint64_t)index >= fieldNames.size() || index < 0) {
         return nullptr;
@@ -1159,7 +1163,7 @@ Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1struct_1index(JNI
     jobject thisSV, jstring field_name) {
     auto* sv = getValue(env, thisSV);
     const char* field_name_cstr = env->GetStringUTFChars(field_name, JNI_FALSE);
-    const auto &dataType = sv->getDataType();
+    const auto& dataType = sv->getDataType();
     auto index = StructType::getFieldIdx(dataType, field_name_cstr);
     env->ReleaseStringUTFChars(field_name, field_name_cstr);
     if (index == INVALID_STRUCT_FIELD_IDX) {
@@ -1301,19 +1305,25 @@ void initGlobalClassRef(JNIEnv* env) {
 
     createGlobalClassRef(env, J_C_Exception, "java/lang/Exception");
 
-    createGlobalClassRef(env, J_C_BoosterQueryResult, "io/transwarp/stellardb_booster/BoosterQueryResult");
+    createGlobalClassRef(env, J_C_BoosterQueryResult,
+        "io/transwarp/stellardb_booster/BoosterQueryResult");
 
-    createGlobalClassRef(env, J_C_BoosterPreparedStatement, "io/transwarp/stellardb_booster/BoosterPreparedStatement");
+    createGlobalClassRef(env, J_C_BoosterPreparedStatement,
+        "io/transwarp/stellardb_booster/BoosterPreparedStatement");
 
-    createGlobalClassRef(env, J_C_BoosterDataType, "io/transwarp/stellardb_booster/BoosterDataType");
+    createGlobalClassRef(env, J_C_BoosterDataType,
+        "io/transwarp/stellardb_booster/BoosterDataType");
 
-    createGlobalClassRef(env, J_C_BoosterQuerySummary, "io/transwarp/stellardb_booster/BoosterQuerySummary");
+    createGlobalClassRef(env, J_C_BoosterQuerySummary,
+        "io/transwarp/stellardb_booster/BoosterQuerySummary");
 
-    createGlobalClassRef(env, J_C_BoosterFlatTuple, "io/transwarp/stellardb_booster/BoosterFlatTuple");
+    createGlobalClassRef(env, J_C_BoosterFlatTuple,
+        "io/transwarp/stellardb_booster/BoosterFlatTuple");
 
     createGlobalClassRef(env, J_C_BoosterValue, "io/transwarp/stellardb_booster/BoosterValue");
 
-    createGlobalClassRef(env, J_C_BoosterDataTypeID, "io/transwarp/stellardb_booster/BoosterDataTypeID");
+    createGlobalClassRef(env, J_C_BoosterDataTypeID,
+        "io/transwarp/stellardb_booster/BoosterDataTypeID");
 
     createGlobalClassRef(env, J_C_Boolean, "java/lang/Boolean");
 
@@ -1321,7 +1331,8 @@ void initGlobalClassRef(JNIEnv* env) {
 
     createGlobalClassRef(env, J_C_Integer, "java/lang/Integer");
 
-    createGlobalClassRef(env, J_C_BoosterInternalID, "io/transwarp/stellardb_booster/BoosterInternalID");
+    createGlobalClassRef(env, J_C_BoosterInternalID,
+        "io/transwarp/stellardb_booster/BoosterInternalID");
 
     createGlobalClassRef(env, J_C_Double, "java/lang/Double");
 
@@ -1343,9 +1354,11 @@ void initGlobalClassRef(JNIEnv* env) {
 
     createGlobalClassRef(env, J_C_UUID, "java/util/UUID");
 
-    createGlobalClassRef(env, J_C_BoosterConnection, "io/transwarp/stellardb_booster/BoosterConnection");
+    createGlobalClassRef(env, J_C_BoosterConnection,
+        "io/transwarp/stellardb_booster/BoosterConnection");
 
-    createGlobalClassRef(env, J_C_BoosterDatabase, "io/transwarp/stellardb_booster/BoosterDatabase");
+    createGlobalClassRef(env, J_C_BoosterDatabase,
+        "io/transwarp/stellardb_booster/BoosterDatabase");
 
     createGlobalClassRef(env, J_C_String, "java/lang/String");
 }
@@ -1373,9 +1386,11 @@ void initGlobalMethodRef(JNIEnv* env) {
 
     J_C_Double_M_init = env->GetMethodID(J_C_Double, "<init>", "(D)V");
 
-    J_C_LocalDate_M_ofEpochDay=env->GetStaticMethodID(J_C_LocalDate, "ofEpochDay", "(J)Ljava/time/LocalDate;");
+    J_C_LocalDate_M_ofEpochDay =
+        env->GetStaticMethodID(J_C_LocalDate, "ofEpochDay", "(J)Ljava/time/LocalDate;");
 
-    J_C_Instant_M_ofEpochSecond=env->GetStaticMethodID(J_C_Instant, "ofEpochSecond", "(JJ)Ljava/time/Instant;");
+    J_C_Instant_M_ofEpochSecond =
+        env->GetStaticMethodID(J_C_Instant, "ofEpochSecond", "(JJ)Ljava/time/Instant;");
 
     J_C_Short_M_init = env->GetMethodID(J_C_Short, "<init>", "(S)V");
 
@@ -1397,13 +1412,13 @@ void initGlobalMethodRef(JNIEnv* env) {
     J_C_BigDecimal_M_precision = env->GetMethodID(J_C_BigDecimal, "precision", "()I");
 
     J_C_BigDecimal_M_scale = env->GetMethodID(J_C_BigDecimal, "scale", "()I");
-
 }
 
-void initGlobalFieldRef(JNIEnv* env){
+void initGlobalFieldRef(JNIEnv* env) {
     J_C_BoosterQueryResult_F_qr_ref = env->GetFieldID(J_C_BoosterQueryResult, "qr_ref", "J");
 
-    J_C_BoosterPreparedStatement_F_ps_ref = env->GetFieldID(J_C_BoosterPreparedStatement, "ps_ref", "J");
+    J_C_BoosterPreparedStatement_F_ps_ref =
+        env->GetFieldID(J_C_BoosterPreparedStatement, "ps_ref", "J");
 
     J_C_BoosterDataType_F_dt_ref = env->GetFieldID(J_C_BoosterDataType, "dt_ref", "J");
 

@@ -1,12 +1,20 @@
 #pragma once
 
+#include "cache.hpp"
 #include "common/enums/rel_direction.h"
 #include "common/enums/rel_multiplicity.h"
+#include "lru_cache_policy.hpp"
+#include "main/database.h"
+#include "phmap.h"
 #include "storage/store/chunked_node_group.h"
 #include "storage/store/table_data.h"
 
 namespace kuzu {
 namespace storage {
+
+template<typename Key, typename Value>
+using lru_cache_t = typename caches::fixed_sized_cache<Key, Value, caches::LRUCachePolicy,
+    phmap::node_hash_map<Key, Value>>;
 
 class LocalRelNG;
 // TODO: Rename to RelDataScanState.
@@ -38,17 +46,53 @@ struct RelDataReadState final : TableDataScanState {
 };
 
 struct CSRHeaderColumns {
+    explicit CSRHeaderColumns(bool readOnly) : readOnly(readOnly) {
+        if (readOnly) {
+            cache = std::make_unique<
+                lru_cache_t<common::node_group_idx_t, std::shared_ptr<ChunkedCSRHeader>>>(
+                main::SystemConfig::lruCacheSize);
+        } else {
+            cache = nullptr;
+        }
+    }
+
+    bool readOnly;
     std::unique_ptr<Column> offset;
     std::unique_ptr<Column> length;
+    mutable std::unique_ptr<
+        lru_cache_t<common::node_group_idx_t, std::shared_ptr<ChunkedCSRHeader>>>
+        cache;
 
-    void scan(transaction::Transaction* transaction, common::node_group_idx_t nodeGroupIdx,
-        const ChunkedCSRHeader& chunks) const {
+private:
+    inline void scanNoCache(transaction::Transaction* transaction,
+        common::node_group_idx_t nodeGroupIdx, ChunkedCSRHeader& chunks) const {
         Column::ChunkState offsetState, lengthState;
         offset->initChunkState(transaction, nodeGroupIdx, offsetState);
         length->initChunkState(transaction, nodeGroupIdx, lengthState);
         offset->scan(transaction, offsetState, chunks.offset.get());
         length->scan(transaction, lengthState, chunks.length.get());
     }
+
+public:
+    void scan(transaction::Transaction* transaction, common::node_group_idx_t nodeGroupIdx,
+        ChunkedCSRHeader& chunks) const {
+        if (readOnly) {
+            auto value = cache->TryGet(nodeGroupIdx);
+            if (value != nullptr) {
+                chunks.length = value->length;
+                chunks.offset = value->offset;
+            } else {
+                scanNoCache(transaction, nodeGroupIdx, chunks);
+                auto cacheValue = std::make_shared<ChunkedCSRHeader>();
+                cacheValue->length = chunks.length;
+                cacheValue->offset = chunks.offset;
+                cache->Put(nodeGroupIdx, cacheValue);
+            }
+        } else {
+            scanNoCache(transaction, nodeGroupIdx, chunks);
+        }
+    }
+
     void append(const ChunkedCSRHeader& headerChunks, Column::ChunkState& offsetState,
         Column::ChunkState& lengthState) const {
         offset->append(headerChunks.offset.get(), offsetState);
@@ -130,7 +174,8 @@ public:
 
     RelTableData(BMFileHandle* dataFH, DiskArrayCollection* metadataDAC,
         BufferManager* bufferManager, WAL* wal, catalog::TableCatalogEntry* tableEntry,
-        RelsStoreStats* relsStoreStats, common::RelDataDirection direction, bool enableCompression);
+        RelsStoreStats* relsStoreStats, common::RelDataDirection direction, bool enableCompression,
+        bool readOnly);
 
     void initializeScanState(transaction::Transaction* transaction,
         TableScanState& scanState) const override;

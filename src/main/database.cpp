@@ -27,6 +27,10 @@ using namespace kuzu::transaction;
 namespace kuzu {
 namespace main {
 
+uint32_t SystemConfig::lruCacheSize = 65535;
+
+bool SystemConfig::enableCpuAffinity = false;
+
 SystemConfig::SystemConfig(uint64_t bufferPoolSize_, uint64_t maxNumThreads, bool enableCompression,
     bool readOnly, uint64_t maxDBSize)
     : maxNumThreads{maxNumThreads}, enableCompression{enableCompression}, readOnly(readOnly) {
