@@ -149,14 +149,14 @@ void CatalogSet::alterEntry(Transaction* transaction, const binder::BoundAlterIn
     }
 }
 
-CatalogEntrySet CatalogSet::getEntries(Transaction* transaction) {
-    CatalogEntrySet result;
-    for (auto& [name, entry] : entries) {
+CatalogEntryVector CatalogSet::getEntries(Transaction* transaction) {
+    CatalogEntryVector result;
+    for (auto& [_, entry] : entries) {
         auto currentEntry = traverseVersionChainsForTransaction(transaction, entry.get());
         if (currentEntry->isDeleted()) {
             continue;
         }
-        result.emplace(name, currentEntry);
+        result.emplace_back(currentEntry);
     }
     return result;
 }

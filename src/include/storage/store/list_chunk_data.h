@@ -43,10 +43,10 @@ public:
 
     void resizeDataColumnChunk(uint64_t numValues) { dataColumnChunk->resize(numValues); }
 
-    void resize(uint64_t newCapacity) override {
-        ColumnChunkData::resize(newCapacity);
-        sizeColumnChunk->resize(newCapacity);
-        offsetColumnChunk->resize(newCapacity);
+    void resize(uint64_t newCapacity, bool isInit = true) override {
+        ColumnChunkData::resize(newCapacity, isInit);
+        sizeColumnChunk->resize(newCapacity, isInit);
+        offsetColumnChunk->resize(newCapacity, isInit);
     }
 
     common::offset_t getListStartOffset(common::offset_t offset) const;

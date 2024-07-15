@@ -63,11 +63,11 @@ void StructChunkData::lookup(offset_t offsetInChunk, ValueVector& output,
     }
 }
 
-void StructChunkData::resize(uint64_t newCapacity) {
-    ColumnChunkData::resize(newCapacity);
+void StructChunkData::resize(uint64_t newCapacity, bool isInit) {
+    ColumnChunkData::resize(newCapacity, isInit);
     capacity = newCapacity;
     for (auto& child : childChunks) {
-        child->resize(newCapacity);
+        child->resize(newCapacity, isInit);
     }
 }
 

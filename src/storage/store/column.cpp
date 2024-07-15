@@ -257,7 +257,7 @@ void Column::scan(Transaction* transaction, const ChunkState& state, ColumnChunk
     cursor.pageIdx += state.metadata.pageIdx;
     uint64_t numValuesScanned = 0u;
     if (numValuesToScan > columnChunk->getCapacity()) {
-        columnChunk->resize(std::bit_ceil(numValuesToScan));
+        columnChunk->resize(std::bit_ceil(numValuesToScan), false);
     }
     KU_ASSERT((numValuesToScan + startOffset) <= state.metadata.numValues);
     while (numValuesScanned < numValuesToScan) {
