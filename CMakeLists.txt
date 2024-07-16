@@ -244,6 +244,7 @@ include_directories(third_party/utf8proc/include)
 include_directories(third_party/zstd/include)
 include_directories(third_party/httplib)
 include_directories(third_party/pcg)
+include_directories(third_party/lz4)
 include_directories(third_party/caches)
 include_directories(third_party/parallel_hashmap)
 
