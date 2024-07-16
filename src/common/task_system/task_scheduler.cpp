@@ -37,6 +37,16 @@ void TaskScheduler::scheduleTaskAndWaitOrError(const std::shared_ptr<Task>& task
     for (auto& dependency : task->children) {
         scheduleTaskAndWaitOrError(dependency, context);
     }
+
+    // optimize short query qps.the qps has been great improved
+    if (task->maxNumThreads == 1 && !launchNewWorkerThread) {
+        task->numThreadsRegistered = 1;
+        TaskScheduler::runTask(task.get());
+        if (task->hasException()) {
+            std::rethrow_exception(task->getExceptionPtr());
+        }
+        return;
+    }
     std::thread newWorkerThread;
     if (launchNewWorkerThread) {
         // Note that newWorkerThread is not executing yet. However, we still call
