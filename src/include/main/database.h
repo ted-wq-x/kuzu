@@ -70,7 +70,7 @@ struct KUZU_API SystemConfig {
 
 public:
     //lru cache_size
-    static uint32_t lruCacheSize;
+    static int32_t lruCacheSize;
     //enable task schedular cpu affinity
     static bool enableCpuAffinity;
 };

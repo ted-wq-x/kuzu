@@ -26,9 +26,10 @@ using namespace kuzu::transaction;
 
 namespace kuzu {
 namespace main {
-
-uint32_t SystemConfig::lruCacheSize = 65535;
-
+//内存消耗很大,每个表两个cache,size表示的是group的个数,每条数据是64*2048个点
+//短查询,高并发且内存足够的时候开启
+int32_t SystemConfig::lruCacheSize = 4096;
+//是否有效果,需要实际测试
 bool SystemConfig::enableCpuAffinity = false;
 
 SystemConfig::SystemConfig(uint64_t bufferPoolSize_, uint64_t maxNumThreads, bool enableCompression,

@@ -47,12 +47,10 @@ struct RelDataReadState final : TableDataScanState {
 
 struct CSRHeaderColumns {
     explicit CSRHeaderColumns(bool readOnly) : readOnly(readOnly) {
-        if (readOnly) {
+        if (readOnly && main::SystemConfig::lruCacheSize > 0) {
             cache = std::make_unique<
                 lru_cache_t<common::node_group_idx_t, std::shared_ptr<ChunkedCSRHeader>>>(
                 main::SystemConfig::lruCacheSize);
-        } else {
-            cache = nullptr;
         }
     }
 
@@ -76,7 +74,7 @@ private:
 public:
     void scan(transaction::Transaction* transaction, common::node_group_idx_t nodeGroupIdx,
         ChunkedCSRHeader& chunks) const {
-        if (readOnly) {
+        if (readOnly && cache != nullptr) {
             auto value = cache->TryGet(nodeGroupIdx);
             // 注意:因为chunks里的length&offset是cache中复用的,如果直接调用scanNoCache,相当于修改cache中的值
             // 所以每次扫之前都需要创建一个新的

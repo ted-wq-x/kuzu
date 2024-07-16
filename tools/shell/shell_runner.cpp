@@ -62,11 +62,9 @@ int main(int argc, char* argv[]) {
     if (readOnlyMode) {
         systemConfig.readOnly = true;
     }
-    systemConfig.enableCpuAffinity = enableCpuAffinity;
+    SystemConfig::enableCpuAffinity = enableCpuAffinity;
     auto lruCacheSize = args::get(lruCachaSizeFlag);
-    if (lruCacheSize != -1) {
-        systemConfig.lruCacheSize = lruCacheSize;
-    }
+    SystemConfig::lruCacheSize = lruCacheSize;
     auto databasePath = args::get(inputDirFlag);
     std::shared_ptr<Database> database = std::make_shared<Database>(databasePath, systemConfig);
     std::shared_ptr<Connection> conn = std::make_shared<Connection>(database.get());

@@ -242,9 +242,7 @@ JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_datab
     const char* path = env->GetStringUTFChars(database_path, JNI_FALSE);
     uint64_t buffer = static_cast<uint64_t>(buffer_pool_size);
     SystemConfig::enableCpuAffinity = enableCpuAffinity;
-    if (lruCacheSize != -1) {
-        SystemConfig::lruCacheSize = lruCacheSize;
-    }
+    SystemConfig::lruCacheSize = lruCacheSize;
     SystemConfig systemConfig;
     systemConfig.bufferPoolSize = buffer == 0 ? -1u : buffer;
     systemConfig.enableCompression = enable_compression;
