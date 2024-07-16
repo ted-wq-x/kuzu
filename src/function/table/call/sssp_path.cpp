@@ -27,7 +27,7 @@ public:
         globalBitSet->markVisited(nodeID, hop + 1);
     }
 
-    void scanTask(std::shared_ptr<storage::RelTableScanState> readState,
+    void doScan(std::shared_ptr<storage::RelTableScanState> readState,
         common::ValueVector& srcVector, std::shared_ptr<RelTableInfo> info,
         std::shared_ptr<InternalIDBitSet> threadBitSet, RelDataDirection relDataDirection,
         std::vector<internalID_t>& data, const processor::ResultSet& resultSet,
@@ -101,14 +101,14 @@ public:
             for (auto& [info, relDataReadState] : relTableScanStates) {
                 if (fwdDirection == "out" || fwdDirection == "both") {
                     if (tableID == info->srcTableID) {
-                        scanTask(relDataReadState, srcVector, info, threadBitSet,
+                        doScan(relDataReadState, srcVector, info, threadBitSet,
                             RelDataDirection::FWD, data, *rs.get(), relFilter);
                     }
                 }
 
                 if (fwdDirection == "in" || fwdDirection == "both") {
                     if (tableID == info->dstTableID) {
-                        scanTask(relDataReadState, srcVector, info, threadBitSet,
+                        doScan(relDataReadState, srcVector, info, threadBitSet,
                             RelDataDirection::BWD, data, *rs.get(), relFilter);
                     }
                 }
@@ -631,13 +631,30 @@ inline void concatPath(std::vector<std::vector<nodeID_t>>& left,
     }
 }
 
-void getPath(HalfPathState& leftPath, HalfPathState& rightPath,
-    std::vector<nodeID_t>& intersectionVector, std::vector<std::string>& resultVector) {
+inline std::vector<std::string> getPath(HalfPathState& leftPath, HalfPathState& rightPath,
+    std::vector<nodeID_t>& intersectionVector) {
     leftPath.getHalfPath();
     rightPath.getHalfPath();
+    std::vector<std::string> resultVector;
     for (auto& nodeID : intersectionVector) {
         concatPath(leftPath.halfPath[nodeID], rightPath.halfPath[nodeID], resultVector);
     }
+    return resultVector;
+}
+
+inline uint64_t fillResVector(const CallFuncMorsel& morsel, const std::string& resultType,
+    DataChunk& dataChunk, const SsspLocalState& localState) {
+    auto numTablesToOutput = morsel.endOffset - morsel.startOffset;
+    for (auto i = 0u; i < numTablesToOutput; ++i) {
+        auto result = localState.resultVector[morsel.startOffset + i];
+        if (resultType == "path") {
+            dataChunk.getValueVector(0)->setValue(i, result);
+        } else {
+            dataChunk.getValueVector(0)->setValue(i, localState.length);
+            dataChunk.getValueVector(1)->setValue(i, result);
+        }
+    }
+    return numTablesToOutput;
 }
 
 offset_t pathFunc(TableFuncInput& input, TableFuncOutput& output) {
@@ -651,17 +668,7 @@ offset_t pathFunc(TableFuncInput& input, TableFuncOutput& output) {
     auto& dataChunk = output.dataChunk;
     auto resultType = bindData->resultType;
     if (!localState->resultVector.empty()) {
-        auto numTablesToOutput = morsel.endOffset - morsel.startOffset;
-        for (auto i = 0u; i < numTablesToOutput; ++i) {
-            auto result = localState->resultVector[morsel.startOffset + i];
-            if (resultType == "path") {
-                dataChunk.getValueVector(0)->setValue(i, result);
-            } else {
-                dataChunk.getValueVector(0)->setValue(i, localState->length);
-                dataChunk.getValueVector(1)->setValue(i, result);
-            }
-        }
-        return numTablesToOutput;
+        return fillResVector(sharedState->getMorsel(), resultType, dataChunk, *localState);
     }
     auto numThreads = bindData->numThreads;
     auto direction = bindData->direction;
@@ -704,26 +711,18 @@ offset_t pathFunc(TableFuncInput& input, TableFuncOutput& output) {
             }
         }
     }
+    // 构建结果路径
     HalfPathState leftPath(srcScanState, intersectionVector, bindData->isParameter);
     HalfPathState rightPath(dstScanState, intersectionVector, bindData->isParameter);
-    std::vector<std::string> resultVector;
-    getPath(leftPath, rightPath, intersectionVector, resultVector);
+    auto resultVector = getPath(leftPath, rightPath, intersectionVector);
+    // 重装结果数量
     sharedState->curOffset = 0;
     sharedState->maxOffset = resultVector.size();
+    // 保存数据到localState
     localState->length = length;
     localState->resultVector = std::move(resultVector);
-    morsel = sharedState->getMorsel();
-    auto numTablesToOutput = morsel.endOffset - morsel.startOffset;
-    for (auto i = 0u; i < numTablesToOutput; ++i) {
-        auto result = localState->resultVector[morsel.startOffset + i];
-        if (resultType == "path") {
-            dataChunk.getValueVector(0)->setValue(i, result);
-        } else {
-            dataChunk.getValueVector(0)->setValue(i, localState->length);
-            dataChunk.getValueVector(1)->setValue(i, result);
-        }
-    }
-    return numTablesToOutput;
+
+    return fillResVector(sharedState->getMorsel(), resultType, dataChunk, *localState);
 }
 
 } // namespace function

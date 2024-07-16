@@ -76,7 +76,7 @@ static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* context,
         if (parameter != 0 && parameter != 1) {
             throw BinderException("parameter value error");
         }
-        isParameter = (parameter) ? true : false;
+        isParameter = (parameter) != 0;
         nodeFilterStr = input->inputs[9].getValue<std::string>();
         relFilterStr = input->inputs[10].getValue<std::string>();
     } else {

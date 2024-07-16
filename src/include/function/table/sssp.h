@@ -7,6 +7,11 @@
 namespace kuzu {
 namespace function {
 
+struct SsspLocalState : public TableFuncLocalState {
+    int64_t length;
+    std::vector<std::string> resultVector;
+};
+
 struct SsspBindData : public CallTableFuncBindData {
     SsspBindData(main::ClientContext* context, std::string srcPrimaryKey, std::string srcTableName,
         std::string dstPrimaryKey, std::string dstTableName, std::string direction, int64_t maxHop,
