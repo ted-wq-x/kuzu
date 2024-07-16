@@ -5,36 +5,36 @@
 -CASE SsspAlgorithmTest
 
 -LOG q1
--STATEMENT call graph_bsp_sssp('0','person','2','person','both',-1,'length',1,[],[]) return *
+-STATEMENT call graph_bsp_sssp('0','person','2','person','both',-1,'length',1,'','') return *
 ---- 1
 1
 
 -LOG q2
--STATEMENT call graph_bsp_sssp('0','','2','person','both',-1,'count',1,[],[]) return *
+-STATEMENT call graph_bsp_sssp('0','','2','person','both',-1,'count',1,'','') return *
 ---- 1
 4
 
 -LOG q3
--STATEMENT call graph_bsp_sssp('0','person','2','','both',-1,'length_count',1,[],[]) return *
+-STATEMENT call graph_bsp_sssp('0','person','2','','both',-1,'length_count',1,'','') return *
 ---- 1
 1|4
 
 -LOG q4
--STATEMENT call graph_bsp_sssp('0','','0','','both',-1,'length_count',1,[],[]) return *;
+-STATEMENT call graph_bsp_sssp('0','','0','','both',-1,'length_count',1,'','') return *;
 ---- 1
 0|1
 
 -LOG q5
--STATEMENT  call graph_bsp_sssp('0','','9','','out',2,'length_count',1,[],[]) return *;
+-STATEMENT  call graph_bsp_sssp('0','','9','','out',2,'length_count',1,'','') return *;
 ---- 1
 -1|0
 
 -LOG q6
--STATEMENT call graph_bsp_sssp('10','','9','','in',-1,'length_count',1,[],[]) return *;
+-STATEMENT call graph_bsp_sssp('10','','9','','in',-1,'length_count',1,'','') return *;
 ---- 1
 -1|0
 
 -LOG q7
--STATEMENT call graph_bsp_sssp('0','','2','','both',-1,'length_count',4,[],[]) return *
+-STATEMENT call graph_bsp_sssp('0','','2','','both',-1,'length_count',4,'','') return *
 ---- 1
 1|4

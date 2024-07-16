@@ -51,6 +51,11 @@ struct KUZU_API CallFunction {
         TableFuncSharedState* state, storage::MemoryManager* mm);
 };
 
+struct SsspLocalState : public TableFuncLocalState {
+    int64_t length;
+    std::vector<std::string> resultVector;
+};
+
 struct CurrentSettingFunction : public CallFunction {
     static constexpr const char* name = "CURRENT_SETTING";
 

@@ -27,6 +27,13 @@ public:
 
     void add(TikTok& other) { runningTime += other.runningTime; }
 
+    void add(double timer) { runningTime += timer; }
+
+    void reset() {
+        finished = true;
+        runningTime = false;
+    }
+    
     double getElapsedTimeInMS() const {
         KU_ASSERT(finished);
         return runningTime / 1e6;

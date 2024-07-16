@@ -7,7 +7,7 @@ namespace function {
 
 struct KhopBindData : public CallTableFuncBindData {
     KhopBindData(main::ClientContext* context, std::string primaryKey, std::string tableName,
-        std::string direction, int64_t maxHop, int64_t mode, int64_t numThreads,
+        std::string direction, int64_t maxHop, int64_t parameter, int64_t numThreads,
         std::vector<LogicalType> returnTypes, std::vector<std::string> returnColumnNames,
         offset_t maxOffset, std::unique_ptr<evaluator::ExpressionEvaluator> relFilter,
         std::shared_ptr<std::vector<LogicalTypeID>> relColumnTypeIds,
@@ -15,7 +15,7 @@ struct KhopBindData : public CallTableFuncBindData {
             relTableInfos)
         : CallTableFuncBindData{std::move(returnTypes), std::move(returnColumnNames), maxOffset},
           context(context), primaryKey(primaryKey), tableName(tableName), direction(direction),
-          maxHop(maxHop), mode(mode), numThreads(numThreads), relFilter(std::move(relFilter)),
+          maxHop(maxHop), parameter(parameter), numThreads(numThreads), relFilter(std::move(relFilter)),
           relColumnTypeIds(std::move(relColumnTypeIds)), relTableInfos(std::move(relTableInfos)) {}
 
     std::unique_ptr<TableFuncBindData> copy() const override {
@@ -25,12 +25,12 @@ struct KhopBindData : public CallTableFuncBindData {
         }
 
         return std::make_unique<KhopBindData>(context, primaryKey, tableName, direction, maxHop,
-            mode, numThreads, common::LogicalType::copy(columnTypes), columnNames, maxOffset,
+            parameter, numThreads, common::LogicalType::copy(columnTypes), columnNames, maxOffset,
             std::move(localRelFilter), relColumnTypeIds, relTableInfos);
     }
     main::ClientContext* context;
     std::string primaryKey, tableName, direction;
-    int64_t maxHop, mode, numThreads;
+    int64_t maxHop, parameter, numThreads;
 
     // nullable
     std::unique_ptr<evaluator::ExpressionEvaluator> relFilter;
@@ -216,6 +216,7 @@ static std::pair<uint64_t, std::vector<std::vector<nodeID_t>>> unionTask(KhopSha
 
         uint32_t l = tableSize * tid / numThreads, r = tableSize * (tid + 1) / numThreads;
         std::vector<uint64_t> tempMark;
+        tempMark.reserve(r - l);
         tempMark.resize(r - l, 0);
         for (auto i = 0u; i < numThreads; ++i) {
             for (auto offset = l; offset < r; ++offset) {
@@ -327,12 +328,12 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
     }
     if (isRc) {
         dataChunk.getValueVector(0)->setValue(pos,
-            (bindData->mode ? nodeResults.back() : nodeResult));
+            (bindData->parameter ? nodeResults.back() : nodeResult));
         dataChunk.getValueVector(1)->setValue(pos,
-            (bindData->mode ? edgeResults.back() : edgeResult));
+            (bindData->parameter ? edgeResults.back() : edgeResult));
     } else {
         dataChunk.getValueVector(0)->setValue(pos,
-            (bindData->mode ? nodeResults.back() : nodeResult));
+            (bindData->parameter ? nodeResults.back() : nodeResult));
     }
     return 1;
 }
@@ -352,9 +353,9 @@ static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* c
     }
     auto maxHop = input->inputs[3].getValue<int64_t>();
     KU_ASSERT(maxHop >= 0);
-    auto mode = input->inputs[4].getValue<int64_t>();
-    if (mode != 0 && mode != 1) {
-        throw BinderException("wrong mode number");
+    auto parameter = input->inputs[4].getValue<int64_t>();
+    if (parameter != 0 && parameter != 1) {
+        throw BinderException("parameter value error");
     }
 
     auto numThreads = input->inputs[5].getValue<int64_t>();
@@ -372,7 +373,7 @@ static std::unique_ptr<TableFuncBindData> rewriteBindFunc(main::ClientContext* c
 
     auto bindData =
         std::make_unique<KhopBindData>(context, input->inputs[0].getValue<std::string>(),
-            input->inputs[1].getValue<std::string>(), direction, maxHop, mode, numThreads,
+            input->inputs[1].getValue<std::string>(), direction, maxHop, parameter, numThreads,
             std::move(returnTypes), std::move(returnColumnNames), 1 /* one line of results */,
             std::move(relFilter), std::move(relColumnTypeIds), std::move(relTableInfos));
     return bindData;

@@ -10,6 +10,9 @@ add_library(kuzu_table_call
         show_sequences.cpp
         show_tables.cpp
         sssp.cpp
+        sssp_count.cpp
+        sssp_length.cpp
+        sssp_path.cpp
         storage_info.cpp
         table_info.cpp
         basic.cpp

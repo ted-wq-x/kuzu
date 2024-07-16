@@ -1,3 +1,5 @@
+#include <sys/mman.h>
+
 #include "binder/binder.h"
 #include "binder/expression/expression_util.h"
 #include "binder/expression/property_expression.h"
@@ -84,6 +86,201 @@ private:
     std::vector<std::vector<uint64_t>> nodeIDMark;
 
     const static std::vector<uint8_t> numTable;
+};
+
+struct MemoryPoolUint32 {
+    static constexpr uint32_t UINT32_BLOCK_SIZE = 64 * sizeof(uint32_t);
+
+    ~MemoryPoolUint32() { munmap(memory, memorySize); }
+
+    inline void init(uint32_t numBlocks) {
+        memorySize = numBlocks * UINT32_BLOCK_SIZE;
+        // 默认初始化为0
+        memory = mmap(NULL, memorySize, PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+        poolMemory = static_cast<uint32_t*>(memory);
+    }
+
+    inline uint32_t* allocateAtomic() {
+        auto index = atomicUsedBlocks.fetch_add(1, std::memory_order_relaxed);
+        return poolMemory + index * 64;
+    }
+
+    inline uint32_t* allocate() {
+        auto index = usedBlocks++;
+        return poolMemory + index * 64;
+    }
+
+    uint32_t memorySize;
+    uint32_t usedBlocks = 0;
+    std::atomic_uint32_t atomicUsedBlocks = 0;
+    void* memory;
+    uint32_t* poolMemory;
+};
+
+struct Count {
+    uint64_t mark = 0;
+    uint32_t* count = nullptr;
+    // 以下方法都是unsafe的,需要自己保证count!=nullptr
+    inline void merge(Count& other) {
+        mark |= other.mark;
+
+        for (auto i = 0u; i < 64; ++i) {
+            count[i] += other.count[i];
+        }
+    }
+
+    inline void reset() {
+        mark = 0;
+        std::memset(count, 0, MemoryPoolUint32::UINT32_BLOCK_SIZE);
+    }
+
+    inline void free() { delete[] count; }
+};
+
+class InternalIDCountBitSet {
+public:
+    InternalIDCountBitSet(Catalog* catalog, storage::StorageManager* storage,
+        transaction::Transaction* tx) {
+        auto nodeTableIDs = catalog->getNodeTableIDs(tx);
+        auto maxNodeTableID = *std::max_element(nodeTableIDs.begin(), nodeTableIDs.end()) + 1;
+        nodeIDMark.resize(maxNodeTableID);
+        uint32_t numBlocks = 0;
+        for (auto tableID : nodeTableIDs) {
+            auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
+            auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
+            numBlocks += size;
+            nodeIDMark[tableID].reserve(size);
+            nodeIDMark[tableID].resize(size);
+        }
+        pool.init(numBlocks);
+    }
+
+    inline bool isVisited(internalID_t& nodeID) {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        return (nodeIDMark[nodeID.tableID][block].mark >> pos) & 1;
+    }
+
+    inline void markVisited(internalID_t& nodeID, uint32_t count) {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        auto& value = nodeIDMark[nodeID.tableID][block];
+        value.mark |= (1ULL << pos);
+        if (value.count == nullptr) {
+            value.count = pool.allocate();
+        }
+        value.count[pos] += count;
+    }
+
+    inline uint32_t getNodeValueCount(internalID_t& nodeID) const {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        auto& value = nodeIDMark[nodeID.tableID][block];
+        if (value.count == nullptr) {
+            return 0;
+        }
+        return value.count[pos];
+    }
+
+    inline Count& getNodeValue(uint32_t tableID, uint32_t pos) { return nodeIDMark[tableID][pos]; }
+
+    inline uint32_t getTableNum() const { return nodeIDMark.size(); }
+
+    inline uint32_t getTableSize(uint32_t tableID) const { return nodeIDMark[tableID].size(); }
+
+    inline void merge(uint32_t tableID, uint32_t pos, Count& other) {
+        auto& value = nodeIDMark[tableID][pos];
+        if (value.count == nullptr) {
+            value.count = pool.allocateAtomic();
+        }
+        value.merge(other);
+    }
+
+private:
+    MemoryPoolUint32 pool;
+    // tableID==>blockID==>mark
+    std::vector<std::vector<Count>> nodeIDMark;
+};
+
+struct MemoryPoolUint8 {
+    static constexpr uint32_t UINT8_BLOCK_SIZE = 64 * sizeof(uint8_t);
+
+    ~MemoryPoolUint8() { munmap(memory, memorySize); }
+
+    inline void init(uint32_t numBlocks) {
+        memorySize = numBlocks * UINT8_BLOCK_SIZE;
+        // 默认初始化为0
+        memory = mmap(NULL, memorySize, PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+        poolMemory = static_cast<uint8_t*>(memory);
+    }
+
+    inline uint8_t* allocate() {
+        auto index = usedBlocks.fetch_add(1, std::memory_order_relaxed);
+        return poolMemory + index * 64;
+    }
+
+    uint32_t memorySize;
+    std::atomic_uint32_t usedBlocks = 0;
+    void* memory;
+    uint8_t* poolMemory;
+};
+
+struct Dist {
+    uint64_t mark = 0;
+    uint8_t* dist = nullptr;
+};
+
+class InternalIDDistBitSet {
+public:
+    InternalIDDistBitSet(Catalog* catalog, storage::StorageManager* storage,
+        transaction::Transaction* tx) {
+        auto nodeTableIDs = catalog->getNodeTableIDs(tx);
+        auto maxNodeTableID = *std::max_element(nodeTableIDs.begin(), nodeTableIDs.end()) + 1;
+        nodeIDMark.resize(maxNodeTableID);
+        uint32_t numBlocks = 0;
+        for (auto tableID : nodeTableIDs) {
+            auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
+            auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
+            numBlocks += size;
+            nodeIDMark[tableID].reserve(size);
+            nodeIDMark[tableID].resize(size);
+        }
+        pool.init(numBlocks);
+    }
+
+    inline bool isVisited(internalID_t& nodeID) {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        return (nodeIDMark[nodeID.tableID][block].mark >> pos) & 1;
+    }
+
+    inline void markVisited(internalID_t& nodeID, uint32_t dist) {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        auto& value = nodeIDMark[nodeID.tableID][block];
+        value.mark |= (1ULL << pos);
+        if (value.dist == nullptr) {
+            value.dist = pool.allocate();
+        }
+        value.dist[pos] = dist;
+    }
+
+    inline uint32_t getNodeValueDist(internalID_t& nodeID) const {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        auto& value = nodeIDMark[nodeID.tableID][block];
+        if (value.dist == nullptr) {
+            return 0;
+        }
+        return value.dist[pos];
+    }
+
+    inline Dist& getNodeValue(uint32_t tableID, uint32_t pos) { return nodeIDMark[tableID][pos]; }
+
+    inline uint32_t getTableNum() const { return nodeIDMark.size(); }
+
+    inline uint32_t getTableSize(uint32_t tableID) const { return nodeIDMark[tableID].size(); }
+
+private:
+    MemoryPoolUint8 pool;
+    // tableID==>blockID==>mark
+    std::vector<std::vector<Dist>> nodeIDMark;
 };
 
 class RelTableInfo {
@@ -319,5 +516,6 @@ static nodeID_t getNodeID(main::ClientContext* context, std::string tableName,
         return nodeID_t{offset, tableID};
     }
 }
+
 } // namespace function
 } // namespace kuzu
