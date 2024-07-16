@@ -78,16 +78,16 @@ public:
         ChunkedCSRHeader& chunks) const {
         if (readOnly) {
             auto value = cache->TryGet(nodeGroupIdx);
-            if (value != nullptr) {
-                chunks.length = value->length;
-                chunks.offset = value->offset;
-            } else {
-                scanNoCache(transaction, nodeGroupIdx, chunks);
-                auto cacheValue = std::make_shared<ChunkedCSRHeader>();
-                cacheValue->length = chunks.length;
-                cacheValue->offset = chunks.offset;
-                cache->Put(nodeGroupIdx, cacheValue);
+            // 注意:因为chunks里的length&offset是cache中复用的,如果直接调用scanNoCache,相当于修改cache中的值
+            // 所以每次扫之前都需要创建一个新的
+            if (value == nullptr) {
+                // 这里保持和RelDataReadState#csrHeaderChunks创建方式一致
+                value = std::make_shared<ChunkedCSRHeader>(false);
+                scanNoCache(transaction, nodeGroupIdx, *value.get());
+                cache->Put(nodeGroupIdx, value);
             }
+            chunks.length = value->length;
+            chunks.offset = value->offset;
         } else {
             scanNoCache(transaction, nodeGroupIdx, chunks);
         }
