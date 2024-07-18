@@ -187,7 +187,7 @@ extension-debug:
 
 extension-release:
 	$(call run-cmake-release, \
-		-DBUILD_EXTENSIONS="httpfs;duckdb;json;postgres" \
+		-DBUILD_EXTENSIONS="httpfs;duckdb;json;postgres;sqlite" \
 		-DBUILD_KUZU=FALSE \
 	)
 
