@@ -714,6 +714,7 @@ kU_NonReservedKeywords
         | SEQUENCE
         | SET
         | START
+        | L_SKIP
         | TRANSACTION
         | TYPE
         | USE
