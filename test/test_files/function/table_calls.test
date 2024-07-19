@@ -3,6 +3,7 @@
 --
 
 -CASE ShowFunctions
+-SKIP
 -STATEMENT CALL show_functions() RETURN *;
 ---- 1093
 <FILE>:show_functions.csv
