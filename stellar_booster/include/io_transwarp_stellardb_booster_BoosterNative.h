@@ -76,16 +76,24 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_con
  * Method:    connection_prepare
  * Signature: (Lio/transwarp/stellardb_booster/BoosterConnection;Ljava/lang/String;)Lio/transwarp/stellardb_booster/BoosterPreparedStatement;
  */
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1prepare
+JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1prepare__Lio_transwarp_stellardb_1booster_BoosterConnection_2Ljava_lang_String_2
   (JNIEnv *, jclass, jobject, jstring);
 
 /*
  * Class:     io_transwarp_stellardb_booster_BoosterNative
+ * Method:    connection_prepare
+ * Signature: (Lio/transwarp/stellardb_booster/BoosterConnection;Ljava/lang/String;Ljava/util/Map;)Lio/transwarp/stellardb_booster/BoosterPreparedStatement;
+ */
+JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1prepare__Lio_transwarp_stellardb_1booster_BoosterConnection_2Ljava_lang_String_2Ljava_util_Map_2
+  (JNIEnv *, jclass, jobject, jstring, jobject);
+
+/*
+ * Class:     io_transwarp_stellardb_booster_BoosterNative
  * Method:    connection_execute
- * Signature: (Lio/transwarp/stellardb_booster/BoosterConnection;Lio/transwarp/stellardb_booster/BoosterPreparedStatement;Ljava/util/Map;)Lio/transwarp/stellardb_booster/BoosterQueryResult;
+ * Signature: (Lio/transwarp/stellardb_booster/BoosterConnection;Lio/transwarp/stellardb_booster/BoosterPreparedStatement;Ljava/util/Map;Z)Lio/transwarp/stellardb_booster/BoosterQueryResult;
  */
 JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1execute
-  (JNIEnv *, jclass, jobject, jobject, jobject);
+  (JNIEnv *, jclass, jobject, jobject, jobject, jboolean);
 
 /*
  * Class:     io_transwarp_stellardb_booster_BoosterNative

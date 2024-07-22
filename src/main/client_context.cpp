@@ -230,7 +230,12 @@ std::string ClientContext::getEnvVariable(const std::string& name) {
 #endif
 }
 
-std::unique_ptr<PreparedStatement> ClientContext::prepare(std::string_view query) {
+std::unique_ptr<PreparedStatement> ClientContext::prepare(std::string_view query,
+    std::unordered_map<std::string, common::LogicalType> inputParameterTypes) {
+    std::unordered_map<std::string, std::shared_ptr<Value>> inputParameters;
+    for (const auto& [name, type] : inputParameterTypes) {
+        inputParameters.emplace(name, std::make_shared<Value>(Value::createDefaultValue(type)));
+    }
     auto preparedStatement = std::unique_ptr<PreparedStatement>();
     if (query.empty()) {
         return preparedStatementWithError("Connection Exception: Query is empty.");
@@ -246,7 +251,12 @@ std::unique_ptr<PreparedStatement> ClientContext::prepare(std::string_view query
         return preparedStatementWithError(
             "Connection Exception: We do not support prepare multiple statements.");
     }
-    return prepareNoLock(parsedStatements[0]);
+    return prepareNoLock(parsedStatements[0], false /* enumerate all plans */, "",
+        true /*requireNewTx*/, inputParameters);
+}
+
+std::unique_ptr<PreparedStatement> ClientContext::prepare(std::string_view query) {
+    return prepare(query, {});
 }
 
 std::unique_ptr<PreparedStatement> ClientContext::prepareTest(std::string_view query) {
@@ -431,8 +441,9 @@ void ClientContext::cleanUP() {
 
 std::unique_ptr<QueryResult> ClientContext::executeWithParams(PreparedStatement* preparedStatement,
     std::unordered_map<std::string, std::unique_ptr<Value>> inputParams,
-    std::optional<uint64_t> queryID) { // NOLINT(performance-unnecessary-value-param): It doesn't
-                                       // make sense to pass the map as a const reference.
+    std::optional<uint64_t> queryID, bool requireReBind) {
+    // NOLINT(performance-unnecessary-value-param): It doesn't
+    // make sense to pass the map as a const reference.
     lock_t lck{mtx};
     if (!preparedStatement->isSuccess()) {
         return queryResultWithError(preparedStatement->errMsg);
@@ -444,9 +455,14 @@ std::unique_ptr<QueryResult> ClientContext::executeWithParams(PreparedStatement*
     }
     // rebind
     KU_ASSERT(preparedStatement->parsedStatement != nullptr);
-    auto rebindPreparedStatement = prepareNoLock(preparedStatement->parsedStatement, false, "",
-        false, preparedStatement->parameterMap);
-    return executeAndAutoCommitIfNecessaryNoLock(rebindPreparedStatement.get(), 0u, false, queryID);
+    if (requireReBind) {
+        auto rebindPreparedStatement = prepareNoLock(preparedStatement->parsedStatement, false, "",
+            false, preparedStatement->parameterMap);
+        return executeAndAutoCommitIfNecessaryNoLock(rebindPreparedStatement.get(), 0u, false,
+            queryID);
+    } else {
+        return executeAndAutoCommitIfNecessaryNoLock(preparedStatement, 0u, true, queryID);
+    }
 }
 
 void ClientContext::bindParametersNoLock(PreparedStatement* preparedStatement,
@@ -461,6 +477,7 @@ void ClientContext::bindParametersNoLock(PreparedStatement* preparedStatement,
         // The reason is that other parts of the code rely on the existing Value object to be
         // modified in-place, not replaced in this map.
         *parameterMap.at(name) = std::move(*value);
+        //parameterMap.at(name)->copyValueFrom(*value);
     }
 }
 

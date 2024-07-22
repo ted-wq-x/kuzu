@@ -215,6 +215,28 @@ std::unordered_map<std::string, std::unique_ptr<Value>> javaMapToCPPMap(JNIEnv* 
     return result;
 }
 
+std::unordered_map<std::string, LogicalType> javaMapToCPPMap2(JNIEnv* env, jobject javaMap) {
+    jobject set = env->CallObjectMethod(javaMap, J_C_Map_M_entrySet);
+    jobject iter = env->CallObjectMethod(set, J_C_Set_M_iterator);
+
+    std::unordered_map<std::string, LogicalType> result;
+    while (env->CallBooleanMethod(iter, J_C_Iterator_M_hasNext)) {
+        jobject entry = env->CallObjectMethod(iter, J_C_Iterator_M_next);
+        jstring key = (jstring)env->CallObjectMethod(entry, J_C_Map$Entry_M_getKey);
+        jobject value = env->CallObjectMethod(entry, J_C_Map$Entry_M_getValue);
+        const char* keyStr = env->GetStringUTFChars(key, JNI_FALSE);
+        const LogicalType* v = getDataType(env, value);
+        // Java code can keep a reference to the value, so we cannot move.
+        result.insert({keyStr, v->copy()});
+
+        env->DeleteLocalRef(entry);
+        env->ReleaseStringUTFChars(key, keyStr);
+        env->DeleteLocalRef(key);
+        env->DeleteLocalRef(value);
+    }
+    return result;
+}
+
 /**
  * All Database native functions
  */
@@ -325,7 +347,8 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_con
     return newQRObject;
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1prepare(
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1prepare__Lio_transwarp_stellardb_1booster_BoosterConnection_2Ljava_lang_String_2(
     JNIEnv* env, jclass, jobject thisConn, jstring query) {
     Connection* conn = getConnection(env, thisConn);
     const char* cppquery = env->GetStringUTFChars(query, JNI_FALSE);
@@ -341,15 +364,35 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_con
     return ret;
 }
 
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1prepare__Lio_transwarp_stellardb_1booster_BoosterConnection_2Ljava_lang_String_2Ljava_util_Map_2(
+    JNIEnv* env, jclass, jobject thisConn, jstring query, jobject param_type_map) {
+    Connection* conn = getConnection(env, thisConn);
+    const char* cppquery = env->GetStringUTFChars(query, JNI_FALSE);
+
+    auto map = javaMapToCPPMap2(env, param_type_map);
+
+    PreparedStatement* prepared_statement = conn->prepare(cppquery, std::move(map)).release();
+    env->ReleaseStringUTFChars(query, cppquery);
+    if (prepared_statement == nullptr) {
+        return nullptr;
+    }
+
+    jobject ret = createJavaObject(env, prepared_statement, J_C_BoosterPreparedStatement,
+        J_C_BoosterPreparedStatement_F_ps_ref);
+    return ret;
+}
+
 JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_connection_1execute(
-    JNIEnv* env, jclass, jobject thisConn, jobject preStm, jobject param_map) {
+    JNIEnv* env, jclass, jobject thisConn, jobject preStm, jobject param_map,
+    jboolean requireRebind) {
     Connection* conn = getConnection(env, thisConn);
     PreparedStatement* ps = getPreparedStatement(env, preStm);
 
     std::unordered_map<std::string, std::unique_ptr<Value>> params =
         javaMapToCPPMap(env, param_map);
 
-    auto query_result = conn->executeWithParams(ps, std::move(params)).release();
+    auto query_result = conn->executeWithParams(ps, std::move(params), requireRebind).release();
     if (query_result == nullptr) {
         return nullptr;
     }

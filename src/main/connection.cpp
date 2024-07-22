@@ -34,6 +34,11 @@ std::unique_ptr<PreparedStatement> Connection::prepare(std::string_view query) {
     return clientContext->prepare(query);
 }
 
+std::unique_ptr<PreparedStatement> Connection::prepare(std::string_view query,
+    std::unordered_map<std::string, common::LogicalType> inputParameterTypes) {
+    return clientContext->prepare(query, std::move(inputParameterTypes));
+}
+
 std::unique_ptr<QueryResult> Connection::query(std::string_view queryStatement) {
     return clientContext->query(queryStatement);
 }
@@ -71,8 +76,9 @@ void Connection::setQueryTimeOut(uint64_t timeoutInMS) {
 }
 
 std::unique_ptr<QueryResult> Connection::executeWithParams(PreparedStatement* preparedStatement,
-    std::unordered_map<std::string, std::unique_ptr<Value>> inputParams) {
-    return clientContext->executeWithParams(preparedStatement, std::move(inputParams));
+    std::unordered_map<std::string, std::unique_ptr<Value>> inputParams, bool requireReBind) {
+    return clientContext->executeWithParams(preparedStatement, std::move(inputParams), std::nullopt,
+        requireReBind);
 }
 
 std::unique_ptr<QueryResult> Connection::executeWithParamsWithID(

@@ -31,7 +31,7 @@ public:
 
     void reset() {
         finished = true;
-        runningTime = false;
+        runningTime = 0;
     }
     
     double getElapsedTimeInMS() const {

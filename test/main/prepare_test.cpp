@@ -242,3 +242,17 @@ TEST_F(ApiTest, PrepareExport) {
     auto result = conn->execute(preparedStatement.get());
     ASSERT_TRUE(result->isSuccess());
 }
+
+TEST_F(ApiTest, PrepareRebind) {
+    conn->query("CREATE NODE TABLE T(id int64, name STRING, PRIMARY KEY(id));");
+    conn->query("CREATE (t:T {name: \"foo\",id:0});");
+    std::unordered_map<std::string, LogicalType> paraTypes;
+    paraTypes.emplace("p", LogicalType::INT64());
+    std::unordered_map<std::string, std::unique_ptr<Value>> inputParams;
+    inputParams.emplace("p",std::make_unique<Value>((int64_t)0));
+    auto preparedStatement = conn->prepare("MATCH (t:T {id: $p}) return t.name;",std::move(paraTypes));
+    auto result = conn->executeWithParams(preparedStatement.get(), std::move(inputParams), false);
+    ASSERT_TRUE(result->hasNext());
+    checkTuple(result->getNext().get(), "foo\n");
+    ASSERT_FALSE(result->hasNext());
+}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "client_context.h"
+#include "common/types/types.h"
 #include "database.h"
 #include "function/udf_function.h"
 
@@ -55,6 +56,10 @@ public:
      * @return the prepared statement.
      */
     KUZU_API std::unique_ptr<PreparedStatement> prepare(std::string_view query);
+
+    KUZU_API std::unique_ptr<PreparedStatement> prepare(std::string_view query,
+        std::unordered_map<std::string, common::LogicalType> inputParameterTypes);
+
     /**
      * @brief Executes the given prepared statement with args and returns the result.
      * @param preparedStatement The prepared statement to execute.
@@ -76,7 +81,8 @@ public:
      * @return the result of the query.
      */
     KUZU_API std::unique_ptr<QueryResult> executeWithParams(PreparedStatement* preparedStatement,
-        std::unordered_map<std::string, std::unique_ptr<common::Value>> inputParams);
+        std::unordered_map<std::string, std::unique_ptr<common::Value>> inputParams,
+        bool requireReBind = true);
     /**
      * @brief interrupts all queries currently executing within this connection.
      */

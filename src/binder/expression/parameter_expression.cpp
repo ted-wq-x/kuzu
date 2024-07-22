@@ -16,7 +16,7 @@ void ParameterExpression::cast(const LogicalType& type) {
         // LCOV_EXCL_STOP
     }
     dataType = type.copy();
-    value.setDataType(type);
+    value->setDataType(type);
 }
 
 } // namespace binder

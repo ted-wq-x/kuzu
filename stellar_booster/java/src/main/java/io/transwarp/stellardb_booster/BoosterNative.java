@@ -82,8 +82,14 @@ public class BoosterNative {
     protected static native BoosterPreparedStatement connection_prepare(
             BoosterConnection connection, String query);
 
+    protected static native BoosterPreparedStatement connection_prepare(
+            BoosterConnection connection, String query, Map<String, BoosterDataType> m);
+
+    /**
+     * @param requireRebind 如果connection_prepare指定了参数类型,则可以设置为false
+     */
     protected static native BoosterQueryResult connection_execute(
-            BoosterConnection connection, BoosterPreparedStatement prepared_statement, Map<String, BoosterValue> param);
+            BoosterConnection connection, BoosterPreparedStatement prepared_statement, Map<String, BoosterValue> param, boolean requireRebind);
 
     protected static native void connection_interrupt(BoosterConnection connection);
 
