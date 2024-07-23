@@ -81,6 +81,7 @@ bool TableFunctionCall::getNextTuplesInternal(ExecutionContext*) {
             localState.rowOffsetVector->setValue(i, rowIdx + i);
         }
     }
+    metrics->numOutputTuple.increase(numTuplesScanned);
     return numTuplesScanned != 0;
 }
 

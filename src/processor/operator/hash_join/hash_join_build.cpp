@@ -52,6 +52,7 @@ void HashJoinBuild::executeInternal(ExecutionContext* context) {
             appendVectors();
         }
     }
+    metrics->numOutputTuple.increase(hashTable->getNumTuples());
     // Merge with global hash table once local tuples are all appended.
     sharedState->mergeLocalHashTable(*hashTable);
 }

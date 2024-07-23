@@ -207,6 +207,7 @@ bool RecursiveJoin::scanOutput() {
         return false;
     }
     vectors->dstNodeIDVector->state->initOriginalAndSelectedSize(offsetVectorSize);
+    metrics->numOutputTuple.increase(offsetVectorSize);
     return true;
 }
 

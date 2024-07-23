@@ -78,7 +78,9 @@ bool ScanNodeTable::getNextTuplesInternal(ExecutionContext* context) {
         if (!skipScan) {
             while (scanState.source != TableScanSource::NONE &&
                    info.table->scan(transaction, scanState)) {
-                if (scanState.nodeIDVector->state->getSelVector().getSelSize() > 0) {
+                auto selectedSize = scanState.nodeIDVector->state->getSelVector().getSelSize();
+                if (selectedSize > 0) {
+                    metrics->numOutputTuple.increase(selectedSize);
                     return true;
                 }
             }
