@@ -197,6 +197,7 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(UnionExtractFunction),
 
         // Node/rel functions
+        SCALAR_FUNCTION(TableIDFunction),
         SCALAR_FUNCTION(OffsetFunction), REWRITE_FUNCTION(IDFunction),
         REWRITE_FUNCTION(UIDFunction),
 

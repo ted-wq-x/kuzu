@@ -5,6 +5,12 @@
 namespace kuzu {
 namespace function {
 
+struct TableIDFunction {
+    static constexpr const char* name = "TABLE_ID";
+
+    static function_set getFunctionSet();
+};
+
 struct OffsetFunction {
     static constexpr const char* name = "OFFSET";
 
