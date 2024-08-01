@@ -37,9 +37,12 @@ std::shared_ptr<Expression> ExpressionBinder::bindExpression(
             }
         }
         if (!allParamExist) {
-            auto value = std::make_shared<Value>(Value::createNullValue());
-            return std::make_shared<ParameterExpression>(binder->getUniqueExpressionName(""),
-                value);
+            auto expr = std::make_shared<ParameterExpression>(binder->getUniqueExpressionName(""),
+                Value::createNullValue());
+            if (parsedExpression.hasAlias()) {
+                expr->setAlias(parsedExpression.getAlias());
+            }
+            return expr;
         }
     }
     std::shared_ptr<Expression> expression;
