@@ -80,7 +80,7 @@ static std::pair<ColumnEvaluateType, std::shared_ptr<Expression>> matchColumnExp
                 return {ColumnEvaluateType::REFERENCE, column};
             } else {
                 return {ColumnEvaluateType::CAST,
-                    expressionBinder.implicitCastIfNecessary(column, property.getDataType())};
+                    expressionBinder.forceCast(column, property.getDataType())};
             }
         }
     }
