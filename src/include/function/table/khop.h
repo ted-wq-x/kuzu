@@ -15,8 +15,9 @@ struct KhopBindData : public CallTableFuncBindData {
             relTableInfos)
         : CallTableFuncBindData{std::move(returnTypes), std::move(returnColumnNames), maxOffset},
           context(context), primaryKey(primaryKey), tableName(tableName), direction(direction),
-          maxHop(maxHop), parameter(parameter), numThreads(numThreads), relFilter(std::move(relFilter)),
-          relColumnTypeIds(std::move(relColumnTypeIds)), relTableInfos(std::move(relTableInfos)) {}
+          maxHop(maxHop), parameter(parameter), numThreads(numThreads),
+          relFilter(std::move(relFilter)), relColumnTypeIds(std::move(relColumnTypeIds)),
+          relTableInfos(std::move(relTableInfos)) {}
 
     std::unique_ptr<TableFuncBindData> copy() const override {
         std::unique_ptr<evaluator::ExpressionEvaluator> localRelFilter = nullptr;
@@ -115,7 +116,7 @@ static void doScan(KhopSharedData& sharedData,
     auto& selectVector = dataChunkToSelect->state->getSelVectorUnsafe();
     auto dstIdDataChunk = dataChunkToSelect->getValueVector(0);
     auto tx = sharedData.context->getTx();
-    for (auto &currentNodeID : data) {
+    for (auto& currentNodeID : data) {
         /*we can quick check here (part of checkIfNodeHasRels)*/
         srcVector.setValue<nodeID_t>(0, currentNodeID);
         relTable->initializeScanState(tx, *readState.get());
@@ -207,38 +208,39 @@ static std::pair<uint64_t, std::vector<std::vector<nodeID_t>>> unionTask(KhopSha
     int64_t numThreads, uint32_t tid, bool isFinal) {
     uint64_t nodeCount = 0;
     std::vector<std::vector<nodeID_t>> nextFrontier;
-
+    auto& threadBitSets = sharedData.threadBitSets;
     for (auto tableID = 0u; tableID < sharedData.globalBitSet->getTableNum(); ++tableID) {
         uint32_t tableSize = sharedData.globalBitSet->getTableSize(tableID);
         if (!tableSize) {
             continue;
         }
-
-        uint32_t l = tableSize * tid / numThreads, r = tableSize * (tid + 1) / numThreads;
-        std::vector<uint64_t> tempMark;
-        tempMark.reserve(r - l);
-        tempMark.resize(r - l, 0);
-        for (auto i = 0u; i < numThreads; ++i) {
-            for (auto offset = l; offset < r; ++offset) {
-                auto mark = sharedData.threadBitSets[i]->getAndReset(tableID, offset);
-                tempMark[offset - l] |= mark;
+        // 必须64对齐,否则会存在多线程同时markVisited里的markflag
+        auto [l, r] = distributeTasks(tableSize, numThreads, tid);
+        auto targetBitSet = threadBitSets[0];
+        for (auto i = 1u; i < numThreads; ++i) {
+            auto threadBitSet = threadBitSets[i];
+            auto& flags = threadBitSet->blockFlags[tableID];
+            for (const auto& offset : flags.range(l, r)) {
+                auto mark = threadBitSet->getAndReset(tableID, offset);
+                targetBitSet->markVisited(tableID, offset, mark);
             }
         }
 
         if (isFinal) {
-            for (const auto& mark : tempMark) {
+            for (auto i : targetBitSet->blockFlags[tableID].range(l, r)) {
+                uint64_t mark = targetBitSet->getAndReset(tableID, i);
                 nodeCount += __builtin_popcountll(mark);
             }
         } else {
             // 构建mission
             std::vector<nodeID_t> nextMission;
-            for (auto i = l; i < r; ++i) {
-                uint64_t now = tempMark[i - l], pos = 0;
+            for (auto i : targetBitSet->blockFlags[tableID].range(l, r)) {
+                uint64_t now = targetBitSet->getAndReset(tableID, i), pos = 0;
                 sharedData.globalBitSet->markVisited(tableID, i, now);
                 while (now) {
                     // now & (now - 1) 去掉最低位的1 ,取最低位的值  pos=now & -now
                     pos = now ^ (now & (now - 1));
-                    auto offset = InternalIDBitSet::getNodeOffset(i, pos);
+                    auto offset = getNodeOffset(i, pos);
                     auto nowNode = nodeID_t{offset, tableID};
                     if ((!nextMission.empty() && ((nextMission.back().offset ^ nowNode.offset) >>
                                                      StorageConstants::NODE_GROUP_SIZE_LOG2))) {
@@ -319,6 +321,9 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
         nodeResults.emplace_back(nodeResult);
         if (sharedData.nextFrontier.empty()) {
             break;
+        }
+        for (auto i = 0u; i < numThreads; i++) {
+            sharedData.threadBitSets[i]->resetFlag();
         }
     }
     int64_t nodeResult = 0, edgeResult = 0;

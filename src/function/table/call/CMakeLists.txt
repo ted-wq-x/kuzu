@@ -15,8 +15,7 @@ add_library(kuzu_table_call
         sssp.cpp
         sssp_count.cpp
         sssp_length.cpp
-        sssp_path.cpp
-        basic.cpp)
+        sssp_path.cpp)
 
 set(ALL_OBJECT_FILES
         ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:kuzu_table_call>

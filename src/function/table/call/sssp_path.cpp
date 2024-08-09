@@ -6,7 +6,7 @@ namespace function {
 struct PathUnionResult {
     uint64_t nodeCount = 0;
     std::vector<nodeID_t> intersectionVector;
-    std::vector<std::vector<nodeID_t>> tempFrontier;
+    std::vector<Mission> tempFrontier;
 };
 
 class PathScanState {
@@ -18,8 +18,9 @@ public:
         hop = 0;
         nodeNumbers = 1;
 
-        std::vector<nodeID_t> nextMission;
-        nextMission.emplace_back(nodeID);
+        Mission nextMission;
+        nextMission.tableID = nodeID.tableID;
+        nextMission.offsets.push_back(nodeID.offset);
         nextFrontier.emplace_back(std::move(nextMission));
 
         globalBitSet = std::make_shared<InternalIDDistBitSet>(sharedData.context->getCatalog(),
@@ -30,7 +31,7 @@ public:
     void doScan(std::shared_ptr<storage::RelTableScanState> readState,
         common::ValueVector& srcVector, std::shared_ptr<RelTableInfo> info,
         std::shared_ptr<InternalIDBitSet> threadBitSet, RelDataDirection relDataDirection,
-        std::vector<internalID_t>& data, const processor::ResultSet& resultSet,
+        Mission& data, const processor::ResultSet& resultSet,
         evaluator::ExpressionEvaluator* relExpr) {
         auto relTable = info->relTable;
         readState->direction = relDataDirection;
@@ -40,7 +41,8 @@ public:
         auto& selectVector = dataChunkToSelect->state->getSelVectorUnsafe();
         auto dstIdDataChunk = dataChunkToSelect->getValueVector(0);
         auto tx = sharedData.context->getTx();
-        for (auto& currentNodeID : data) {
+        for (auto& offset : data.offsets) {
+            internalID_t currentNodeID{offset, data.tableID};
             srcVector.setValue<nodeID_t>(0, currentNodeID);
             relTable->initializeScanState(tx, *readState.get());
             while (readState->hasMoreToRead(tx)) {
@@ -97,7 +99,7 @@ public:
                 break;
             }
             auto& data = nextFrontier[tid];
-            auto tableID = data[0].tableID;
+            auto tableID = data.tableID;
             for (auto& [info, relDataReadState] : relTableScanStates) {
                 if (fwdDirection == "out" || fwdDirection == "both") {
                     if (tableID == info->srcTableID) {
@@ -116,59 +118,66 @@ public:
         }
     }
 
-    PathUnionResult unionTask(uint32_t tid, const PathScanState& otherScanState) {
+    PathUnionResult unionTask2(uint32_t tid, const PathScanState& otherScanState) {
         uint64_t nodeCount = 0;
         std::vector<nodeID_t> intersectionVector;
-        std::vector<std::vector<nodeID_t>> tempFrontier;
+        std::vector<Mission> tempFrontier;
         auto numThreads = sharedData.numThreads;
+        auto& threadBitSets = sharedData.threadBitSets;
         for (auto tableID = 0u; tableID < globalBitSet->getTableNum(); ++tableID) {
             uint32_t tableSize = globalBitSet->getTableSize(tableID);
             if (!tableSize) {
                 continue;
             }
-            uint32_t l = tableSize * tid / numThreads, r = tableSize * (tid + 1) / numThreads;
-            std::vector<uint64_t> tempMark;
-            tempMark.reserve(r - l);
-            tempMark.resize(r - l, 0);
-            for (auto i = 0u; i < numThreads; ++i) {
-                for (auto offset = l; offset < r; ++offset) {
-                    auto mark = sharedData.threadBitSets[i]->getAndReset(tableID, offset);
-                    tempMark[offset - l] |= mark;
+            // 必须64对齐,否则会存在多线程同时markVisited里的markflag
+            auto [l, r] = distributeTasks(tableSize, numThreads, tid);
+            // 将结果汇总到第一个bt中
+            auto targetBitSet = threadBitSets[0];
+            for (auto i = 1u; i < numThreads; ++i) {
+                auto threadBitSet = threadBitSets[i];
+                auto& flags = threadBitSet->blockFlags[tableID];
+                for (const auto& offset : flags.range(l, r)) {
+                    auto mark = threadBitSet->getAndReset(tableID, offset);
+                    targetBitSet->markVisited(tableID, offset, mark);
                 }
+                //                for (auto offset = l; offset < r; ++offset) {
+                //                    auto mark = threadBitSet->getAndReset(tableID, offset);
+                //                    targetBitSet->markVisited(tableID, offset, mark);
+                //                }
             }
-
-            std::vector<nodeID_t> nextMission;
-            for (auto i = l; i < r; ++i) {
-                uint64_t now = tempMark[i - l], pos = 0;
+            Mission nextMission;
+            nextMission.tableID = tableID;
+            for (auto i : targetBitSet->blockFlags[tableID].range(l, r)) {
+                //            for (auto i = l; i < r; ++i) {
+                uint64_t now = targetBitSet->getAndReset(tableID, i), pos = 0;
                 if (!now) {
                     continue;
                 }
-
                 while (now) {
                     // now & (now - 1) 去掉最低位的1 ,取最低位的值  pos=now & -now
                     pos = now ^ (now & (now - 1));
-                    auto offset = InternalIDBitSet::getNodeOffset(i, pos);
+                    auto offset = getNodeOffset(i, pos);
                     auto nowNode = nodeID_t{offset, tableID};
                     globalBitSet->markVisited(nowNode, hop + 1);
                     if (otherScanState.globalBitSet->isVisited(nowNode)) {
                         intersectionVector.emplace_back(nowNode);
                     }
                     if (intersectionVector.empty()) {
-                        if ((!nextMission.empty() &&
-                                ((nextMission.back().offset ^ nowNode.offset) >>
+                        if ((!nextMission.offsets.empty() &&
+                                ((nextMission.offsets.back() ^ nowNode.offset) >>
                                     StorageConstants::NODE_GROUP_SIZE_LOG2))) {
-                            nodeCount += nextMission.size();
+                            nodeCount += nextMission.offsets.size();
                             tempFrontier.emplace_back(std::move(nextMission));
                         }
-                        nextMission.emplace_back(nowNode);
+                        nextMission.offsets.emplace_back(offset);
                     }
 
                     // 还原成 now & (now - 1) ,和result配合,统计now中1的个数 now=now & (now - 1)
                     now ^= pos;
                 }
             }
-            if (intersectionVector.empty() && !nextMission.empty()) {
-                nodeCount += nextMission.size();
+            if (intersectionVector.empty() && !nextMission.offsets.empty()) {
+                nodeCount += nextMission.offsets.size();
                 tempFrontier.emplace_back(std::move(nextMission));
             }
         }
@@ -190,8 +199,8 @@ public:
         }
         std::vector<std::future<PathUnionResult>> unionFuture;
         for (auto i = 0u; i < sharedData.numThreads; ++i) {
-            unionFuture.emplace_back(std::async(std::launch::async, &PathScanState::unionTask, this,
-                i, std::ref(other)));
+            unionFuture.emplace_back(std::async(std::launch::async, &PathScanState::unionTask2,
+                this, i, std::ref(other)));
         }
         currentFrontier = std::move(nextFrontier);
         for (auto& future : unionFuture) {
@@ -206,6 +215,10 @@ public:
                 nodeNumbers += count;
             }
         }
+        for (auto i = 0u; i < sharedData.numThreads; i++) {
+            sharedData.threadBitSets[i]->resetFlag();
+        }
+
         return intersectionVector;
     }
 
@@ -215,8 +228,8 @@ public:
     std::atomic_uint64_t taskID;
     uint32_t hop;
     uint64_t nodeNumbers;
-    std::vector<std::vector<nodeID_t>> currentFrontier;
-    std::vector<std::vector<nodeID_t>> nextFrontier; //  block划分的内部vector
+    std::vector<Mission> currentFrontier;
+    std::vector<Mission> nextFrontier; //  block划分的内部vector
 
     // 记录点的count数
     std::shared_ptr<InternalIDDistBitSet> globalBitSet;
@@ -228,14 +241,15 @@ public:
         bool isParameter)
         : scanState(scanState) {
         taskID = 0;
-        std::vector<std::vector<nodeID_t>> tempFrontier;
-        std::vector<nodeID_t> nextMission;
+        std::vector<Mission> tempFrontier;
+        Mission nextMission;
         for (auto& nodeID : intersectionVector) {
-            if ((!nextMission.empty() && ((nextMission.back().offset ^ nodeID.offset) >>
+            if ((!nextMission.empty() && ((nextMission.back() ^ nodeID.offset) >>
                                              StorageConstants::NODE_GROUP_SIZE_LOG2))) {
                 tempFrontier.emplace_back(std::move(nextMission));
             }
-            nextMission.emplace_back(nodeID);
+            nextMission.tableID = nodeID.tableID;
+            nextMission.emplace_back(nodeID.offset);
         }
         if (!nextMission.empty()) {
             tempFrontier.emplace_back(std::move(nextMission));
@@ -291,12 +305,12 @@ public:
         halfPath = std::move(tempHalfPath);
     }
 
-    void pathScan(std::shared_ptr<storage::RelTableScanState> readState,
+    void pathScan1(std::shared_ptr<storage::RelTableScanState> readState,
         common::ValueVector& srcVector, std::shared_ptr<RelTableInfo> info,
         std::shared_ptr<InternalIDBitSet> threadBitSet,
         std::map<nodeID_t, std::vector<std::vector<nodeID_t>>>& tempHalfPath,
-        RelDataDirection relDataDirection, std::vector<internalID_t>& data,
-        const processor::ResultSet& resultSet, evaluator::ExpressionEvaluator* relExpr) {
+        RelDataDirection relDataDirection, Mission& data, const processor::ResultSet& resultSet,
+        evaluator::ExpressionEvaluator* relExpr) {
         auto relTable = info->relTable;
         readState->direction = relDataDirection;
         // 因为读取的都是相同nodeGroup里数据,故不需要每次都reset
@@ -305,10 +319,11 @@ public:
         auto& selectVector = dataChunkToSelect->state->getSelVectorUnsafe();
         auto dstIdDataChunk = dataChunkToSelect->getValueVector(0);
         auto tx = scanState.sharedData.context->getTx();
-        for (auto& currentNodeID : data) {
+        for (auto& offset : data.offsets) {
+            internalID_t currentNodeID{offset, data.tableID};
             srcVector.setValue<nodeID_t>(0, currentNodeID);
             relTable->initializeScanState(tx, *readState.get());
-            auto dist = scanState.globalBitSet->getNodeValueDist(currentNodeID);
+            auto dist = scanState.globalBitSet->getNodeValueDist(currentNodeID);//todo 每次调用应该是个定值
             while (readState->hasMoreToRead(tx)) {
                 relTable->scan(tx, *readState.get());
 
@@ -334,12 +349,12 @@ public:
         }
     }
 
-    void pathScan(std::shared_ptr<storage::RelTableScanState> readState,
+    void pathScan2(std::shared_ptr<storage::RelTableScanState> readState,
         common::ValueVector& srcVector, std::shared_ptr<RelTableInfo> info,
         std::shared_ptr<InternalIDBitSet> threadBitSet, InternalIDBitSet& intersectionBitSet,
         std::map<nodeID_t, std::vector<std::vector<nodeID_t>>>& tempHalfPath,
-        RelDataDirection relDataDirection, std::vector<internalID_t>& data,
-        const processor::ResultSet& resultSet, evaluator::ExpressionEvaluator* relExpr) {
+        RelDataDirection relDataDirection, Mission& data, const processor::ResultSet& resultSet,
+        evaluator::ExpressionEvaluator* relExpr) {
         auto relTable = info->relTable;
         readState->direction = relDataDirection;
         // 因为读取的都是相同nodeGroup里数据,故不需要每次都reset
@@ -348,7 +363,8 @@ public:
         auto& selectVector = dataChunkToSelect->state->getSelVectorUnsafe();
         auto dstIdDataChunk = dataChunkToSelect->getValueVector(0);
         auto tx = scanState.sharedData.context->getTx();
-        for (auto& currentNodeID : data) {
+        for (auto& offset : data.offsets) {
+            internalID_t currentNodeID{offset, data.tableID};
             srcVector.setValue<nodeID_t>(0, currentNodeID);
             relTable->initializeScanState(tx, *readState.get());
             while (readState->hasMoreToRead(tx)) {
@@ -409,18 +425,18 @@ public:
                 break;
             }
             auto& data = nextFrontier[tid];
-            auto tableID = data[0].tableID;
+            auto tableID = data.tableID;
             for (auto& [info, relDataReadState] : relTableScanStates) {
                 if (direction == "out" || direction == "both") {
                     if (tableID == info->srcTableID) {
-                        pathScan(relDataReadState, srcVector, info, threadBitSet,
+                        pathScan2(relDataReadState, srcVector, info, threadBitSet,
                             intersectionBitSet, tempHalfPath, RelDataDirection::FWD, data,
                             *rs.get(), relFilter);
                     }
                 }
                 if (direction == "in" || direction == "both") {
                     if (tableID == info->dstTableID) {
-                        pathScan(relDataReadState, srcVector, info, threadBitSet,
+                        pathScan2(relDataReadState, srcVector, info, threadBitSet,
                             intersectionBitSet, tempHalfPath, RelDataDirection::BWD, data,
                             *rs.get(), relFilter);
                     }
@@ -463,17 +479,17 @@ public:
                 break;
             }
             auto& data = nextFrontier[tid];
-            auto tableID = data[0].tableID;
+            auto tableID = data.tableID;
             for (auto& [info, relDataReadState] : relTableScanStates) {
                 if (direction == "out" || direction == "both") {
                     if (tableID == info->srcTableID) {
-                        pathScan(relDataReadState, srcVector, info, threadBitSet, tempHalfPath,
+                        pathScan1(relDataReadState, srcVector, info, threadBitSet, tempHalfPath,
                             RelDataDirection::FWD, data, *rs.get(), relFilter);
                     }
                 }
                 if (direction == "in" || direction == "both") {
                     if (tableID == info->dstTableID) {
-                        pathScan(relDataReadState, srcVector, info, threadBitSet, tempHalfPath,
+                        pathScan1(relDataReadState, srcVector, info, threadBitSet, tempHalfPath,
                             RelDataDirection::BWD, data, *rs.get(), relFilter);
                     }
                 }
@@ -482,27 +498,33 @@ public:
         return tempHalfPath;
     }
 
-    std::vector<std::vector<nodeID_t>> unionTask(uint32_t tid) {
-        std::vector<std::vector<nodeID_t>> tempFrontier;
+    std::vector<Mission> unionTask1(uint32_t tid) {
+        std::vector<Mission> tempFrontier;
         auto numThreads = scanState.sharedData.numThreads;
+        auto& threadBitSets = scanState.sharedData.threadBitSets;
         for (auto tableID = 0u; tableID < scanState.globalBitSet->getTableNum(); ++tableID) {
             uint32_t tableSize = scanState.globalBitSet->getTableSize(tableID);
             if (!tableSize) {
                 continue;
             }
-            uint32_t l = tableSize * tid / numThreads, r = tableSize * (tid + 1) / numThreads;
-            std::vector<uint64_t> tempMark;
-            tempMark.reserve(r - l);
-            tempMark.resize(r - l, 0);
-            for (auto i = 0u; i < numThreads; ++i) {
-                for (auto offset = l; offset < r; ++offset) {
-                    auto mark = scanState.sharedData.threadBitSets[i]->getAndReset(tableID, offset);
-                    tempMark[offset - l] |= mark;
+            // 必须64对齐,否则会存在多线程同时markVisited里的markflag
+            auto [l, r] = distributeTasks(tableSize, numThreads, tid);
+            // 将结果汇总到第一个bt中
+            auto targetBitSet = threadBitSets[0];
+            for (auto i = 1u; i < numThreads; ++i) {
+                auto threadBitSet = threadBitSets[i];
+                auto& flags = threadBitSet->blockFlags[tableID];
+                for (const auto& offset : flags.range(l, r)) {
+
+                    auto mark = threadBitSets[i]->getAndReset(tableID, offset);
+                    targetBitSet->markVisited(tableID, offset, mark);
                 }
             }
-            std::vector<nodeID_t> nextMission;
-            for (auto i = l; i < r; ++i) {
-                uint64_t now = tempMark[i - l], pos = 0;
+            Mission nextMission;
+            nextMission.tableID = tableID;
+            for (auto i : targetBitSet->blockFlags[tableID].range(l, r)) {
+
+                uint64_t now = targetBitSet->getAndReset(tableID, i), pos = 0;
                 if (!now) {
                     continue;
                 }
@@ -510,14 +532,13 @@ public:
                 while (now) {
                     // now & (now - 1) 去掉最低位的1 ,取最低位的值  pos=now & -now
                     pos = now ^ (now & (now - 1));
-                    auto offset = InternalIDBitSet::getNodeOffset(i, pos);
-                    auto nowNode = nodeID_t{offset, tableID};
+                    auto offset = getNodeOffset(i, pos);
 
-                    if ((!nextMission.empty() && ((nextMission.back().offset ^ nowNode.offset) >>
+                    if ((!nextMission.empty() && ((nextMission.back() ^ offset) >>
                                                      StorageConstants::NODE_GROUP_SIZE_LOG2))) {
                         tempFrontier.emplace_back(std::move(nextMission));
                     }
-                    nextMission.emplace_back(nowNode);
+                    nextMission.emplace_back(offset);
 
                     // 还原成 now & (now - 1) ,和result配合,统计now中1的个数 now=now & (now - 1)
                     now ^= pos;
@@ -552,16 +573,19 @@ public:
             unionPath(halfPath, tempHalfPath);
         }
 
-        std::vector<std::future<std::vector<std::vector<nodeID_t>>>> unionFuture;
+        std::vector<std::future<std::vector<Mission>>> unionFuture;
         for (auto i = 0u; i < scanState.sharedData.numThreads; i++) {
             unionFuture.emplace_back(
-                std::async(std::launch::async, &HalfPathState::unionTask, this, i));
+                std::async(std::launch::async, &HalfPathState::unionTask1, this, i));
         }
         nextFrontier.clear();
         for (auto& future : unionFuture) {
             auto tempFrontier = future.get();
             nextFrontier.insert(nextFrontier.end(), std::make_move_iterator(tempFrontier.begin()),
                 std::make_move_iterator(tempFrontier.end()));
+        }
+        for (auto i = 0u; i < scanState.sharedData.numThreads; i++) {
+            scanState.sharedData.threadBitSets[i]->resetFlag();
         }
     }
 
@@ -587,10 +611,10 @@ public:
             if (!hop) {
                 break;
             }
-            std::vector<std::future<std::vector<std::vector<nodeID_t>>>> unionFuture;
+            std::vector<std::future<std::vector<Mission>>> unionFuture;
             for (auto i = 0u; i < scanState.sharedData.numThreads; ++i) {
                 unionFuture.emplace_back(
-                    std::async(std::launch::async, &HalfPathState::unionTask, this, i));
+                    std::async(std::launch::async, &HalfPathState::unionTask1, this, i));
             }
             nextFrontier.clear();
             for (auto& future : unionFuture) {
@@ -599,6 +623,9 @@ public:
                     std::make_move_iterator(tempFrontier.begin()),
                     std::make_move_iterator(tempFrontier.end()));
             }
+            for (auto i = 0u; i < scanState.sharedData.numThreads; i++) {
+                scanState.sharedData.threadBitSets[i]->resetFlag();
+            }
         }
         reconstructHalfPath();
     }
@@ -606,7 +633,7 @@ public:
     PathScanState& scanState;
     uint32_t pathLength;
     std::atomic_uint32_t taskID;
-    std::vector<std::vector<nodeID_t>> nextFrontier;
+    std::vector<Mission> nextFrontier;
     std::map<nodeID_t, std::vector<std::vector<nodeID_t>>> halfPath;
 };
 
@@ -668,7 +695,7 @@ offset_t pathFunc(TableFuncInput& input, TableFuncOutput& output) {
     auto& dataChunk = output.dataChunk;
     auto resultType = bindData->resultType;
     if (!localState->resultVector.empty()) {
-        return fillResVector(sharedState->getMorsel(), resultType, dataChunk, *localState);
+        return fillResVector(morsel, resultType, dataChunk, *localState);
     }
     auto numThreads = bindData->numThreads;
     auto direction = bindData->direction;
@@ -711,6 +738,15 @@ offset_t pathFunc(TableFuncInput& input, TableFuncOutput& output) {
             }
         }
     }
+
+    std::sort(intersectionVector.begin(), intersectionVector.end(),
+        [](const internalID_t& entry1, const internalID_t& entry2) -> bool {
+            if (entry1.tableID == entry2.tableID) {
+                return entry1.offset < entry2.offset;
+            } else {
+                return entry1.tableID < entry2.tableID;
+            }
+        });
     // 构建结果路径
     HalfPathState leftPath(srcScanState, intersectionVector, bindData->isParameter);
     HalfPathState rightPath(dstScanState, intersectionVector, bindData->isParameter);

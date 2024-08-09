@@ -8,6 +8,8 @@
 #include "common/cast.h"
 #include "common/data_chunk/sel_vector.h"
 #include "common/exception/binder.h"
+#include "common/string_format.h"
+#include "common/system_message.h"
 #include "common/types/value/nested.h"
 #include "expression_evaluator/expression_evaluator.h"
 #include "function/table/call_functions.h"
@@ -25,6 +27,113 @@ using namespace kuzu::binder;
 namespace kuzu {
 namespace function {
 
+static std::vector<uint8_t> initNumTable() {
+    std::vector<uint8_t> numTable(67);
+    for (uint8_t i = 0; i < 64; ++i) {
+        uint64_t now = (1ULL << i);
+        numTable[now % 67] = i;
+    }
+    return numTable;
+}
+
+const static std::vector<uint8_t> numTable = initNumTable();
+
+static offset_t getNodeOffset(uint32_t blockID, uint64_t pos) {
+    // bitset的每一个元素实际标记了64个元素是否存在,i<<6是该元素offset的起点位置，加上pos%67就是实际offset的值
+    return (blockID << 6) + numTable[pos % 67];
+}
+
+/**
+ * 分配任务并且任务是64对齐的
+ */
+static std::pair<uint32_t, uint32_t> distributeTasks(uint32_t tableSize, uint32_t numThreads,
+    uint32_t tid) {
+    uint32_t alignedTableSize = (tableSize + 63) & ~63;
+    uint32_t l = (alignedTableSize * tid / numThreads) & ~63;
+    uint32_t r = (alignedTableSize * (tid + 1) / numThreads) & ~63;
+    if (r > tableSize) {
+        r = tableSize;
+    }
+    return {l, r};
+}
+
+/**
+ * 通过这个bitset降低访问内存的开销
+ */
+class BitSet {
+public:
+    BitSet() : bits(0) {}
+    BitSet(size_t size) : bits((size + 63) / 64) {}
+
+    void set(size_t index) { bits[index / 64] |= (1ULL << (index % 64)); }
+
+    bool test(size_t index) const { return bits[index / 64] & (1ULL << (index % 64)); }
+    bool testAndReset(size_t index) {
+        uint64_t& x = bits[index / 64];
+        auto y = (1ULL << (index % 64));
+        auto ans = x & y;
+        if (ans) {
+            x &= ~y;
+        }
+        return ans;
+    }
+
+    void resize(size_t size) { bits.resize((size + 63) / 64); }
+
+
+private:
+    // right<=63
+    inline uint64_t preserve_range(uint64_t value, int left, int right) {
+        // 创建掩码，保留 left 位（包含）到 right 位（不包含）
+        uint64_t mask = ((1ULL << (right - left)) - 1) << (left);
+        return value & mask;
+    }
+    // 创建掩码，保留 left 位（包含）到 right 位（包含）
+    inline uint64_t preserve_range_include(uint64_t value, int left) {
+        uint64_t mask = (~0ULL << left);
+        return value & mask;
+    }
+
+    inline void range(size_t blockId, uint64_t now, std::vector<size_t>& result) {
+        while (now) {
+            auto pos = now ^ (now & (now - 1));
+            auto offset = getNodeOffset(blockId, pos);
+            result.push_back(offset);
+            now ^= pos;
+        }
+    }
+
+public:
+    // include,exclude
+    std::vector<size_t> range(size_t l, size_t r) {
+        std::vector<size_t> result;
+        auto startBlock = l >> 6;
+        auto endBlock = r >> 6;
+        auto startOffset = l % 64;
+        auto endOffset = r % 64;
+
+        if (startBlock == endBlock) {
+            auto value = preserve_range(bits[startBlock], startOffset, endOffset);
+            range(startBlock, value, result);
+        } else {
+            auto value = preserve_range_include(bits[startBlock], startOffset);
+            range(startBlock, value, result);
+            for (auto i = startBlock + 1; i < endBlock; ++i) {
+                range(i, bits[i], result);
+            }
+            value = preserve_range(bits[endBlock], 0, endOffset);
+            range(endBlock, value, result);
+        }
+
+        return result;
+    }
+
+    void resetMark() { std::fill(bits.begin(), bits.end(), 0); }
+
+private:
+    std::vector<uint64_t> bits;
+};
+
 class InternalIDBitSet {
 public:
     InternalIDBitSet(Catalog* catalog, storage::StorageManager* storage,
@@ -32,110 +141,172 @@ public:
         auto nodeTableIDs = catalog->getNodeTableIDs(tx);
         auto maxNodeTableID = *std::max_element(nodeTableIDs.begin(), nodeTableIDs.end()) + 1;
         nodeIDMark.resize(maxNodeTableID);
+        blockFlags.resize(maxNodeTableID);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
             auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
             nodeIDMark[tableID].reserve(size);
             nodeIDMark[tableID].resize(size, 0);
+            blockFlags[tableID].resize(size);
         }
     }
 
-    inline bool isVisited(internalID_t& nodeID) {
+    bool isVisited(internalID_t& nodeID) {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
         return (nodeIDMark[nodeID.tableID][block] >> pos) & 1;
     }
 
-    inline void markVisited(internalID_t& nodeID) {
+    void markVisited(internalID_t& nodeID) {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
-        nodeIDMark[nodeID.tableID][block] |= (1ULL << pos);
+        auto& t = nodeIDMark[nodeID.tableID][block];
+        if (t == 0) {
+            markFlag(nodeID.tableID, block);
+        }
+        t |= (1ULL << pos);
     }
 
-    inline void markVisited(uint32_t tableID, uint32_t pos, uint64_t value) {
-        nodeIDMark[tableID][pos] |= value;
+    void markVisited(uint32_t tableID, uint32_t pos, uint64_t value) {
+        auto& t = nodeIDMark[tableID][pos];
+        if (t == 0) {
+            markFlag(tableID, pos);
+        }
+        t |= value;
     }
 
-    inline uint64_t getAndReset(uint32_t tableID, uint32_t pos) {
+    uint64_t getAndReset(uint32_t tableID, uint32_t pos) {
         auto& val = nodeIDMark[tableID][pos];
         uint64_t temp = val;
         val = 0;
         return temp;
     }
 
-    inline bool markIfUnVisitedReturnVisited(InternalIDBitSet& visitedBitSet,
-        internalID_t& nodeID) {
+    bool markIfUnVisitedReturnVisited(InternalIDBitSet& visitedBitSet, internalID_t& nodeID) {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
         if ((visitedBitSet.nodeIDMark[nodeID.tableID][block] >> pos) & 1) {
             return true;
         } else {
-            nodeIDMark[nodeID.tableID][block] |= (1ULL << pos);
+            auto& t = nodeIDMark[nodeID.tableID][block];
+            if (t == 0) {
+                markFlag(nodeID.tableID, block);
+            }
+            t |= (1ULL << pos);
+
             return false;
         }
     }
 
-    inline uint32_t getTableNum() { return nodeIDMark.size(); }
+    uint32_t getTableNum() { return nodeIDMark.size(); }
 
-    inline uint32_t getTableSize(uint32_t tableID) { return nodeIDMark[tableID].size(); }
+    uint32_t getTableSize(uint32_t tableID) { return nodeIDMark[tableID].size(); }
 
-    inline static offset_t getNodeOffset(uint32_t blockID, uint64_t pos) {
-        // bitset的每一个元素实际标记了64个元素是否存在,i<<6是该元素offset的起点位置，加上pos%67就是实际offset的值
-        return (blockID << 6) + numTable[pos % 67];
+    void resetFlag() {
+        for (auto& item : blockFlags) {
+            item.resetMark();
+        }
     }
+
+private:
+    void markFlag(table_id_t tableID, uint32_t blockID) { blockFlags[tableID].set(blockID); }
+
+public:
+    std::vector<BitSet> blockFlags;
 
 private:
     // tableID==>blockID==>mark
     std::vector<std::vector<uint64_t>> nodeIDMark;
-
-    const static std::vector<uint8_t> numTable;
 };
 
+struct alignas(64) PaddedAtomic {
+    std::atomic_uint32_t value;
+
+    // 默认构造函数
+    PaddedAtomic() : value(0) {}
+
+    // 禁用拷贝构造函数和赋值操作符
+    PaddedAtomic(const PaddedAtomic&) = delete;
+    PaddedAtomic& operator=(const PaddedAtomic&) = delete;
+
+    // 移动构造函数和赋值操作符
+    PaddedAtomic(PaddedAtomic&& other) noexcept : value(other.value.load()) {}
+    PaddedAtomic& operator=(PaddedAtomic&& other) noexcept {
+        if (this != &other) {
+            value.store(other.value.load());
+        }
+        return *this;
+    }
+};
+/**
+ * 将内存分配按照tableID划分,cpu cache更加优化,并发测试能够提升qps
+ * 测试过直接按block拿性能最差
+ * 直接new并发性能更好,在20并发下qps有35,而使用pool只有23.但是单跑性能很差,因为有析构函数的存在
+ * 在使用mimelloc开启大页后,mmap+MADV_HUGEPAGE qps不如 直接new大数组
+ */
 struct MemoryPoolUint32 {
+    ~MemoryPoolUint32() { delete[] poolMemory; }
     static constexpr uint32_t UINT32_BLOCK_SIZE = 64 * sizeof(uint32_t);
+    constexpr static std::size_t huge_page_size = 1 << 21; // 2 MiB
+    size_t round_to_huge_page_size(size_t n) {
+        return (((n - 1) / huge_page_size) + 1) * huge_page_size;
+    }
+    void init(uint32_t numBlocks, std::vector<uint64_t> tableBlockNum) {
+        // 不初始化为0,因为分配的是虚拟内存,故内存占用不大
+        // 不使用mmap,是为了降低page fault
 
-    ~MemoryPoolUint32() { munmap(memory, memorySize); }
+#if defined(__linux__) && !defined(__aarch64__)
+        auto size = round_to_huge_page_size(numBlocks * UINT32_BLOCK_SIZE);
+        auto arr = aligned_alloc(huge_page_size, size);
+        madvise(arr, size, MADV_HUGEPAGE);
+        poolMemory = static_cast<uint32_t*>(arr);
+#else
+        poolMemory = new uint32_t[numBlocks * 64];
+#endif
 
-    inline void init(uint32_t numBlocks) {
-        memorySize = numBlocks * UINT32_BLOCK_SIZE;
-        // 默认初始化为0
-        memory = mmap(NULL, memorySize, PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-        poolMemory = static_cast<uint32_t*>(memory);
+        uint64_t index = 0;
+        atomicUsedBlocks.resize(tableBlockNum.size());
+        for (auto i = 0u; i < tableBlockNum.size(); ++i) {
+            atomicUsedBlocks[i].value = index;
+            index += tableBlockNum[i];
+        }
     }
 
-    inline uint32_t* allocateAtomic() {
-        auto index = atomicUsedBlocks.fetch_add(1, std::memory_order_relaxed);
-        return poolMemory + index * 64;
+    uint32_t* allocateAtomic(table_id_t tableID) {
+        auto index = atomicUsedBlocks[tableID].value.fetch_add(1, std::memory_order_relaxed);
+        auto ans = poolMemory + index * 64;
+        // 如果使用mmap,这里触发物理内存分配,这里的调用能显著提升性能,原因未知
+        //        ans[0] = 0;
+        std::memset(ans, 0, UINT32_BLOCK_SIZE);
+        return ans;
     }
 
-    inline uint32_t* allocate() {
-        auto index = usedBlocks++;
-        return poolMemory + index * 64;
-    }
-
-    uint32_t memorySize;
-    uint32_t usedBlocks = 0;
-    std::atomic_uint32_t atomicUsedBlocks = 0;
-    void* memory;
     uint32_t* poolMemory;
+    std::vector<PaddedAtomic> atomicUsedBlocks;
 };
 
 struct Count {
-    uint64_t mark = 0;
     uint32_t* count = nullptr;
-    // 以下方法都是unsafe的,需要自己保证count!=nullptr
-    inline void merge(Count& other) {
-        mark |= other.mark;
 
+    // 以下方法都是unsafe的,需要自己保证count!=nullptr
+    void merge(const Count& other) {
         for (auto i = 0u; i < 64; ++i) {
             count[i] += other.count[i];
         }
     }
 
-    inline void reset() {
-        mark = 0;
-        std::memset(count, 0, MemoryPoolUint32::UINT32_BLOCK_SIZE);
+    uint64_t mark() {
+        if (count == nullptr) {
+            return 0;
+        }
+        uint64_t ans = 0;
+        for (auto i = 0u; i < 64u; ++i) {
+            if (count[i] != 0) {
+                ans |= (1ULL << i);
+            }
+        }
+        return ans;
     }
 
-    inline void free() { delete[] count; }
+    // 因为是两侧访问,所以会被重复访问,故不能直接设置null
+    void reset() { std::memset(count, 0, MemoryPoolUint32::UINT32_BLOCK_SIZE); }
 };
 
 class InternalIDCountBitSet {
@@ -145,33 +316,40 @@ public:
         auto nodeTableIDs = catalog->getNodeTableIDs(tx);
         auto maxNodeTableID = *std::max_element(nodeTableIDs.begin(), nodeTableIDs.end()) + 1;
         nodeIDMark.resize(maxNodeTableID);
-        uint32_t numBlocks = 0;
+        uint64_t numBlocks = 0;
+        std::vector<uint64_t> tableBlockNum;
+        tableBlockNum.resize(maxNodeTableID);
+        blockFlags.resize(maxNodeTableID);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
             auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
             numBlocks += size;
             nodeIDMark[tableID].reserve(size);
             nodeIDMark[tableID].resize(size);
+            tableBlockNum[tableID] = size;
+            blockFlags[tableID].resize(size);
         }
-        pool.init(numBlocks);
+        pool.init(numBlocks, tableBlockNum);
     }
 
-    inline bool isVisited(internalID_t& nodeID) {
+    bool isVisited(internalID_t& nodeID) {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
-        return (nodeIDMark[nodeID.tableID][block].mark >> pos) & 1;
+        auto& temp = nodeIDMark[nodeID.tableID][block];
+        return temp.count != nullptr && temp.count[pos] != 0;
     }
 
-    inline void markVisited(internalID_t& nodeID, uint32_t count) {
+    void markVisited(internalID_t& nodeID, uint32_t count) {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
         auto& value = nodeIDMark[nodeID.tableID][block];
-        value.mark |= (1ULL << pos);
         if (value.count == nullptr) {
-            value.count = pool.allocate();
+            value.count = pool.allocateAtomic(nodeID.tableID);
         }
         value.count[pos] += count;
+
+        markFlag(nodeID.tableID, block);
     }
 
-    inline uint32_t getNodeValueCount(internalID_t& nodeID) const {
+    uint32_t getNodeValueCount(internalID_t& nodeID) const {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
         auto& value = nodeIDMark[nodeID.tableID][block];
         if (value.count == nullptr) {
@@ -180,52 +358,80 @@ public:
         return value.count[pos];
     }
 
-    inline Count& getNodeValue(uint32_t tableID, uint32_t pos) { return nodeIDMark[tableID][pos]; }
+    Count& getNodeValue(uint32_t tableID, uint32_t pos) { return nodeIDMark[tableID][pos]; }
 
-    inline uint32_t getTableNum() const { return nodeIDMark.size(); }
+    uint32_t getTableNum() const { return nodeIDMark.size(); }
 
-    inline uint32_t getTableSize(uint32_t tableID) const { return nodeIDMark[tableID].size(); }
+    uint32_t getTableSize(uint32_t tableID) const { return nodeIDMark[tableID].size(); }
 
-    inline void merge(uint32_t tableID, uint32_t pos, Count& other) {
+    void merge(uint32_t tableID, uint32_t pos, Count& other) {
         auto& value = nodeIDMark[tableID][pos];
         if (value.count == nullptr) {
-            value.count = pool.allocateAtomic();
+            value.count = pool.allocateAtomic(tableID);
         }
         value.merge(other);
+        markFlag(tableID, pos);
+    }
+
+    void markFlag(table_id_t tableID, uint32_t blockID) { blockFlags[tableID].set(blockID); }
+
+    void resetFlag() {
+        for (auto& item : blockFlags) {
+            item.resetMark();
+        }
     }
 
 private:
     MemoryPoolUint32 pool;
-    // tableID==>blockID==>mark
+    //  tableID==>blockID==>mark
+    //    std::unique_ptr<Count*>
     std::vector<std::vector<Count>> nodeIDMark;
+
+public:
+    //  tableID==>block bitset
+    // 内存增加不多,但效果明显
+    std::vector<BitSet> blockFlags;
 };
 
 struct MemoryPoolUint8 {
+    ~MemoryPoolUint8() { delete[] poolMemory; }
     static constexpr uint32_t UINT8_BLOCK_SIZE = 64 * sizeof(uint8_t);
-
-    ~MemoryPoolUint8() { munmap(memory, memorySize); }
-
-    inline void init(uint32_t numBlocks) {
-        memorySize = numBlocks * UINT8_BLOCK_SIZE;
-        // 默认初始化为0
-        memory = mmap(NULL, memorySize, PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-        poolMemory = static_cast<uint8_t*>(memory);
+    constexpr static std::size_t huge_page_size = 1 << 21; // 2 MiB
+    size_t round_to_huge_page_size(size_t n) {
+        return (((n - 1) / huge_page_size) + 1) * huge_page_size;
     }
 
-    inline uint8_t* allocate() {
-        auto index = usedBlocks.fetch_add(1, std::memory_order_relaxed);
-        return poolMemory + index * 64;
+    void init(uint32_t numBlocks, std::vector<uint64_t> tableBlockNum) {
+#if defined(__linux__) && !defined(__aarch64__)
+        auto size = round_to_huge_page_size(numBlocks * UINT8_BLOCK_SIZE);
+        auto arr = aligned_alloc(huge_page_size, size);
+        madvise(arr, size, MADV_HUGEPAGE);
+        poolMemory = static_cast<uint8_t*>(arr);
+#else
+        poolMemory = new uint8_t[numBlocks * 64];
+#endif
+
+        uint64_t index = 0;
+        atomicUsedBlocks.resize(tableBlockNum.size());
+        for (auto i = 0u; i < tableBlockNum.size(); ++i) {
+            atomicUsedBlocks[i].value = index;
+            index += tableBlockNum[i];
+        }
     }
 
-    uint32_t memorySize;
-    std::atomic_uint32_t usedBlocks = 0;
-    void* memory;
+    uint8_t* allocate(table_id_t tableID) {
+        auto index = atomicUsedBlocks[tableID].value.fetch_add(1, std::memory_order_relaxed);
+        auto ans = poolMemory + index * 64;
+        // 初始化为0
+        std::memset(ans, 0, UINT8_BLOCK_SIZE);
+        return ans;
+    }
+
     uint8_t* poolMemory;
+    std::vector<PaddedAtomic> atomicUsedBlocks;
 };
 
 struct Dist {
-    uint64_t mark = 0;
     uint8_t* dist = nullptr;
 };
 
@@ -237,32 +443,35 @@ public:
         auto maxNodeTableID = *std::max_element(nodeTableIDs.begin(), nodeTableIDs.end()) + 1;
         nodeIDMark.resize(maxNodeTableID);
         uint32_t numBlocks = 0;
+        std::vector<uint64_t> tableBlockNum;
+        tableBlockNum.resize(maxNodeTableID);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
             auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
             numBlocks += size;
             nodeIDMark[tableID].reserve(size);
             nodeIDMark[tableID].resize(size);
+            tableBlockNum[tableID] = size;
         }
-        pool.init(numBlocks);
+        pool.init(numBlocks, tableBlockNum);
     }
 
-    inline bool isVisited(internalID_t& nodeID) {
+    bool isVisited(const internalID_t& nodeID) {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
-        return (nodeIDMark[nodeID.tableID][block].mark >> pos) & 1;
+        auto& temp = nodeIDMark[nodeID.tableID][block];
+        return temp.dist != nullptr && temp.dist[pos] != 0;
     }
 
-    inline void markVisited(internalID_t& nodeID, uint32_t dist) {
+    void markVisited(const internalID_t& nodeID, uint32_t dist) {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
         auto& value = nodeIDMark[nodeID.tableID][block];
-        value.mark |= (1ULL << pos);
         if (value.dist == nullptr) {
-            value.dist = pool.allocate();
+            value.dist = pool.allocate(nodeID.tableID);
         }
         value.dist[pos] = dist;
     }
 
-    inline uint32_t getNodeValueDist(internalID_t& nodeID) const {
+    uint32_t getNodeValueDist(const internalID_t& nodeID) const {
         uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
         auto& value = nodeIDMark[nodeID.tableID][block];
         if (value.dist == nullptr) {
@@ -271,11 +480,9 @@ public:
         return value.dist[pos];
     }
 
-    inline Dist& getNodeValue(uint32_t tableID, uint32_t pos) { return nodeIDMark[tableID][pos]; }
+    uint32_t getTableNum() const { return nodeIDMark.size(); }
 
-    inline uint32_t getTableNum() const { return nodeIDMark.size(); }
-
-    inline uint32_t getTableSize(uint32_t tableID) const { return nodeIDMark[tableID].size(); }
+    uint32_t getTableSize(const uint32_t tableID) const { return nodeIDMark[tableID].size(); }
 
 private:
     MemoryPoolUint8 pool;
@@ -517,5 +724,13 @@ static nodeID_t getNodeID(main::ClientContext* context, std::string tableName,
     }
 }
 
+struct Mission {
+    table_id_t tableID;
+    std::vector<offset_t> offsets;
+
+    bool empty() { return offsets.empty(); }
+    offset_t back() { return offsets.back(); }
+    void emplace_back(offset_t offset_t) { offsets.emplace_back(offset_t); }
+};
 } // namespace function
 } // namespace kuzu

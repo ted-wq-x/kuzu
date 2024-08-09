@@ -118,25 +118,28 @@ public:
         bool isIntersect = false;
         std::vector<std::vector<nodeID_t>> tempFrontier;
         auto numThreads = sharedData.numThreads;
+        auto& threadBitSets = sharedData.threadBitSets;
         for (auto tableID = 0u; tableID < globalBitSet->getTableNum(); ++tableID) {
             uint32_t tableSize = globalBitSet->getTableSize(tableID);
             if (!tableSize) {
                 continue;
             }
-            uint32_t l = tableSize * tid / numThreads, r = tableSize * (tid + 1) / numThreads;
-            std::vector<uint64_t> tempMark;
-            tempMark.reserve(r - l);
-            tempMark.resize(r - l, 0);
+            // 必须64对齐,否则会存在多线程同时markVisited里的markflag
+            auto [l, r] = distributeTasks(tableSize, numThreads, tid);
+            // 将结果汇总到第一个bt中
+            auto targetBitSet = threadBitSets[0];
             for (auto i = 0u; i < numThreads; ++i) {
-                for (auto offset = l; offset < r; ++offset) {
-                    auto mark = sharedData.threadBitSets[i]->getAndReset(tableID, offset);
-                    tempMark[offset - l] |= mark;
+                auto threadBitSet = threadBitSets[i];
+                auto& flags = threadBitSet->blockFlags[tableID];
+                for (const auto& offset : flags.range(l, r)) {
+                    auto mark = threadBitSet->getAndReset(tableID, offset);
+                    targetBitSet->markVisited(tableID, offset, mark);
                 }
             }
 
             std::vector<nodeID_t> nextMission;
-            for (auto i = l; i < r; ++i) {
-                uint64_t now = tempMark[i - l], pos = 0;
+            for (auto i : targetBitSet->blockFlags[tableID].range(l, r)) {
+                uint64_t now = targetBitSet->getAndReset(tableID, i), pos = 0;
                 if (!now) {
                     continue;
                 }
@@ -145,7 +148,7 @@ public:
                 while (now) {
                     // now & (now - 1) 去掉最低位的1 ,取最低位的值  pos=now & -now
                     pos = now ^ (now & (now - 1));
-                    auto offset = InternalIDBitSet::getNodeOffset(i, pos);
+                    auto offset = getNodeOffset(i, pos);
                     auto nowNode = nodeID_t{offset, tableID};
                     isIntersect |= otherScanState.globalBitSet->isVisited(nowNode);
                     if (!isIntersect) {
@@ -198,6 +201,9 @@ public:
                     std::make_move_iterator(tempFrontier.end()));
                 nodeNumbers += count;
             }
+        }
+        for (auto i = 0u; i < sharedData.numThreads; i++) {
+            sharedData.threadBitSets[i]->resetFlag();
         }
         return isIntersect;
     }

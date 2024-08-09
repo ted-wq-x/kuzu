@@ -6,7 +6,7 @@ namespace function {
 struct CountUnionResult {
     uint64_t ans = 0;
     uint64_t nodeCount = 0;
-    std::vector<std::vector<nodeID_t>> tempFrontier;
+    std::vector<Mission> tempFrontier;
 };
 
 class CountScanState {
@@ -16,8 +16,9 @@ public:
 
         nodeNumbers = 1;
 
-        std::vector<nodeID_t> nextMission;
-        nextMission.emplace_back(nodeID);
+        Mission nextMission;
+        nextMission.tableID = nodeID.tableID;
+        nextMission.offsets.push_back(nodeID.offset);
         nextFrontier.emplace_back(std::move(nextMission));
 
         globalBitSet = std::make_shared<InternalIDCountBitSet>(sharedData.context->getCatalog(),
@@ -28,7 +29,7 @@ public:
     void scanTask(std::shared_ptr<storage::RelTableScanState> readState,
         common::ValueVector& srcVector, std::shared_ptr<RelTableInfo> info,
         std::shared_ptr<InternalIDCountBitSet> threadBitSet, RelDataDirection relDataDirection,
-        std::vector<internalID_t>& data, const processor::ResultSet& resultSet,
+        Mission& mission, const processor::ResultSet& resultSet,
         evaluator::ExpressionEvaluator* relExpr) {
         auto relTable = info->relTable;
         readState->direction = relDataDirection;
@@ -38,7 +39,8 @@ public:
         auto& selectVector = dataChunkToSelect->state->getSelVectorUnsafe();
         auto dstIdDataChunk = dataChunkToSelect->getValueVector(0);
         auto tx = sharedData.context->getTx();
-        for (auto& currentNodeID : data) {
+        for (auto& offset : mission.offsets) {
+            internalID_t currentNodeID{offset, mission.tableID};
             srcVector.setValue<nodeID_t>(0, currentNodeID);
             relTable->initializeScanState(tx, *readState.get());
             auto count = globalBitSet->getNodeValueCount(currentNodeID);
@@ -96,7 +98,7 @@ public:
                 break;
             }
             auto& data = nextFrontier[tid];
-            auto tableID = data[0].tableID;
+            auto tableID = data.tableID;
             for (auto& [info, relDataReadState] : relTableScanStates) {
                 if (direction == "out" || direction == "both") {
                     if (tableID == info->srcTableID) {
@@ -118,7 +120,7 @@ public:
     CountUnionResult unionTask(uint32_t tid, const CountScanState& otherScanState) {
         uint64_t nodeCount = 0;
         uint64_t ans = 0;
-        std::vector<std::vector<nodeID_t>> tempFrontier;
+        std::vector<Mission> tempFrontier;
         auto numThreads = sharedData.numThreads;
         auto& threadBitSets = sharedData.threadBitSets;
         for (auto tableID = 0u; tableID < globalBitSet->getTableNum(); ++tableID) {
@@ -126,60 +128,55 @@ public:
             if (!tableSize) {
                 continue;
             }
-            uint32_t l = tableSize * tid / numThreads, r = tableSize * (tid + 1) / numThreads;
-            std::vector<Count> tempMark;
-            tempMark.reserve(r - l);
-            tempMark.resize(r - l);
-            for (auto i = 0u; i < numThreads; ++i) {
+            // 必须64对齐,否则会存在多线程同时markVisited里的markflag
+            auto [l, r] = distributeTasks(tableSize, numThreads, tid);
+            // 将结果汇总到第一个bt中
+            auto targetBitSet = threadBitSets[0];
+            for (auto i = 1u; i < numThreads; ++i) {
                 auto threadBitSet = threadBitSets[i];
-                for (auto offset = l; offset < r; ++offset) {
+                auto& flags = threadBitSet->blockFlags[tableID];
+                for (const auto& offset : flags.range(l, r)) {
                     auto& value = threadBitSet->getNodeValue(tableID, offset);
-                    if (value.mark) {
-                        if (tempMark[offset - l].count == nullptr) {
-                            tempMark[offset - l].count = new uint32_t[64]();
-                        }
-                        tempMark[offset - l].merge(value);
-                        value.reset();
-                    }
+                    targetBitSet->merge(tableID, offset, value);
+                    value.reset();
                 }
             }
-            std::vector<nodeID_t> nextMission;
-            for (auto i = l; i < r; ++i) {
-                auto& mark = tempMark[i - l];
-                uint64_t now = mark.mark;
+            Mission nextMission;
+            nextMission.tableID = tableID;
+            for (auto i : targetBitSet->blockFlags[tableID].range(l, r)) {
+                auto& value = targetBitSet->getNodeValue(tableID, i);
+                uint64_t now = value.mark();
                 if (!now) {
                     continue;
                 }
-
-                globalBitSet->merge(tableID, i, mark);
-                mark.free();
-
+                globalBitSet->merge(tableID, i, value);
+                value.reset();
                 uint64_t pos;
                 while (now) {
                     // now & (now - 1) 去掉最低位的1 ,取最低位的值  pos=now & -now
                     pos = now ^ (now & (now - 1));
-                    auto offset = InternalIDBitSet::getNodeOffset(i, pos);
+                    auto offset = getNodeOffset(i, pos);
                     auto nowNode = nodeID_t{offset, tableID};
                     auto otherSideCount = otherScanState.globalBitSet->getNodeValueCount(nowNode);
                     if (otherSideCount) {
                         ans += 1LL * globalBitSet->getNodeValueCount(nowNode) * otherSideCount;
                     }
                     if (!ans) {
-                        if ((!nextMission.empty() &&
-                                ((nextMission.back().offset ^ nowNode.offset) >>
+                        if ((!nextMission.offsets.empty() &&
+                                ((nextMission.offsets.back() ^ nowNode.offset) >>
                                     StorageConstants::NODE_GROUP_SIZE_LOG2))) {
-                            nodeCount += nextMission.size();
+                            nodeCount += nextMission.offsets.size();
                             tempFrontier.emplace_back(std::move(nextMission));
                         }
-                        nextMission.emplace_back(nowNode);
+                        nextMission.offsets.emplace_back(offset);
                     }
 
                     // 还原成 now & (now - 1) ,和result配合,统计now中1的个数 now=now & (now - 1)
                     now ^= pos;
                 }
             }
-            if (!ans && !nextMission.empty()) {
-                nodeCount += nextMission.size();
+            if (!ans && !nextMission.offsets.empty()) {
+                nodeCount += nextMission.offsets.size();
                 tempFrontier.emplace_back(std::move(nextMission));
             }
         }
@@ -214,6 +211,9 @@ public:
                 nodeNumbers += count;
             }
         }
+        for (auto i = 0u; i < sharedData.numThreads; i++) {
+            sharedData.threadBitSets[i]->resetFlag();
+        }
         return pathCount;
     }
 
@@ -221,7 +221,7 @@ public:
     std::string direction;
     std::atomic_uint64_t taskID;
     uint64_t nodeNumbers;
-    std::vector<std::vector<nodeID_t>> nextFrontier; //  block划分的内部vector
+    std::vector<Mission> nextFrontier; //  block划分的内部vector
 
     // 记录点的count数
     std::shared_ptr<InternalIDCountBitSet> globalBitSet;
