@@ -97,9 +97,11 @@ Database::Database(std::string_view databasePath, SystemConfig systemConfig)
 }
 
 Database::~Database() {
-    if (dbConfig.forceCheckpointOnClose) {
-        ClientContext clientContext(this);
-        transactionManager->checkpoint(clientContext);
+    if (!dbConfig.readOnly && dbConfig.forceCheckpointOnClose) {
+        try {
+            ClientContext clientContext(this);
+            transactionManager->checkpoint(clientContext);
+        } catch (...) {} // NOLINT
     }
 }
 
