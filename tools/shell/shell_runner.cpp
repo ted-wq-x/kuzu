@@ -10,6 +10,40 @@
 using namespace kuzu::main;
 using namespace kuzu::common;
 
+int setConfigOutputMode(const std::string mode, ShellConfig& shell) {
+    if (mode == "box") {
+        shell.drawingCharacters = std::make_unique<BoxDrawingCharacters>();
+    } else if (mode == "table") {
+        shell.drawingCharacters = std::make_unique<TableDrawingCharacters>();
+    } else if (mode == "csv") {
+        shell.drawingCharacters = std::make_unique<CSVDrawingCharacters>();
+    } else if (mode == "tsv") {
+        shell.drawingCharacters = std::make_unique<TSVDrawingCharacters>();
+    } else if (mode == "markdown") {
+        shell.drawingCharacters = std::make_unique<MarkdownDrawingCharacters>();
+    } else if (mode == "column") {
+        shell.drawingCharacters = std::make_unique<ColumnDrawingCharacters>();
+    } else if (mode == "list") {
+        shell.drawingCharacters = std::make_unique<ListDrawingCharacters>();
+    } else if (mode == "trash") {
+        shell.drawingCharacters = std::make_unique<TrashDrawingCharacters>();
+    } else if (mode == "json") {
+        shell.drawingCharacters = std::make_unique<JSONDrawingCharacters>();
+    } else if (mode == "jsonlines") {
+        shell.drawingCharacters = std::make_unique<JSONLinesDrawingCharacters>();
+    } else if (mode == "html") {
+        shell.drawingCharacters = std::make_unique<HTMLDrawingCharacters>();
+    } else if (mode == "latex") {
+        shell.drawingCharacters = std::make_unique<LatexDrawingCharacters>();
+    } else if (mode == "line") {
+        shell.drawingCharacters = std::make_unique<LineDrawingCharacters>();
+    } else {
+        std::cerr << "Cannot parse '" << mode << "' as output mode." << '\n';
+        return 1;
+    }
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
     args::ArgumentParser parser("KuzuDB Shell");
     args::Positional<std::string> inputDirFlag(parser, "databasePath",
@@ -26,6 +60,11 @@ int main(int argc, char* argv[]) {
     args::ValueFlag<std::string> historyPathFlag(parser, "", "Path to directory for shell history",
         {'p', "path_history"});
     args::Flag version(parser, "version", "Display current database version", {'v', "version"});
+    args::ValueFlag<std::string> mode(parser, "mode", "Set the output mode of the shell",
+        {'m', "mode"});
+    args::Flag stats(parser, "no_stats", "Disable query stats", {'s', "no_stats", "nostats"});
+
+    //自定义的参数
     args::ValueFlag<std::string> explainQuery(parser, "", "Explain Query", {"eq"});
     args::Flag enableCpuAffinity(parser, "cpuaffinity", "Enable cpu affinity",
         {"ca", "cpuaffinity"});
@@ -70,6 +109,11 @@ int main(int argc, char* argv[]) {
     if (bpSizeInMB != -1u) {
         bpSizeInBytes = bpSizeInMB << 20;
     }
+
+    SystemConfig::enableCpuAffinity = enableCpuAffinity;
+    auto lruCacheSize = args::get(lruCachaSizeFlag);
+    SystemConfig::lruCacheSize = lruCacheSize;
+
     SystemConfig systemConfig(bpSizeInBytes);
     if (disableCompression) {
         systemConfig.enableCompression = false;
@@ -77,12 +121,47 @@ int main(int argc, char* argv[]) {
     if (readOnlyMode) {
         systemConfig.readOnly = true;
     }
-    SystemConfig::enableCpuAffinity = enableCpuAffinity;
-    auto lruCacheSize = args::get(lruCachaSizeFlag);
-    SystemConfig::lruCacheSize = lruCacheSize;
+
+    auto pathToHistory = args::get(historyPathFlag);
+    if (!pathToHistory.empty() && pathToHistory.back() != '/') {
+        pathToHistory += '/';
+    }
+    pathToHistory += "history.txt";
+    try {
+        std::make_unique<LocalFileSystem>()->openFile(pathToHistory, O_CREAT);
+    } catch (Exception& e) {
+        std::cerr << "Invalid path to directory for history file" << '\n';
+        return 1;
+    }
+
+    ShellConfig shellConfig;
+    shellConfig.path_to_history = pathToHistory.c_str();
+    if (mode) {
+        if (setConfigOutputMode(args::get(mode), shellConfig) != 0) {
+            return 1;
+        }
+    }
+    if (stats) {
+        shellConfig.stats = false;
+    }
+
     auto databasePath = args::get(inputDirFlag);
-    std::shared_ptr<Database> database = std::make_shared<Database>(databasePath, systemConfig);
-    std::shared_ptr<Connection> conn = std::make_shared<Connection>(database.get());
+    std::shared_ptr<Database> database;
+    std::shared_ptr<Connection> conn;
+    try {
+        database = std::make_shared<Database>(databasePath, systemConfig);
+        conn = std::make_shared<Connection>(database.get());
+    } catch (Exception& e) {
+        std::cerr << e.what() << '\n';
+        return 1;
+    }
+    if (DBConfig::isDBPathInMemory(databasePath)) {
+        std::cout << "Opened the database under in-memory mode." << '\n';
+    } else {
+        std::cout << "Opened the database at path: " << databasePath << " in "
+                  << (readOnlyMode ? "read-only mode" : "read-write mode") << "." << '\n';
+    }
+    std::cout << "Enter \":help\" for usage hints." << '\n' << std::flush;
 
     auto explainQueryCypher = args::get(explainQuery);
     if (!explainQueryCypher.empty()) {
@@ -98,32 +177,14 @@ int main(int argc, char* argv[]) {
             std::cerr << "Error:" << queryResult->getErrorMessage() << '\n';
             return 1;
         }
+    }else{
+        try {
+            auto shell = EmbeddedShell(database, conn, shellConfig);
+            shell.run();
+        } catch (std::exception& e) {
+            std::cerr << e.what() << '\n';
+            return 1;
+        }
+        return 0;
     }
-
-    auto pathToHistory = args::get(historyPathFlag);
-    if (!pathToHistory.empty() && pathToHistory.back() != '/') {
-        pathToHistory += '/';
-    }
-    pathToHistory += "history.txt";
-    try {
-        std::make_unique<LocalFileSystem>()->openFile(pathToHistory, O_CREAT);
-    } catch (Exception& e) {
-        std::cerr << "Invalid path to directory for history file" << '\n';
-        return 1;
-    }
-    if (DBConfig::isDBPathInMemory(databasePath)) {
-        std::cout << "Opened the database under in in-memory mode." << '\n';
-    } else {
-        std::cout << "Opened the database at path: " << databasePath << " in "
-                  << (readOnlyMode ? "read-only mode" : "read-write mode") << "." << '\n';
-    }
-    std::cout << "Enter \":help\" for usage hints." << '\n' << std::flush;
-    try {
-        auto shell = EmbeddedShell(database, conn, pathToHistory.c_str());
-        shell.run();
-    } catch (std::exception& e) {
-        std::cerr << e.what() << '\n';
-        return 1;
-    }
-    return 0;
 }
