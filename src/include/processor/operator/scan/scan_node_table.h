@@ -37,10 +37,14 @@ struct ScanNodeTableInfo {
 
     std::unique_ptr<storage::NodeTableScanState> localScanState;
 
+    ScanNodeTableInfo(storage::NodeTable* table, std::vector<common::column_id_t> columnIDs)
+        : table{table}, columnIDs{std::move(columnIDs)} {}
+
     ScanNodeTableInfo(storage::NodeTable* table, std::vector<common::column_id_t> columnIDs,
         std::vector<storage::ColumnPredicateSet> columnPredicates)
         : table{table}, columnIDs{std::move(columnIDs)},
           columnPredicates{std::move(columnPredicates)} {}
+
     EXPLICIT_COPY_DEFAULT_MOVE(ScanNodeTableInfo);
 
     void initScanState(NodeSemiMask* semiMask);

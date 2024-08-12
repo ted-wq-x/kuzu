@@ -3,6 +3,7 @@
 
 #include "common/types/internal_id_util.h"
 #include "function/table/basic.h"
+#include "processor/operator/scan/scan_node_table.h"
 
 namespace kuzu {
 namespace function {
@@ -15,7 +16,7 @@ struct SsspLocalState : public TableFuncLocalState {
 struct SsspBindData : public CallTableFuncBindData {
     SsspBindData(main::ClientContext* context, std::string srcPrimaryKey, std::string srcTableName,
         std::string dstPrimaryKey, std::string dstTableName, std::string direction, int64_t maxHop,
-        std::string resultType, int64_t numThreads, bool isParameter,
+        std::string resultType, int64_t numThreads, bool backTrackUsingFB,
         std::vector<LogicalType> returnTypes, std::vector<std::string> returnColumnNames,
         offset_t maxOffset, std::unique_ptr<evaluator::ExpressionEvaluator> relFilter,
         std::shared_ptr<std::vector<LogicalTypeID>> relColumnTypeIds,
@@ -24,7 +25,7 @@ struct SsspBindData : public CallTableFuncBindData {
         : CallTableFuncBindData{std::move(returnTypes), std::move(returnColumnNames), maxOffset},
           context(context), srcPrimaryKey(srcPrimaryKey), srcTableName(srcTableName),
           dstPrimaryKey(dstPrimaryKey), dstTableName(dstTableName), direction(direction),
-          maxHop(maxHop), resultType(resultType), numThreads(numThreads), isParameter(isParameter),
+          maxHop(maxHop), resultType(resultType), numThreads(numThreads), backTrackUsingFB(backTrackUsingFB),
           relFilter(std::move(relFilter)), relColumnTypeIds(std::move(relColumnTypeIds)),
           relTableInfos(std::move(relTableInfos)) {}
 
@@ -35,7 +36,7 @@ struct SsspBindData : public CallTableFuncBindData {
         }
 
         return std::make_unique<SsspBindData>(context, srcPrimaryKey, srcTableName, dstPrimaryKey,
-            dstTableName, direction, maxHop, resultType, numThreads, isParameter,
+            dstTableName, direction, maxHop, resultType, numThreads, backTrackUsingFB,
             LogicalType::copy(columnTypes), columnNames, maxOffset, std::move(localRelFilter),
             relColumnTypeIds, relTableInfos);
     }
@@ -44,7 +45,7 @@ struct SsspBindData : public CallTableFuncBindData {
     int64_t maxHop;
     std::string resultType;
     int64_t numThreads;
-    bool isParameter;
+    bool backTrackUsingFB;
 
     // nullable
     std::unique_ptr<evaluator::ExpressionEvaluator> relFilter;
@@ -91,7 +92,6 @@ public:
     int64_t numThreads;
     main::ClientContext* context;
 
-    //    点个数的value
     std::shared_ptr<std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>>
         reltables;
     evaluator::ExpressionEvaluator* relFilter;

@@ -27,6 +27,10 @@ static offset_t tableFunc(TableFuncInput& input, TableFuncOutput& output) {
     }
 }
 
+static bool stringToBool(const std::string& str) {
+    return str == "true" || str == "1";
+}
+
 static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* context,
     TableFuncBindInput* input) {
     std::vector<std::string> returnColumnNames;
@@ -69,19 +73,14 @@ static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* context,
     auto numThreads = input->inputs[7].getValue<int64_t>();
     KU_ASSERT(numThreads >= 0);
     // filter
-    bool isParameter = false;
-    std::string nodeFilterStr, relFilterStr;
+    std::string nodeFilterStr = input->inputs[8].getValue<std::string>();
+    std::string relFilterStr = input->inputs[9].getValue<std::string>();
+
+    // 回溯先forward再backwoard.false时则是直接backward
+    bool backTrackUsingFB = true;
     if (input->inputs.size() == 11) {
-        auto parameter = input->inputs[8].getValue<std::int64_t>();
-        if (parameter != 0 && parameter != 1) {
-            throw BinderException("parameter value error");
-        }
-        isParameter = (parameter) != 0;
-        nodeFilterStr = input->inputs[9].getValue<std::string>();
-        relFilterStr = input->inputs[10].getValue<std::string>();
-    } else {
-        nodeFilterStr = input->inputs[8].getValue<std::string>();
-        relFilterStr = input->inputs[9].getValue<std::string>();
+        auto parameter = input->inputs[10].getValue<std::string>();
+        backTrackUsingFB = stringToBool(parameter);
     }
     KU_ASSERT(nodeFilterStr.empty());
 
@@ -95,7 +94,7 @@ static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* context,
     auto bindData = std::make_unique<SsspBindData>(context,
         input->inputs[0].getValue<std::string>(), input->inputs[1].getValue<std::string>(),
         input->inputs[2].getValue<std::string>(), input->inputs[3].getValue<std::string>(),
-        direction, maxHop, resultType, numThreads, isParameter, std::move(returnTypes),
+        direction, maxHop, resultType, numThreads, backTrackUsingFB, std::move(returnTypes),
         std::move(returnColumnNames), 1 /*  one line of results */, std::move(relFilter),
         std::move(relColumnTypeIds), std::move(relTableInfos));
     return bindData;
@@ -113,8 +112,8 @@ function_set GraphBspSsspFunction::getFunctionSet() {
         initSharedState, initSsspLocalState,
         std::vector<LogicalTypeID>{LogicalTypeID::STRING, LogicalTypeID::STRING,
             LogicalTypeID::STRING, LogicalTypeID::STRING, LogicalTypeID::STRING,
-            LogicalTypeID::INT64, LogicalTypeID::STRING, LogicalTypeID::INT64, LogicalTypeID::INT64,
-            LogicalTypeID::STRING, LogicalTypeID::STRING}));
+            LogicalTypeID::INT64, LogicalTypeID::STRING, LogicalTypeID::INT64,
+            LogicalTypeID::STRING, LogicalTypeID::STRING, LogicalTypeID::BOOL}));
     return functionSet;
 }
 
