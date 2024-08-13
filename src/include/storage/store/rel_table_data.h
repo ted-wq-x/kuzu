@@ -1,22 +1,14 @@
 #pragma once
 
-#include "cache.hpp"
 #include "common/enums/rel_direction.h"
 #include "common/enums/rel_multiplicity.h"
 #include "common/vector/value_vector.h"
-#include "lru_cache_policy.hpp"
-#include "main/database.h"
-#include "phmap.h"
 #include "storage/store/chunked_node_group.h"
 #include "storage/store/column.h"
 #include "storage/store/table_data.h"
 
 namespace kuzu {
 namespace storage {
-
-template<typename Key, typename Value>
-using lru_cache_t = typename caches::fixed_sized_cache<Key, Value, caches::LRUCachePolicy,
-    phmap::node_hash_map<Key, Value>>;
 
 class LocalRelNG;
 // TODO: Rename to RelDataScanState.
@@ -54,49 +46,16 @@ struct RelDataReadState final : TableDataScanState {
 };
 
 struct CSRHeaderColumns {
-    explicit CSRHeaderColumns(bool readOnly) : readOnly(readOnly) {
-        if (readOnly && main::SystemConfig::lruCacheSize > 0) {
-            cache = std::make_unique<
-                lru_cache_t<common::node_group_idx_t, std::shared_ptr<ChunkedCSRHeader>>>(
-                main::SystemConfig::lruCacheSize);
-        }
-    }
-
-    bool readOnly;
     std::unique_ptr<Column> offset;
     std::unique_ptr<Column> length;
-    mutable std::unique_ptr<
-        lru_cache_t<common::node_group_idx_t, std::shared_ptr<ChunkedCSRHeader>>>
-        cache;
 
-private:
-    inline void scanNoCache(transaction::Transaction* transaction,
-        common::node_group_idx_t nodeGroupIdx, ChunkedCSRHeader& chunks) const {
+    void scan(transaction::Transaction* transaction, common::node_group_idx_t nodeGroupIdx,
+        ChunkedCSRHeader& chunks) const {
         Column::ChunkState offsetState, lengthState;
         offset->initChunkState(transaction, nodeGroupIdx, offsetState);
         length->initChunkState(transaction, nodeGroupIdx, lengthState);
         offset->scan(transaction, offsetState, chunks.offset.get());
         length->scan(transaction, lengthState, chunks.length.get());
-    }
-
-public:
-    void scan(transaction::Transaction* transaction, common::node_group_idx_t nodeGroupIdx,
-        ChunkedCSRHeader& chunks) const {
-        if (readOnly && cache != nullptr) {
-            auto value = cache->TryGet(nodeGroupIdx);
-            // 注意:因为chunks里的length&offset是cache中复用的,如果直接调用scanNoCache,相当于修改cache中的值
-            // 所以每次扫之前都需要创建一个新的
-            if (value == nullptr) {
-                // 这里保持和RelDataReadState#csrHeaderChunks创建方式一致
-                value = std::make_shared<ChunkedCSRHeader>(false);
-                scanNoCache(transaction, nodeGroupIdx, *value.get());
-                cache->Put(nodeGroupIdx, value);
-            }
-            chunks.length = value->length;
-            chunks.offset = value->offset;
-        } else {
-            scanNoCache(transaction, nodeGroupIdx, chunks);
-        }
     }
 
     void lookup(transaction::Transaction* transaction, common::node_group_idx_t nodeGroupIdx,
