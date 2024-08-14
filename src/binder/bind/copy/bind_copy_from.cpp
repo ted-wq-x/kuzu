@@ -18,6 +18,7 @@ using namespace kuzu::function;
 
 namespace kuzu {
 namespace binder {
+
 std::unique_ptr<BoundStatement> Binder::bindCopyFromClause(const Statement& statement) {
     auto& copyStatement = ku_dynamic_cast<const Statement&, const CopyFrom&>(statement);
     auto tableName = copyStatement.getTableName();
@@ -44,7 +45,6 @@ std::unique_ptr<BoundStatement> Binder::bindCopyFromClause(const Statement& stat
     default:
         break;
     }
-
     switch (tableEntry->getTableType()) {
     case TableType::NODE: {
         auto nodeTableEntry = tableEntry->ptrCast<NodeTableCatalogEntry>();
@@ -72,20 +72,19 @@ static void bindExpectedRelColumns(RelTableCatalogEntry* relTableEntry,
     std::vector<LogicalType>& columnTypes, main::ClientContext* context);
 
 static std::pair<ColumnEvaluateType, std::shared_ptr<Expression>> matchColumnExpression(
-    const expression_vector& columns, const Property& property,
+    const expression_vector& columns, const PropertyDefinition& property,
     ExpressionBinder& expressionBinder) {
     for (auto& column : columns) {
         if (property.getName() == column->toString()) {
-            if (column->dataType == property.getDataType()) {
+            if (column->dataType == property.getType()) {
                 return {ColumnEvaluateType::REFERENCE, column};
             } else {
                 return {ColumnEvaluateType::CAST,
-                    expressionBinder.forceCast(column, property.getDataType())};
+                    expressionBinder.forceCast(column, property.getType())};
             }
         }
     }
-    return {ColumnEvaluateType::DEFAULT,
-        expressionBinder.bindExpression(*property.getDefaultExpr())};
+    return {ColumnEvaluateType::DEFAULT, expressionBinder.bindExpression(*property.defaultExpr)};
 }
 
 std::unique_ptr<BoundStatement> Binder::bindCopyNodeFrom(const Statement& statement,
@@ -94,8 +93,8 @@ std::unique_ptr<BoundStatement> Binder::bindCopyNodeFrom(const Statement& statem
     // Bind expected columns based on catalog information.
     std::vector<std::string> expectedColumnNames;
     std::vector<LogicalType> expectedColumnTypes;
-    bindExpectedNodeColumns(
-        nodeTableEntry, copyStatement.getColumnNames(), expectedColumnNames, expectedColumnTypes);
+    bindExpectedNodeColumns(nodeTableEntry, copyStatement.getColumnNames(), expectedColumnNames,
+        expectedColumnTypes);
     auto boundSource = bindScanSource(copyStatement.getSource(),
         copyStatement.getParsingOptionsRef(), expectedColumnNames, expectedColumnTypes);
     if (boundSource->type == ScanSourceType::FILE) {
@@ -108,7 +107,7 @@ std::unique_ptr<BoundStatement> Binder::bindCopyNodeFrom(const Statement& statem
     }
     expression_vector columns;
     std::vector<ColumnEvaluateType> evaluateTypes;
-    for (auto& property : nodeTableEntry->getPropertiesRef()) {
+    for (auto& property : nodeTableEntry->getProperties()) {
         auto [evaluateType, column] =
             matchColumnExpression(boundSource->getColumns(), property, expressionBinder);
         columns.push_back(column);
@@ -148,7 +147,7 @@ std::unique_ptr<BoundStatement> Binder::bindCopyRelFrom(const parser::Statement&
     expression_vector columnExprs{srcOffset, dstOffset, offset};
     std::vector<ColumnEvaluateType> evaluateTypes{ColumnEvaluateType::REFERENCE,
         ColumnEvaluateType::REFERENCE, ColumnEvaluateType::REFERENCE};
-    auto& properties = relTableEntry->getPropertiesRef();
+    auto& properties = relTableEntry->getProperties();
     for (auto i = 1u; i < properties.size(); ++i) { // skip internal ID
         auto& property = properties[i];
         auto [evaluateType, column] =
@@ -167,15 +166,15 @@ std::unique_ptr<BoundStatement> Binder::bindCopyRelFrom(const parser::Statement&
     return std::make_unique<BoundCopyFrom>(std::move(boundCopyFromInfo));
 }
 
-static bool skipPropertyInFile(const Property& property) {
+static bool skipPropertyInFile(const PropertyDefinition& property) {
     if (property.getName() == InternalKeyword::ID) {
         return true;
     }
     return false;
 }
 
-static bool skipPropertyInSchema(const Property& property) {
-    if (property.getDataType().getLogicalTypeID() == LogicalTypeID::SERIAL) {
+static bool skipPropertyInSchema(const PropertyDefinition& property) {
+    if (property.getType().getLogicalTypeID() == LogicalTypeID::SERIAL) {
         return true;
     }
     if (property.getName() == InternalKeyword::ID) {
@@ -198,26 +197,25 @@ static void bindExpectedColumns(TableCatalogEntry* tableEntry,
         }
         // Search column data type for each input column.
         for (auto& columnName : inputColumnNames) {
-            if (!tableEntry->containProperty(columnName)) {
-                throw BinderException(stringFormat(
-                    "Table {} does not contain column {}.", tableEntry->getName(), columnName));
+            if (!tableEntry->containsProperty(columnName)) {
+                throw BinderException(stringFormat("Table {} does not contain column {}.",
+                    tableEntry->getName(), columnName));
             }
-            auto propertyID = tableEntry->getPropertyID(columnName);
-            auto property = tableEntry->getProperty(propertyID);
-            if (skipPropertyInFile(*property)) {
+            auto& property = tableEntry->getProperty(columnName);
+            if (skipPropertyInFile(property)) {
                 continue;
             }
             columnNames.push_back(columnName);
-            columnTypes.push_back(property->getDataType().copy());
+            columnTypes.push_back(property.getType().copy());
         }
     } else {
         // No column specified. Fall back to schema columns.
-        for (auto& property : tableEntry->getPropertiesRef()) {
+        for (auto& property : tableEntry->getProperties()) {
             if (skipPropertyInSchema(property)) {
                 continue;
             }
             columnNames.push_back(property.getName());
-            columnTypes.push_back(property.getDataType().copy());
+            columnTypes.push_back(property.getType().copy());
         }
     }
 }
@@ -241,11 +239,11 @@ void bindExpectedRelColumns(RelTableCatalogEntry* relTableEntry,
                         ->ptrCast<NodeTableCatalogEntry>();
     columnNames.push_back("from");
     columnNames.push_back("to");
-    auto srcPKColumnType = srcTable->getPrimaryKey()->getDataType().copy();
+    auto srcPKColumnType = srcTable->getPrimaryKeyDefinition().getType().copy();
     if (srcPKColumnType.getLogicalTypeID() == LogicalTypeID::SERIAL) {
         srcPKColumnType = LogicalType::INT64();
     }
-    auto dstPKColumnType = dstTable->getPrimaryKey()->getDataType().copy();
+    auto dstPKColumnType = dstTable->getPrimaryKeyDefinition().getType().copy();
     if (dstPKColumnType.getLogicalTypeID() == LogicalTypeID::SERIAL) {
         dstPKColumnType = LogicalType::INT64();
     }

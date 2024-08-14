@@ -6,7 +6,7 @@
 #include "cypher_parser.h"
 #pragma GCC diagnostic pop
 
-#include "parser/ddl/create_table_info.h"
+#include "parser/ddl/parsed_property_definition.h"
 #include "parser/query/algo_parameter.h"
 #include "statement.h"
 
@@ -32,7 +32,7 @@ struct JoinHintNode;
 
 class Transformer {
 public:
-    explicit Transformer( CypherParser::Ku_StatementsContext* root) : root{root} {}
+    explicit Transformer(CypherParser::Ku_StatementsContext* root) : root{root} {}
 
     std::vector<std::shared_ptr<Statement>> transform();
 
@@ -109,6 +109,7 @@ private:
     std::vector<s_parsed_expr_pair> transformProperties(CypherParser::KU_PropertiesContext& ctx);
     std::vector<std::string> transformRelTypes(CypherParser::OC_RelationshipTypesContext& ctx);
     std::vector<std::string> transformNodeLabels(CypherParser::OC_NodeLabelsContext& ctx);
+    std::string transformNodeLabel(CypherParser::OC_NodeLabelContext& ctx);
     std::string transformLabelName(CypherParser::OC_LabelNameContext& ctx);
     std::string transformRelTypeName(CypherParser::OC_RelTypeNameContext& ctx);
 
@@ -211,10 +212,11 @@ private:
     std::unique_ptr<Statement> transformCommentOn(CypherParser::KU_CommentOnContext& ctx);
     std::string transformDataType(CypherParser::KU_DataTypeContext& ctx);
     std::string transformPrimaryKey(CypherParser::KU_CreateNodeConstraintContext& ctx);
-    std::vector<PropertyDefinition> transformPropertyDefinitions(
+    std::vector<ParsedColumnDefinition> transformColumnDefinitions(
+        CypherParser::KU_ColumnDefinitionsContext& ctx);
+    ParsedColumnDefinition transformColumnDefinition(CypherParser::KU_ColumnDefinitionContext& ctx);
+    std::vector<ParsedPropertyDefinition> transformPropertyDefinitions(
         CypherParser::KU_PropertyDefinitionsContext& ctx);
-    std::vector<PropertyDefinitionDDL> transformPropertyDefinitionsDDL(
-        CypherParser::KU_PropertyDefinitionsDDLContext& ctx);
 
     // Transform standalone call.
     std::unique_ptr<Statement> transformStandaloneCall(CypherParser::KU_StandaloneCallContext& ctx);
