@@ -5,6 +5,7 @@
 #include "args.hxx"
 #include "common/file_system/local_file_system.h"
 #include "embedded_shell.h"
+#include "linenoise.h"
 #include "main/db_config.h"
 
 using namespace kuzu::main;
@@ -44,6 +45,32 @@ int setConfigOutputMode(const std::string mode, ShellConfig& shell) {
     return 0;
 }
 
+void processRunCommands(EmbeddedShell& shell, std::string filename) {
+    FILE* fp = fopen(filename.c_str(), "r");
+    char buf[LINENOISE_MAX_LINE + 1];
+    buf[LINENOISE_MAX_LINE] = '\0';
+
+    if (fp == NULL) {
+        if (filename != ".kuzurc") {
+            std::cerr << "Cannot open file " << filename << '\n';
+        }
+        return;
+    }
+
+    std::cout << "-- Loading resources from " << filename << '\n';
+    while (fgets(buf, LINENOISE_MAX_LINE, fp) != NULL) {
+        auto queryResults = shell.processInput(buf);
+        for (auto& queryResult : queryResults) {
+            if (!queryResult->isSuccess()) {
+                shell.printErrorMessage(buf, *queryResult);
+            }
+        }
+    }
+    if (fclose(fp) != 0) {
+        // continue regardless of error
+    }
+}
+
 int main(int argc, char* argv[]) {
     args::ArgumentParser parser("KuzuDB Shell");
     args::Positional<std::string> inputDirFlag(parser, "databasePath",
@@ -63,9 +90,10 @@ int main(int argc, char* argv[]) {
     args::ValueFlag<std::string> mode(parser, "mode", "Set the output mode of the shell",
         {'m', "mode"});
     args::Flag stats(parser, "no_stats", "Disable query stats", {'s', "no_stats", "nostats"});
+    args::ValueFlag<std::string> init(parser, "", "Path to file with script to run on startup",
+        {'i', "init"});
 
     //自定义的参数
-    args::ValueFlag<std::string> explainQuery(parser, "", "Explain Query", {"eq"});
     args::Flag enableCpuAffinity(parser, "cpuaffinity", "Enable cpu affinity",
         {"ca", "cpuaffinity"});
     args::ValueFlag<int32_t> lruCachaSizeFlag(parser, "lrusize", "csr header lru cache number",
@@ -155,36 +183,24 @@ int main(int argc, char* argv[]) {
         std::cerr << e.what() << '\n';
         return 1;
     }
-    if (DBConfig::isDBPathInMemory(databasePath)) {
-        std::cout << "Opened the database under in-memory mode." << '\n';
-    } else {
-        std::cout << "Opened the database at path: " << databasePath << " in "
-                  << (readOnlyMode ? "read-only mode" : "read-write mode") << "." << '\n';
+    std::string initFile = ".kuzurc";
+    if (init) {
+        initFile = args::get(init);
     }
-    std::cout << "Enter \":help\" for usage hints." << '\n' << std::flush;
-
-    auto explainQueryCypher = args::get(explainQuery);
-    if (!explainQueryCypher.empty()) {
-        auto queryResult = conn->query(explainQueryCypher);
-        if (queryResult->isSuccess()) {
-            if (queryResult->getQuerySummary()->isExplain()) {
-                printf("%s", queryResult->getNext()->toString().c_str());
-            } else {
-                std::cerr << "Is not explain query" << '\n';
-            }
-            return 0;
+    try {
+        auto shell = EmbeddedShell(database, conn, shellConfig);
+        processRunCommands(shell, initFile);
+        if (DBConfig::isDBPathInMemory(databasePath)) {
+            std::cout << "Opened the database under in-memory mode." << '\n';
         } else {
-            std::cerr << "Error:" << queryResult->getErrorMessage() << '\n';
-            return 1;
+            std::cout << "Opened the database at path: " << databasePath << " in "
+                      << (readOnlyMode ? "read-only mode" : "read-write mode") << "." << '\n';
         }
-    }else{
-        try {
-            auto shell = EmbeddedShell(database, conn, shellConfig);
-            shell.run();
-        } catch (std::exception& e) {
-            std::cerr << e.what() << '\n';
-            return 1;
-        }
-        return 0;
+        std::cout << "Enter \":help\" for usage hints." << '\n' << std::flush;
+        shell.run();
+    } catch (std::exception& e) {
+        std::cerr << e.what() << '\n';
+        return 1;
     }
+    return 0;
 }
