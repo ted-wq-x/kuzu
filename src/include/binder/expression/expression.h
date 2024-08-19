@@ -73,7 +73,7 @@ public:
     void setVariableAs() { variableAs = true; }
     bool isVariableAs() const { return variableAs; }
 
-    uint32_t getNumChildren() const { return children.size(); }
+    common::idx_t getNumChildren() const { return children.size(); }
     std::shared_ptr<Expression> getChild(common::idx_t idx) const {
         KU_ASSERT(idx < children.size());
         return children[idx];
@@ -97,6 +97,10 @@ public:
     template<class TARGET>
     TARGET& cast() {
         return common::ku_dynamic_cast<Expression&, TARGET&>(*this);
+    }
+    template<class TARGET>
+    TARGET* ptrCast() {
+        return common::ku_dynamic_cast<Expression*, TARGET*>(this);
     }
     template<class TARGET>
     const TARGET& constCast() const {
