@@ -22,14 +22,17 @@
 #include "parser/transformer.h"
 
 namespace kuzu {
+namespace main {
+class ClientContext;
+}
 namespace parser {
 
 class Parser {
 
 public:
-    static std::vector<std::shared_ptr<Statement>> parseQuery(std::string_view query);
+    static std::vector<std::shared_ptr<Statement>> parseQuery(std::string_view query,main::ClientContext* context);
     static std::unique_ptr<AlgoParameter> parseAlgoParams(
-        std::string_view parameter_str);
+        std::string_view parameter_str,main::ClientContext* context);
 
 private:
     template<typename T>

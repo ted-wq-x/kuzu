@@ -7,6 +7,7 @@
 #pragma GCC diagnostic pop
 
 #include "common/exception/parser.h"
+#include "main/client_context.h"
 #include "parser/antlr_parser/kuzu_cypher_parser.h"
 #include "parser/antlr_parser/parser_error_listener.h"
 #include "parser/antlr_parser/parser_error_strategy.h"
@@ -17,18 +18,18 @@ using namespace antlr4;
 namespace kuzu {
 namespace parser {
 
-std::vector<std::shared_ptr<Statement>> Parser::parseQuery(std::string_view query) {
+std::vector<std::shared_ptr<Statement>> Parser::parseQuery(std::string_view query,main::ClientContext* context)) {
     return parse<std::vector<std::shared_ptr<Statement>>>(query,
         [](KuzuCypherParser& kuzuCypherParser) -> std::vector<std::shared_ptr<Statement>> {
-            Transformer transformer((kuzuCypherParser.ku_Statements()));
+            Transformer transformer((kuzuCypherParser.ku_Statements()),context);
             return transformer.transform();
         });
 }
 
-std::unique_ptr<AlgoParameter> Parser::parseAlgoParams(std::string_view parameter_str) {
+std::unique_ptr<AlgoParameter> Parser::parseAlgoParams(std::string_view parameter_str,main::ClientContext* context)) {
     return parse<std::unique_ptr<AlgoParameter>>(parameter_str,
         [](KuzuCypherParser& kuzuCypherParser) -> std::unique_ptr<AlgoParameter> {
-                        Transformer transformer(nullptr);
+                        Transformer transformer(nullptr,context);
                         return transformer.transformAlgoParameter(*kuzuCypherParser.oC_AlgoParameter());
         });
 }

@@ -301,7 +301,7 @@ std::unique_ptr<QueryResult> ClientContext::query(std::string_view query,
     parsingTimer.start();
     auto parsedStatements = std::vector<std::shared_ptr<Statement>>();
     try {
-        parsedStatements = Parser::parseQuery(query);
+        parsedStatements = parseQuery(query);
     } catch (std::exception& exception) {
         return queryResultWithError(exception.what());
     }
@@ -311,8 +311,7 @@ std::unique_ptr<QueryResult> ClientContext::query(std::string_view query,
     for (auto& statement : parsedStatements) {
         auto preparedStatement = prepareNoLock(statement,
             enumerateAllPlans /* enumerate all plans */, encodedJoin, false /*requireNewTx*/);
-        auto currentQueryResult =
-            executeAndAutoCommitIfNecessaryNoLock(preparedStatement.get(), 0u, queryID);
+        auto currentQueryResult = executeNoLock(preparedStatement.get(), 0u, queryID);
         if (!lastResult) {
             // first result of the query
             queryResult = std::move(currentQueryResult);
@@ -422,11 +421,25 @@ std::unique_ptr<PreparedStatement> ClientContext::prepareNoLock(
 }
 
 std::vector<std::shared_ptr<Statement>> ClientContext::parseQuery(std::string_view query) {
-    std::vector<std::shared_ptr<Statement>> statements;
     if (query.empty()) {
-        return statements;
+        throw ConnectionException("Query is empty.");
     }
-    statements = Parser::parseQuery(query);
+    std::vector<std::shared_ptr<Statement>> statements;
+    bool startNewTrx = !transactionContext->hasActiveTransaction();
+    if (startNewTrx) {
+        transactionContext->beginAutoTransaction(true /* readOnlyStatement */);
+    }
+    try {
+        statements = Parser::parseQuery(query, this);
+    } catch (std::exception& exception) {
+        if (startNewTrx) {
+            transactionContext->rollback();
+        }
+        throw;
+    }
+    if (startNewTrx) {
+        transactionContext->commit();
+    }
     return statements;
 }
 
@@ -461,10 +474,9 @@ std::unique_ptr<QueryResult> ClientContext::executeWithParams(PreparedStatement*
     if (requireReBind) {
         auto rebindPreparedStatement = prepareNoLock(preparedStatement->parsedStatement, false, "",
             false, preparedStatement->parameterMap);
-        return executeAndAutoCommitIfNecessaryNoLock(rebindPreparedStatement.get(), 0u, false,
-            queryID);
+        return executeNoLock(rebindPreparedStatement.get(), 0u, false, queryID);
     } else {
-        return executeAndAutoCommitIfNecessaryNoLock(preparedStatement, 0u, true, queryID);
+        return executeNoLock(preparedStatement, 0u, true, queryID);
     }
 }
 
@@ -484,7 +496,7 @@ void ClientContext::bindParametersNoLock(PreparedStatement* preparedStatement,
     }
 }
 
-std::unique_ptr<QueryResult> ClientContext::executeAndAutoCommitIfNecessaryNoLock(
+std::unique_ptr<QueryResult> ClientContext::executeNoLock(
     PreparedStatement* preparedStatement, uint32_t planIdx, std::optional<uint64_t> queryID) {
     if (!preparedStatement->isSuccess()) {
         return queryResultWithError(preparedStatement->errMsg);
@@ -598,7 +610,7 @@ void ClientContext::runQuery(std::string query) {
     }
     auto parsedStatements = std::vector<std::shared_ptr<Statement>>();
     try {
-        parsedStatements = Parser::parseQuery(query);
+        parsedStatements = Parser::parseQuery(query, this);
     } catch (std::exception& exception) {
         throw ConnectionException(exception.what());
     }
@@ -608,8 +620,7 @@ void ClientContext::runQuery(std::string query) {
     try {
         for (auto& statement : parsedStatements) {
             auto preparedStatement = prepareNoLock(statement, false, "", false);
-            auto currentQueryResult =
-                executeAndAutoCommitIfNecessaryNoLock(preparedStatement.get(), 0u);
+            auto currentQueryResult = executeNoLock(preparedStatement.get(), 0u);
             if (!currentQueryResult->isSuccess()) {
                 throw ConnectionException(currentQueryResult->errMsg);
             }
