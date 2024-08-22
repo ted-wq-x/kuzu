@@ -11,6 +11,7 @@
 #include "main/client_config.h"
 #include "parser/statement.h"
 #include "prepared_statement.h"
+#include "processor/warning_context.h"
 #include "query_result.h"
 #include "transaction/transaction_context.h"
 
@@ -129,6 +130,9 @@ public:
     void addScalarFunction(std::string name, function::function_set definitions);
     void removeScalarFunction(std::string name);
 
+    processor::WarningContext& getWarningContextUnsafe();
+    const processor::WarningContext& getWarningContext() const;
+
     void cleanUP();
 
 private:
@@ -189,6 +193,8 @@ private:
     AttachedKuzuDatabase* remoteDatabase;
     // Progress bar.
     std::unique_ptr<common::ProgressBar> progressBar;
+    // Warning information
+    processor::WarningContext warningContext;
     std::mutex mtx;
 };
 

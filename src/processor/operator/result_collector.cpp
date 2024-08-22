@@ -54,7 +54,7 @@ bool ResultCollector::IsOptional(){
     return info.accumulateType == AccumulateType::OPTIONAL_;
 }
 
-void ResultCollector::finalize(ExecutionContext* /*context*/) {
+void ResultCollector::finalizeInternal(ExecutionContext* /*context*/) {
     switch (info.accumulateType) {
     case AccumulateType::OPTIONAL_: {
         // We should remove currIdx completely as some of the code still relies on currIdx = -1 to
