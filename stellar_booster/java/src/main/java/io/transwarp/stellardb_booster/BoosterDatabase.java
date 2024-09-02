@@ -6,13 +6,14 @@ package io.transwarp.stellardb_booster;
 public class BoosterDatabase {
     long db_ref;
     String db_path;
-    long buffer_size;
-    long max_db_size;
+    long buffer_size = -1;
+    long max_db_size = -1;
     boolean enableCompression = true;
-    boolean destroyed = false;
     boolean readOnly = false;
     boolean enableCpuAffinity = false;
     int lruCacheSize = -1;
+
+    boolean destroyed = false;
 
     /**
      * Creates a database object.
@@ -21,9 +22,7 @@ public class BoosterDatabase {
      */
     public BoosterDatabase(String databasePath) {
         this.db_path = databasePath;
-        this.buffer_size = 0;
-        this.max_db_size = 0;
-        db_ref = BoosterNative.database_init(databasePath, 0, true, false, max_db_size, false, lruCacheSize);
+        db_ref = BoosterNative.database_init(databasePath, buffer_size, enableCompression, false, max_db_size, false, lruCacheSize);
     }
 
     /**

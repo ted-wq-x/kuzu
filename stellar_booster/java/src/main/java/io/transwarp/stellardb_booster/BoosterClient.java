@@ -8,21 +8,29 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class BoosterClient {
     public static String DB_PATH = "booster.db.path";
     //bytes ,0表示0.8*物理内存
-    private static String DB_BUFFER_POOL_SIZE = "booster.db.buffer.pool.size";
-    private static String DB_COMPRESSION = "booster.db.compression";
-    private static String DB_CPU_AFFINITY = "booster.db.cpu.affinity";
-    private static String DB_LRU_CACHE_SIZE = "booster.db.lru.cache.size";
-    private static String DB_READ_ONLY = "booster.db.readonly";
-    private static String DB_EXEC_THREAD_NUM = "booster.db.exec.thread.num";
+    private static final String DB_BUFFER_POOL_SIZE = "booster.db.buffer.pool.size";
+    private static final String DB_COMPRESSION = "booster.db.compression";
+    private static final String DB_CPU_AFFINITY = "booster.db.cpu.affinity";
+    private static final String DB_LRU_CACHE_SIZE = "booster.db.lru.cache.size";
+    private static final String DB_READ_ONLY = "booster.db.readonly";
+    private static final String DB_EXEC_THREAD_NUM = "booster.db.exec.thread.num";
 
-    private static ConcurrentHashMap<String, BoosterClient> instances = new ConcurrentHashMap<String, BoosterClient>();
+    private static final ConcurrentHashMap<String, BoosterClient> instances = new ConcurrentHashMap<String, BoosterClient>();
 
     public static int concurrency = -1;
     public static boolean curReadOnly = false;
     private static boolean preReadOnly = false;
 
+    private static boolean isMemMode = System.getProperty(DB_PATH, "").isEmpty();
+
     public static class BoosterOperationResult {
         private String info;
+        private boolean isSuccess;
+
+        public BoosterOperationResult(String info, boolean isSuccess) {
+            this.info = info;
+            this.isSuccess = isSuccess;
+        }
 
         public String getInfo() {
             return info;
@@ -32,12 +40,6 @@ public class BoosterClient {
             return isSuccess;
         }
 
-        private boolean isSuccess;
-
-        public BoosterOperationResult(String info, boolean isSuccess) {
-            this.info = info;
-            this.isSuccess = isSuccess;
-        }
     }
 
     public static Map<String, Integer> show() {
@@ -63,6 +65,9 @@ public class BoosterClient {
         if (instance == null) {
             synchronized (BoosterClient.class) {
                 if (instance == null) {
+                    if (isMemMode && instances.size() > 1) {
+                        throw new RuntimeException("In mem mode,only support 1 database,If you want multi databases,please set quark server jvm options:-D" + DB_PATH);
+                    }
                     instance = new BoosterClient(graphName, curReadOnly);
                     instances.put(graphName, instance);
                 }
@@ -122,18 +127,15 @@ public class BoosterClient {
     private BoosterClient(String graphName, boolean readOnly) {
         this.graphName = graphName;
         String path = System.getProperty(DB_PATH, "");
-        if (path.isEmpty()) {
-            throw new IllegalArgumentException("please set quark server jvm options:-D" + DB_PATH);
-        }
-        long poolSize = Long.parseLong(System.getProperty(DB_BUFFER_POOL_SIZE, "0"));
-        boolean enableCompression = Boolean.parseBoolean(System.getProperty(DB_COMPRESSION, "false"));
+        long poolSize = Long.parseLong(System.getProperty(DB_BUFFER_POOL_SIZE, "-1"));
+        boolean enableCompression = Boolean.parseBoolean(System.getProperty(DB_COMPRESSION, "true"));
         boolean enableCpuAffinity = Boolean.parseBoolean(System.getProperty(DB_CPU_AFFINITY, "false"));
         int lruCacheSize = Integer.parseInt(System.getProperty(DB_LRU_CACHE_SIZE, "-1"));
         boolean _readOnly = Boolean.parseBoolean(System.getProperty(DB_READ_ONLY, "false"));
         if (_readOnly) {
             readOnly = true;
         }
-        this.database = new BoosterDatabase(path + "/" + graphName, poolSize, enableCompression, readOnly, 0L, enableCpuAffinity, lruCacheSize);
+        this.database = new BoosterDatabase(path + "/" + graphName, poolSize, enableCompression, readOnly, -1L, enableCpuAffinity, lruCacheSize);
 
     }
 
