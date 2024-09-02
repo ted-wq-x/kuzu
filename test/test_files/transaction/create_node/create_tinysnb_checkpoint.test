@@ -34,9 +34,9 @@
 ---- ok
 -STATEMENT MATCH (a:person) WHERE a.ID > 8 RETURN a.ID, a.gender,a.isStudent, a.isWorker, a.age, a.eyeSight
 ---- 3
-10|2|False|True|83|4.900000
-80|||True|22|1.100000
-9|2|False|False|40|4.900000
+10|2|False|True|83|4.9
+80|||True|22|1.1
+9|2|False|False|40|4.9
 
 -CASE InsertNodeWithDateIntervalTest
 -STATEMENT CALL checkpoint_threshold=0

@@ -25,9 +25,9 @@ struct SsspBindData : public CallTableFuncBindData {
         : CallTableFuncBindData{std::move(returnTypes), std::move(returnColumnNames), maxOffset},
           context(context), srcPrimaryKey(srcPrimaryKey), srcTableName(srcTableName),
           dstPrimaryKey(dstPrimaryKey), dstTableName(dstTableName), direction(direction),
-          maxHop(maxHop), resultType(resultType), numThreads(numThreads), backTrackUsingFB(backTrackUsingFB),
-          relFilter(std::move(relFilter)), relColumnTypeIds(std::move(relColumnTypeIds)),
-          relTableInfos(std::move(relTableInfos)) {}
+          maxHop(maxHop), resultType(resultType), numThreads(numThreads),
+          backTrackUsingFB(backTrackUsingFB), relFilter(std::move(relFilter)),
+          relColumnTypeIds(std::move(relColumnTypeIds)), relTableInfos(std::move(relTableInfos)) {}
 
     std::unique_ptr<TableFuncBindData> copy() const override {
         std::unique_ptr<evaluator::ExpressionEvaluator> localRelFilter = nullptr;
@@ -65,7 +65,7 @@ public:
         reltables = bindData->relTableInfos;
     }
 
-    std::unique_ptr<processor::ResultSet> createResultSet() {
+    std::unique_ptr<processor::ResultSet> createResultSet() const {
         processor::ResultSet resultSet(1);
         auto columnType = *relColumnTypeIds.get();
         auto numValueVectors = columnType.size();
@@ -79,7 +79,7 @@ public:
     }
 
     std::unique_ptr<evaluator::ExpressionEvaluator> initEvaluator(
-        const processor::ResultSet& resultSet) {
+        const processor::ResultSet& resultSet) const {
         if (relFilter) {
             auto evaluator = relFilter->clone();
             evaluator->init(resultSet, context);

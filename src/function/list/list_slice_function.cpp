@@ -1,14 +1,13 @@
 
-#include "function/list/vector_list_functions.h"
 #include "function/list/functions/list_slice_function.h"
+
+#include "function/list/vector_list_functions.h"
 #include "function/scalar_function.h"
 
 using namespace kuzu::common;
 
 namespace kuzu {
 namespace function {
-
-
 
 static std::unique_ptr<FunctionBindData> bindFunc(ScalarBindFuncInput input) {
     KU_ASSERT(input.arguments.size() == 3);
@@ -38,13 +37,12 @@ function_set ListSliceFunction::getFunctionSet() {
     return result;
 }
 
-static std::unique_ptr<FunctionBindData> ListLastBindFunc(
-    const binder::expression_vector& arguments, Function* function) {
-    KU_ASSERT(arguments.size() == 1);
+static std::unique_ptr<FunctionBindData> ListLastBindFunc(ScalarBindFuncInput input) {
+    KU_ASSERT(input.arguments.size() == 1);
     std::vector<LogicalType> paramTypes;
-    paramTypes.push_back(arguments[0]->getDataType().copy());
+    paramTypes.push_back(input.arguments[0]->getDataType().copy());
     return std::make_unique<FunctionBindData>(std::move(paramTypes),
-        arguments[0]->getDataType().copy());
+        input.arguments[0]->getDataType().copy());
 }
 
 function_set ListTailFunction::getFunctionSet() {

@@ -20,7 +20,7 @@ class RelTableData {
 public:
     RelTableData(FileHandle* dataFH, MemoryManager* mm, ShadowFile* shadowFile,
         const catalog::TableCatalogEntry* tableEntry, common::RelDataDirection direction,
-        bool enableCompression, common::Deserializer* deSer, bool readOnly);
+        bool enableCompression, common::Deserializer* deSer);
 
     bool update(transaction::Transaction* transaction, common::ValueVector& boundNodeIDVector,
         const common::ValueVector& relIDVector, common::column_id_t columnID,

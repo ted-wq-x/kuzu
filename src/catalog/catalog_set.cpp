@@ -205,7 +205,7 @@ CatalogEntryVector CatalogSet::getEntries(const Transaction* transaction) {
         if (currentEntry->isDeleted()) {
             continue;
         }
-        result.emplace(currentEntry);
+        result.emplace_back(currentEntry);
     }
     return result;
 }

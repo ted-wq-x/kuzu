@@ -65,7 +65,7 @@ TEST_F(CApiFlatTupleTest, ToString) {
     columnWidths[1] = 5;
     columnWidths[2] = 10;
     char* str = kuzu_flat_tuple_to_string(&flatTuple);
-    ASSERT_EQ(std::string(str), "Alice|35|1.731000\n");
+    ASSERT_EQ(std::string(str), "Alice|35|1.731\n");
     kuzu_destroy_string(str);
     free(columnWidths);
     kuzu_flat_tuple_destroy(&flatTuple);

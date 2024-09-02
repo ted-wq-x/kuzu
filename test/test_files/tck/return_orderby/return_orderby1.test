@@ -74,9 +74,9 @@ one
            ORDER BY floats;
 -CHECK_ORDER
 ---- 3
-1.300000
-1.500000
-999.990000
+1.3
+1.5
+999.99
 
 # ORDER BY DESC should order floats in the expected order
 -CASE Scenario8
@@ -85,9 +85,9 @@ one
            ORDER BY floats DESC;
 -CHECK_ORDER
 ---- 3
-999.990000
-1.500000
-1.300000
+999.99
+1.5
+1.3
 
 # ORDER BY should order lists in the expected order
 -CASE Scenario9
@@ -147,7 +147,7 @@ one
 {_NODES: [{_ID: 0:0, _LABEL: N, ID: 0},{_ID: 1:0, _LABEL: A, ID: 0}], _RELS: [(0:0)-{_LABEL: REL, _ID: 2:0}->(1:0)]}
 text
 False
-1.500000
+1.5
 -nan
 
 
@@ -170,7 +170,7 @@ False
 ---- 10
 
 -nan
-1.500000
+1.5
 False
 text
 {_NODES: [{_ID: 0:0, _LABEL: N, ID: 0},{_ID: 1:0, _LABEL: A, ID: 0}], _RELS: [(0:0)-{_LABEL: REL, _ID: 2:0}->(1:0)]}

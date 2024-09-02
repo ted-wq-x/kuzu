@@ -66,21 +66,23 @@ ChunkedCSRHeader::ChunkedCSRHeader(bool enableCompression, uint64_t capacity,
 offset_t ChunkedCSRHeader::getStartCSROffset(offset_t nodeOffset) const {
     // TODO(Guodong): I think we can simplify the check here by getting rid of some of the
     // conditions.
-    if (nodeOffset == 0 || offset->getNumValues() == 0) {
+    auto numValues = offset->getNumValues();
+    if (nodeOffset == 0 || numValues == 0) {
         return 0;
     }
     return offset->getData().getValue<offset_t>(
-        nodeOffset >= offset->getNumValues() ? (offset->getNumValues() - 1) : nodeOffset - 1);
+        nodeOffset >= numValues ? (numValues - 1) : nodeOffset - 1);
 }
 
 offset_t ChunkedCSRHeader::getEndCSROffset(offset_t nodeOffset) const {
     // TODO(Guodong): I think we can simplify the check here by getting rid of some of the
     // conditions.
-    if (offset->getNumValues() == 0) {
+    auto numValues = offset->getNumValues();
+    if (numValues == 0) {
         return 0;
     }
     return offset->getData().getValue<offset_t>(
-        nodeOffset >= offset->getNumValues() ? (offset->getNumValues() - 1) : nodeOffset);
+        nodeOffset >= numValues ? (numValues - 1) : nodeOffset);
 }
 
 length_t ChunkedCSRHeader::getCSRLength(offset_t nodeOffset) const {

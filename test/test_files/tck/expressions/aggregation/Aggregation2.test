@@ -37,7 +37,7 @@
            RETURN max(x);
 ## Outcome: the result should be, in any order:
 ---- 1
-2.000000
+2.0
 
 #  `min()` over floats
 -CASE Scenario4
@@ -49,7 +49,7 @@
            RETURN min(x);
 ## Outcome: the result should be, in any order:
 ---- 1
-0.500000
+0.5
 
 #  `max()` over mixed numeric values
 -CASE Scenario5

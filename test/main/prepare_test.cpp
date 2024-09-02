@@ -83,7 +83,7 @@ TEST_F(ApiTest, PrepareDouble) {
     auto result =
         conn->execute(preparedStatement.get(), std::make_pair(std::string("1"), (double)10.5));
     ASSERT_TRUE(result->hasNext());
-    checkTuple(result->getNext().get(), "15.500000\n");
+    checkTuple(result->getNext().get(), "15.5\n");
     ASSERT_FALSE(result->hasNext());
 }
 

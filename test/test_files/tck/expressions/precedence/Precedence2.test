@@ -108,19 +108,19 @@
                   4 ^ (3 * 2) ^ 3 AS c;
 ## Outcome: the result should be, in any order:
 ---- 1
-512.000000|512.000000|68719476736.000000
+512.0|512.0|68719476736.0
 
 -STATEMENT RETURN 4 ^ 3 / 2 ^ 3 AS a,
                   (4 ^ 3) / (2 ^ 3) AS b,
                   4 ^ (3 / 2) ^ 3 AS c;
 ---- 1
-8.000000|8.000000|64.000000
+8.0|8.0|64.0
 
 -STATEMENT RETURN 4 ^ 3 % 2 ^ 3 AS a,
                   (4 ^ 3) % (2 ^ 3) AS b,
                   4 ^ (3 % 2) ^ 3 AS c;
 ---- 1
-0.000000|0.000000|64.000000
+0.0|0.0|64.0
 
 
 #  Exponentiation takes precedence over numeric additive operations
@@ -133,13 +133,13 @@
                   4 ^ (3 + 2) ^ 3 AS c;
 ## Outcome: the result should be, in any order:
 ---- 1
-72.000000|72.000000|1073741824.000000
+72.0|72.0|1073741824.0
 
 -STATEMENT RETURN 4 ^ 3 - 2 ^ 3 AS a,
                   (4 ^ 3) - (2 ^ 3) AS b,
                   4 ^ (3 - 2) ^ 3 AS c;
 ---- 1
-56.000000|56.000000|64.000000
+56.0|56.0|64.0
 
 
 #  Numeric unary negative takes precedence over exponentiation
@@ -152,7 +152,7 @@
                   -(3 ^ 2) AS c;
 ## Outcome: the result should be, in any order:
 ---- 1
-9.000000|9.000000|-9.000000
+9.0|9.0|-9.0
 
 #  Numeric unary negative takes precedence over numeric additive operations
 -CASE Scenario5

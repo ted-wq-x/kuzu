@@ -36,7 +36,7 @@ Binder exception: Table movies does not exist.
 ---- ok
 -STATEMENT MATCH (b:books) RETURN b.*;
 ---- 1
-0|0.000000
+0|0.0
 
 -CASE DDLOutputMessages
 -STATEMENT CREATE NODE TABLE university(ID INT64, PRIMARY KEY(ID))
@@ -155,7 +155,7 @@ Binder exception: Table knows does not exist.
 ---- ok
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE DropRelTablePropertyNormalExecution
 -STATEMENT ALTER TABLE studyAt DROP places
@@ -291,20 +291,20 @@ long long string
 
 -CASE AddListOfStructPropertyToPersonTableWithDefaultValueNormalExecution
 -STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])[]
-            DEFAULT [{revenue: 23, ages: [1.300000,2.500000]},
-            {revenue: 33, ages: [2.700000]},
-            {revenue: -4, ages: [22.500000,11.300000,33.200000]}]
+            DEFAULT [{revenue: 23, ages: [1.3,2.5]},
+            {revenue: 33, ages: [2.7]},
+            {revenue: -4, ages: [22.5,11.3,33.2]}]
 ---- ok
 -STATEMENT MATCH (p:person) return p.random
 ---- 8
-[{revenue: 23, ages: [1.300000,2.500000]},{revenue: 33, ages: [2.700000]},{revenue: -4, ages: [22.500000,11.300000,33.200000]}]
-[{revenue: 23, ages: [1.300000,2.500000]},{revenue: 33, ages: [2.700000]},{revenue: -4, ages: [22.500000,11.300000,33.200000]}]
-[{revenue: 23, ages: [1.300000,2.500000]},{revenue: 33, ages: [2.700000]},{revenue: -4, ages: [22.500000,11.300000,33.200000]}]
-[{revenue: 23, ages: [1.300000,2.500000]},{revenue: 33, ages: [2.700000]},{revenue: -4, ages: [22.500000,11.300000,33.200000]}]
-[{revenue: 23, ages: [1.300000,2.500000]},{revenue: 33, ages: [2.700000]},{revenue: -4, ages: [22.500000,11.300000,33.200000]}]
-[{revenue: 23, ages: [1.300000,2.500000]},{revenue: 33, ages: [2.700000]},{revenue: -4, ages: [22.500000,11.300000,33.200000]}]
-[{revenue: 23, ages: [1.300000,2.500000]},{revenue: 33, ages: [2.700000]},{revenue: -4, ages: [22.500000,11.300000,33.200000]}]
-[{revenue: 23, ages: [1.300000,2.500000]},{revenue: 33, ages: [2.700000]},{revenue: -4, ages: [22.500000,11.300000,33.200000]}]
+[{revenue: 23, ages: [1.3,2.5]},{revenue: 33, ages: [2.7]},{revenue: -4, ages: [22.5,11.3,33.2]}]
+[{revenue: 23, ages: [1.3,2.5]},{revenue: 33, ages: [2.7]},{revenue: -4, ages: [22.5,11.3,33.2]}]
+[{revenue: 23, ages: [1.3,2.5]},{revenue: 33, ages: [2.7]},{revenue: -4, ages: [22.5,11.3,33.2]}]
+[{revenue: 23, ages: [1.3,2.5]},{revenue: 33, ages: [2.7]},{revenue: -4, ages: [22.5,11.3,33.2]}]
+[{revenue: 23, ages: [1.3,2.5]},{revenue: 33, ages: [2.7]},{revenue: -4, ages: [22.5,11.3,33.2]}]
+[{revenue: 23, ages: [1.3,2.5]},{revenue: 33, ages: [2.7]},{revenue: -4, ages: [22.5,11.3,33.2]}]
+[{revenue: 23, ages: [1.3,2.5]},{revenue: 33, ages: [2.7]},{revenue: -4, ages: [22.5,11.3,33.2]}]
+[{revenue: 23, ages: [1.3,2.5]},{revenue: 33, ages: [2.7]},{revenue: -4, ages: [22.5,11.3,33.2]}]
 
 -CASE AddMapPropertyToPersonTableWithDefaultValueNormalExecution
 -STATEMENT ALTER TABLE person ADD random MAP(STRING, INT64) DEFAULT map(['key1','key2'],[400,250])
@@ -322,18 +322,18 @@ long long string
 
 -CASE AddStructPropertyToPersonTableWithDefaultValueNormalExecution
 -STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])
-            DEFAULT {revenue: 123, ages: [1.200000,3.400000,5.600000]}
+            DEFAULT {revenue: 123, ages: [1.2,3.4,5.6]}
 ---- ok
 -STATEMENT MATCH (p:person) return p.random
 ---- 8
-{revenue: 123, ages: [1.200000,3.400000,5.600000]}
-{revenue: 123, ages: [1.200000,3.400000,5.600000]}
-{revenue: 123, ages: [1.200000,3.400000,5.600000]}
-{revenue: 123, ages: [1.200000,3.400000,5.600000]}
-{revenue: 123, ages: [1.200000,3.400000,5.600000]}
-{revenue: 123, ages: [1.200000,3.400000,5.600000]}
-{revenue: 123, ages: [1.200000,3.400000,5.600000]}
-{revenue: 123, ages: [1.200000,3.400000,5.600000]}
+{revenue: 123, ages: [1.2,3.4,5.6]}
+{revenue: 123, ages: [1.2,3.4,5.6]}
+{revenue: 123, ages: [1.2,3.4,5.6]}
+{revenue: 123, ages: [1.2,3.4,5.6]}
+{revenue: 123, ages: [1.2,3.4,5.6]}
+{revenue: 123, ages: [1.2,3.4,5.6]}
+{revenue: 123, ages: [1.2,3.4,5.6]}
+{revenue: 123, ages: [1.2,3.4,5.6]}
 
 -DEFINE_STATEMENT_BLOCK STUDY_AT_TABLE_NULL_CHECK [
 -STATEMENT MATCH (:person)-[e:studyAt]->(:organisation) return e.random

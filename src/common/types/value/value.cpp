@@ -11,6 +11,7 @@
 #include "common/types/ku_string.h"
 #include "common/types/uuid.h"
 #include "common/vector/value_vector.h"
+#include "fmt/format.h"
 #include "function/hash/hash_functions.h"
 #include "storage/storage_utils.h"
 
@@ -593,9 +594,9 @@ std::string Value::toString() const {
     case LogicalTypeID::INT128:
         return TypeUtils::toString(val.int128Val);
     case LogicalTypeID::DOUBLE:
-        return TypeUtils::toString(val.doubleVal);
+        return kuzu_fmt::format("{}", val.doubleVal);
     case LogicalTypeID::FLOAT:
-        return TypeUtils::toString(val.floatVal);
+        return kuzu_fmt::format("{}", val.floatVal);
     case LogicalTypeID::DECIMAL:
         return decimalToString();
     case LogicalTypeID::POINTER:

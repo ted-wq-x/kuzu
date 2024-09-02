@@ -55,7 +55,7 @@ Binder exception: Expression 123 has data type INT64 but expected BOOL. Implicit
 
 -STATEMENT RETURN NOT 123.4;
 ---- error
-Binder exception: Expression 123.400000 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
+Binder exception: Expression 123.4 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
 
 -STATEMENT RETURN NOT '';
 ## Outcome: a SyntaxError should be raised at compile time: InvalidArgumentType

@@ -10,10 +10,10 @@
 ---- ok
 -STATEMENT MATCH (a)-[e]->(b) RETURN a.iri, e.iri, b.val + 1.0;
 ---- 5
-http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#foundedIn|30001.000000
+http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#foundedIn|30001.0
 http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#name|
-http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#population2|20001.000000
-http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#population|10001.000000
+http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#population2|20001.0
+http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#population|10001.0
 http://kuzu.io/rdf-ex#Waterloo|http://www.w3.org/1999/02/22-rdf-syntax-ns#type|
 -STATEMENT CREATE RDFGraph W;
 ---- ok
@@ -21,8 +21,8 @@ http://kuzu.io/rdf-ex#Waterloo|http://www.w3.org/1999/02/22-rdf-syntax-ns#type|
 ---- ok
 -STATEMENT MATCH (a)-[e:W]->(b) RETURN a.iri, e.iri, b.val + 1.0;
 ---- 5
-http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#foundedIn|30001.000000
+http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#foundedIn|30001.0
 http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#name|
-http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#population2|20001.000000
-http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#population|10001.000000
+http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#population2|20001.0
+http://kuzu.io/rdf-ex#Waterloo|http://kuzu.io/rdf-ex#population|10001.0
 http://kuzu.io/rdf-ex#Waterloo|http://www.w3.org/1999/02/22-rdf-syntax-ns#type|

@@ -2,11 +2,12 @@
 #include "binder/expression/node_expression.h"
 #include "binder/expression/rel_expression.h"
 #include "binder/expression_binder.h"
+#include "catalog/catalog_entry/catalog_entry.h"
+#include "catalog/catalog_entry/table_catalog_entry.h"
 #include "common/types/value/value.h"
 #include "function/rewrite_function.h"
 #include "function/schema/vector_node_rel_functions.h"
 #include "function/struct/vector_struct_functions.h"
-
 using namespace kuzu::common;
 using namespace kuzu::binder;
 
@@ -44,18 +45,18 @@ function_set IDFunction::getFunctionSet() {
     return functionSet;
 }
 
-static std::shared_ptr<binder::Expression> UIDrewriteFunc(const expression_vector& params,
+static std::shared_ptr<binder::Expression> UidRewriteFunc(const expression_vector& params,
     ExpressionBinder* binder) {
     KU_ASSERT(params.size() == 1);
     auto node = ku_dynamic_cast<Expression*, NodeExpression*>(params[0].get());
-    KU_ASSERT(node->getNumTableIDs()==1);
-    return node->getPrimaryKey(node->getSingleTableID());
+    KU_ASSERT(!node->isMultiLabeled());
+    return node->getPrimaryKey(node->getSingleEntry()->getTableID());
 }
 
 function_set UIDFunction::getFunctionSet() {
     function_set functionSet;
-    functionSet.push_back(std::move(std::make_unique<RewriteFunction>(name,
-        std::vector<LogicalTypeID>{LogicalTypeID::NODE}, UIDrewriteFunc)));
+    functionSet.emplace_back(std::make_unique<RewriteFunction>(name,
+        std::vector<LogicalTypeID>{LogicalTypeID::NODE}, UidRewriteFunc));
     return functionSet;
 }
 

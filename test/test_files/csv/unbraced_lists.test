@@ -5,7 +5,7 @@
 -STATEMENT LOAD FROM "${KUZU_ROOT_DIRECTORY}/dataset/unbraced-lists/only-unbraced.csv" (header=true, LIST_UNBRACED=true) return a, b, c;
 ---- 2
 [a,b,c]|[1,3]|[,,]
-[x,y,z]|[123,3,94494]|[,1.000000]
+[x,y,z]|[123,3,94494]|[,1.0]
 
 -STATEMENT LOAD FROM "${KUZU_ROOT_DIRECTORY}/dataset/unbraced-lists/mixed-unbraced.csv" (header=true, list_unbraced=true) return a;
 ---- 2

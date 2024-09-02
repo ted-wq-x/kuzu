@@ -300,7 +300,7 @@ long long string
 ---- 0
 
 -CASE InsertListOfStructCommit
--STATEMENT CREATE NODE TABLE test (id SERIAL, random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.200000,7.200000]}], primary key (id));
+-STATEMENT CREATE NODE TABLE test (id SERIAL, random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.2,7.2]}], primary key (id));
 ---- ok
 -STATEMENT BEGIN TRANSACTION
 ---- ok
@@ -310,14 +310,14 @@ long long string
 ---- ok
 -STATEMENT MATCH (t:test) return t.random
 ---- 3
-[{revenue: 144, ages: [3.200000,7.200000]}]
-[{revenue: 144, ages: [3.200000,7.200000]}]
-[{revenue: 144, ages: [3.200000,7.200000]}]
+[{revenue: 144, ages: [3.2,7.2]}]
+[{revenue: 144, ages: [3.2,7.2]}]
+[{revenue: 144, ages: [3.2,7.2]}]
 
 -CASE InsertListOfStructCommitRecovery
 -STATEMENT CALL auto_checkpoint=false;
 ---- ok
--STATEMENT CREATE NODE TABLE test (id SERIAL, random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.200000,7.200000]}], primary key (id));
+-STATEMENT CREATE NODE TABLE test (id SERIAL, random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.2,7.2]}], primary key (id));
 ---- ok
 -STATEMENT BEGIN TRANSACTION
 ---- ok
@@ -328,12 +328,12 @@ long long string
 -RELOADDB
 -STATEMENT MATCH (t:test) return t.random
 ---- 3
-[{revenue: 144, ages: [3.200000,7.200000]}]
-[{revenue: 144, ages: [3.200000,7.200000]}]
-[{revenue: 144, ages: [3.200000,7.200000]}]
+[{revenue: 144, ages: [3.2,7.2]}]
+[{revenue: 144, ages: [3.2,7.2]}]
+[{revenue: 144, ages: [3.2,7.2]}]
 
 -CASE InsertListOfStructRollback
--STATEMENT CREATE NODE TABLE test (id SERIAL, random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.200000,7.200000]}], primary key (id));
+-STATEMENT CREATE NODE TABLE test (id SERIAL, random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.2,7.2]}], primary key (id));
 ---- ok
 -STATEMENT BEGIN TRANSACTION
 ---- ok
@@ -347,7 +347,7 @@ long long string
 -CASE InsertListOfStructRollbackRecovery
 -STATEMENT CALL auto_checkpoint=false;
 ---- ok
--STATEMENT CREATE NODE TABLE test (id SERIAL, random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.200000,7.200000]}], primary key (id));
+-STATEMENT CREATE NODE TABLE test (id SERIAL, random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.2,7.2]}], primary key (id));
 ---- ok
 -STATEMENT BEGIN TRANSACTION
 ---- ok

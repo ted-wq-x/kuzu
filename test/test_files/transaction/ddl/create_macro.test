@@ -60,27 +60,27 @@
 ---- ok
 -STATEMENT match (a:person) return func_macro(a.age) as age
 ---- 8
-27.600000
-27.600000
-32.600000
-37.600000
-42.600000
-47.600000
-52.600000
-90.600000
+27.59999990463257
+27.59999990463257
+32.59999990463257
+37.59999990463257
+42.59999990463257
+47.59999990463257
+52.59999990463257
+90.59999990463257
 -STATEMENT CHECKPOINT;
 ---- ok
 -RELOADDB
 -STATEMENT match (a:person) return func_macro(a.age) as age
 ---- 8
-27.600000
-27.600000
-32.600000
-37.600000
-42.600000
-47.600000
-52.600000
-90.600000
+27.59999990463257
+27.59999990463257
+32.59999990463257
+37.59999990463257
+42.59999990463257
+47.59999990463257
+52.59999990463257
+90.59999990463257
 
 -CASE createLiteralMacro
 -STATEMENT CREATE MACRO str_literal() AS 'result'
@@ -95,13 +95,13 @@
 ---- ok
 -STATEMENT return str_literal(),int_literal(),floating_literal(),interval_literal(),list_literal()
 ---- 1
-result|6|5.600000|00:20:00|[1,3,2]
+result|6|5.599999904632568|00:20:00|[1,3,2]
 -STATEMENT CHECKPOINT;
 ---- ok
 -RELOADDB
 -STATEMENT return str_literal(),int_literal(),floating_literal(),interval_literal(),list_literal()
 ---- 1
-result|6|5.600000|00:20:00|[1,3,2]
+result|6|5.599999904632568|00:20:00|[1,3,2]
 
 -CASE createPropertyMacro
 -STATEMENT CREATE MACRO prop_macro(x) AS x.ID

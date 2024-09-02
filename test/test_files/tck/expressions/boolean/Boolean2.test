@@ -179,10 +179,10 @@ null | null | null | true
 Binder exception: Expression 123 has data type INT64 but expected BOOL. Implicit cast is not supported.
 -STATEMENT RETURN 123.4 OR true;
 ---- error
-Binder exception: Expression 123.400000 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
+Binder exception: Expression 123.4 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
 -STATEMENT RETURN 123.4 OR null;
 ---- error
-Binder exception: Expression 123.400000 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
+Binder exception: Expression 123.4 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
 
 -STATEMENT RETURN 'foo' OR true;
 ---- error
@@ -210,7 +210,7 @@ Binder exception: Expression 123 has data type INT64 but expected BOOL. Implicit
 
 -STATEMENT RETURN true OR 123.4;
 ---- error
-Binder exception: Expression 123.400000 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
+Binder exception: Expression 123.4 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
 
 -STATEMENT RETURN false OR 'foo';
 ---- error
@@ -242,7 +242,7 @@ Binder exception: Expression 123 has data type INT64 but expected BOOL. Implicit
 
 -STATEMENT RETURN 123.4 OR 123.4;
 ---- error
-Binder exception: Expression 123.400000 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
+Binder exception: Expression 123.4 has data type DOUBLE but expected BOOL. Implicit cast is not supported.
 
 -STATEMENT RETURN 'foo' OR {x: []};
 ---- error

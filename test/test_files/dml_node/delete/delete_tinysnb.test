@@ -23,7 +23,7 @@
 ---- ok
 -STATEMENT MATCH (a:organisation) WHERE a.ID = 30 RETURN a.orgCode, a.mark
 ---- 1
-|3.300000
+|3.3
 -STATEMENT MATCH (a:organisation) WHERE a.ID = 30 DELETE a
 ---- ok
 -STATEMENT MATCH (a:organisation) WHERE a.ID = 30 RETURN a.orgCode, a.mark
@@ -43,7 +43,7 @@
 ---- ok
 -STATEMENT MATCH (a:organisation) WHERE a.ID = 30 RETURN a.orgCode, a.mark
 ---- 1
-|3.300000
+|3.3
 -STATEMENT MATCH (a:organisation) WHERE a.ID = 30 DELETE a
 ---- ok
 -STATEMENT MATCH (a:organisation) WHERE a.ID = 30 RETURN a.orgCode, a.mark

@@ -125,8 +125,8 @@ Bar|10020
 -INSERT_STATEMENT_BLOCK CREATE_REL_AND_COPY_NODES
 -STATEMENT MATCH (p:person)-[:follows]->(o:org) return p.fName, o.ID
 ---- 2
-Foo|10020.000000
-Bar|10020.000000
+Foo|10020.0
+Bar|10020.0
 
 
 -CASE CopyFloatPK
@@ -137,5 +137,5 @@ Bar|10020.000000
 -INSERT_STATEMENT_BLOCK CREATE_REL_AND_COPY_NODES
 -STATEMENT MATCH (p:person)-[:follows]->(o:org) return p.fName, o.ID
 ---- 2
-Foo|10020.000000
-Bar|10020.000000
+Foo|10020.0
+Bar|10020.0

@@ -258,6 +258,7 @@ include_directories(third_party/pcg)
 include_directories(third_party/lz4)
 include_directories(third_party/caches)
 include_directories(third_party/parallel_hashmap)
+include_directories(third_party/fmt/include)
 
 add_subdirectory(third_party)
 

@@ -102,28 +102,28 @@ False
 -CHECK_ORDER
 -PARALLELISM 3
 ---- 8
-4.500000
-4.700000
-4.800000
-4.900000
-4.900000
-5.000000
-5.000000
-5.100000
+4.5
+4.7
+4.8
+4.9
+4.9
+5.0
+5.0
+5.1
 
 -LOG OrderByFloatTest
 -STATEMENT MATCH (p:person) RETURN p.height ORDER BY p.height
 -CHECK_ORDER
 -PARALLELISM 3
 ---- 8
-0.990000
-1.000000
-1.300000
-1.323000
-1.463000
-1.510000
-1.600000
-1.731000
+0.99
+1.0
+1.3
+1.323
+1.463
+1.51
+1.6
+1.731
 
 -LOG OrderByDateTest
 -STATEMENT MATCH (p:person) RETURN p.birthdate ORDER BY p.birthdate desc
@@ -195,14 +195,14 @@ pure ascii characters
 -CHECK_ORDER
 -PARALLELISM 2
 ---- 8
-20|4.800000
-20|4.700000
-45|5.000000
-83|4.900000
-25|4.500000
-30|5.100000
-35|5.000000
-40|4.900000
+20|4.8
+20|4.7
+45|5.0
+83|4.9
+25|4.5
+30|5.1
+35|5.0
+40|4.9
 
 -LOG OrderByProjectionTest
 -STATEMENT MATCH (a:person)-[:knows]->(b:person) with b return b.fName order by b.fName desc

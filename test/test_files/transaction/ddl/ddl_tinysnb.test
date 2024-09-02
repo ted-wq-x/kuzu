@@ -10,7 +10,7 @@
 ---- ok
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE DropNodeTablePropertyCommitRecovery
 -STATEMENT BEGIN TRANSACTION;
@@ -22,7 +22,7 @@
 -RELOADDB
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE DropNodeTablePropertyRollback
 -STATEMENT BEGIN TRANSACTION;
@@ -33,7 +33,7 @@
 ---- ok
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE DropNodeTablePropertyRollbackRecovery
 -STATEMENT BEGIN TRANSACTION;
@@ -45,7 +45,7 @@
 -RELOADDB
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE DropRelTablePropertyCommit
 -STATEMENT BEGIN TRANSACTION;
@@ -104,7 +104,7 @@
 ---- ok
 -STATEMENT MATCH (p:person) RETURN p.* ORDER BY p.ID LIMIT 1
 ---- 1
-0|Alice|1|True|False|35|5.000000|1900-01-01|2011-08-20 11:25:30|3 years 2 days 13:02:00|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11|1
+0|Alice|1|True|False|35|5.0|1900-01-01|2011-08-20 11:25:30|3 years 2 days 13:02:00|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11|1
 -STATEMENT MATCH (p:person) RETURN sum(p.test);
 ---- 1
 9
@@ -121,7 +121,7 @@
 -RELOADDB
 -STATEMENT MATCH (p:person) RETURN p.* ORDER BY p.ID LIMIT 1
 ---- 1
-0|Alice|1|True|False|35|5.000000|1900-01-01|2011-08-20 11:25:30|3 years 2 days 13:02:00|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11|1
+0|Alice|1|True|False|35|5.0|1900-01-01|2011-08-20 11:25:30|3 years 2 days 13:02:00|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11|1
 -STATEMENT MATCH (p:person) RETURN sum(p.test);
 ---- 1
 9
@@ -135,7 +135,7 @@
 ---- ok
 -STATEMENT MATCH (p:person) RETURN p.* ORDER BY p.ID LIMIT 1
 ---- 1
-0|Alice|1|True|False|35|5.000000|1900-01-01|2011-08-20 11:25:30|3 years 2 days 13:02:00|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
+0|Alice|1|True|False|35|5.0|1900-01-01|2011-08-20 11:25:30|3 years 2 days 13:02:00|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
 
 -CASE AddNodeTablePropertyRollbackRecovery
 -STATEMENT BEGIN TRANSACTION;
@@ -147,7 +147,7 @@
 -RELOADDB
 -STATEMENT MATCH (p:person) RETURN p.* ORDER BY p.ID LIMIT 1
 ---- 1
-0|Alice|1|True|False|35|5.000000|1900-01-01|2011-08-20 11:25:30|3 years 2 days 13:02:00|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
+0|Alice|1|True|False|35|5.0|1900-01-01|2011-08-20 11:25:30|3 years 2 days 13:02:00|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
 
 -CASE AddRelTablePropertyCommit
 -STATEMENT BEGIN TRANSACTION;
@@ -214,7 +214,7 @@
 ---- ok
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1;
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, pName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, pName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE RenameNodeTablePropertyCommitRecovery
 -STATEMENT BEGIN TRANSACTION;
@@ -226,7 +226,7 @@
 -RELOADDB
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1;
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, pName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, pName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE RenameNodeTablePropertyRollback
 -STATEMENT BEGIN TRANSACTION;
@@ -237,7 +237,7 @@
 ---- ok
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1;
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE RenameNodeTablePropertyRollbackRecovery
 -STATEMENT BEGIN TRANSACTION;
@@ -249,7 +249,7 @@
 -RELOADDB
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1;
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE RenameRelTablePropertyCommit
 -STATEMENT BEGIN TRANSACTION;
@@ -306,7 +306,7 @@
 ---- ok
 -STATEMENT MATCH (p:vPerson) RETURN * ORDER BY p.ID LIMIT 1;
 ---- 1
-{_ID: 0:0, _LABEL: vPerson, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: vPerson, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE RenameNodeTableCommitRecovery
 -STATEMENT BEGIN TRANSACTION;
@@ -318,7 +318,7 @@
 -RELOADDB
 -STATEMENT MATCH (p:vPerson) RETURN * ORDER BY p.ID LIMIT 1;
 ---- 1
-{_ID: 0:0, _LABEL: vPerson, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: vPerson, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE RenameNodeTableRollback
 -STATEMENT BEGIN TRANSACTION;
@@ -329,7 +329,7 @@
 ---- ok
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1;
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE RenameNodeTableRollbackRecovery
 -STATEMENT BEGIN TRANSACTION;
@@ -341,7 +341,7 @@
 -RELOADDB
 -STATEMENT MATCH (p:person) RETURN * ORDER BY p.ID LIMIT 1;
 ---- 1
-{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.000000, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731000, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
+{_ID: 0:0, _LABEL: person, ID: 0, fName: Alice, gender: 1, isStudent: True, isWorker: False, age: 35, eyeSight: 5.0, birthdate: 1900-01-01, registerTime: 2011-08-20 11:25:30, lastJobDuration: 3 years 2 days 13:02:00, workedHours: [10,5], usedNames: [Aida], courseScoresPerTerm: [[10,8],[6,7,8]], grades: [96,54,86,92], height: 1.731, u: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11}
 
 -CASE RenameRelTableCommit
 -STATEMENT BEGIN TRANSACTION;
@@ -1024,30 +1024,30 @@ Binder exception: Cannot find property random for p.
 -CASE AddListOfStructPropertyWithDefaultCommit
 -STATEMENT BEGIN TRANSACTION
 ---- ok
--STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.200000,7.200000]}]
+-STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.2,7.2]}]
 ---- ok
 -STATEMENT COMMIT
 ---- ok
 -STATEMENT MATCH (p:person) return p.random limit 1
 ---- 1
-[{revenue: 144, ages: [3.200000,7.200000]}]
+[{revenue: 144, ages: [3.2,7.2]}]
 
 -CASE AddListOfStructPropertyWithDefaultCommitRecovery
 -STATEMENT BEGIN TRANSACTION
 ---- ok
--STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.200000,7.200000]}]
+-STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.2,7.2]}]
 ---- ok
 -STATEMENT COMMIT;
 ---- ok
 -RELOADDB
 -STATEMENT MATCH (p:person) return p.random limit 1
 ---- 1
-[{revenue: 144, ages: [3.200000,7.200000]}]
+[{revenue: 144, ages: [3.2,7.2]}]
 
 -CASE AddListOfStructPropertyWithDefaultRollback
 -STATEMENT BEGIN TRANSACTION
 ---- ok
--STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.200000,7.200000]}]
+-STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.2,7.2]}]
 ---- ok
 -STATEMENT rollback
 ---- ok
@@ -1058,7 +1058,7 @@ Binder exception: Cannot find property random for p.
 -CASE AddListOfStructPropertyWithDefaultRollbackRecovery
 -STATEMENT BEGIN TRANSACTION
 ---- ok
--STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.200000,7.200000]}]
+-STATEMENT ALTER TABLE person ADD random STRUCT(revenue int64, ages double[])[] default [{revenue: 144, ages: [3.2,7.2]}]
 ---- ok
 -STATEMENT ROLLBACK;
 ---- ok

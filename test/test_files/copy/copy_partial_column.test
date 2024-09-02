@@ -59,9 +59,9 @@ Binder exception: Table knows3 does not contain column dummy.
 ---- ok
 -STATEMENT MATCH (p:person)-[e:knows4]->(:person) WHERE p.ID = 2 RETURN e.*;
 ---- 3
-1950-05-14|1946-08-25 19:07:22|00:23:00|[fwehu9h9832wewew,23u9h989sdfsss]|{locations: ['paris'], transfer: {day: 2011-05-01, amount: [2000,5340]}}|cool stuff found||2022-06-06|True|default|1.000000|10|[1,2,3]|1970-01-01 10:00:00.004666
-1950-05-14|2012-12-11 20:07:22|20 years 30 days 48:00:00|[fwh9y81232uisuiehuf,ewnuihxy8dyf232]|{locations: ['vancouver'], transfer: {day: 2020-01-01, amount: [120,50]}}|matthew perry||2022-06-06|True|default|1.000000|10|[1,2,3]|1970-01-01 10:00:00.004666
-2021-06-30|1946-08-25 19:07:22|10 years 5 months 13:00:00.000024|[2huh9y89fsfw23,23nsihufhw723]|{locations: ['paris'], transfer: {day: 2000-01-01, amount: [20,5000]}}|4||2022-06-06|True|default|1.000000|10|[1,2,3]|1970-01-01 10:00:00.004666
+1950-05-14|1946-08-25 19:07:22|00:23:00|[fwehu9h9832wewew,23u9h989sdfsss]|{locations: ['paris'], transfer: {day: 2011-05-01, amount: [2000,5340]}}|cool stuff found||2022-06-06|True|default|1.0|10|[1,2,3]|1970-01-01 10:00:00.004666
+1950-05-14|2012-12-11 20:07:22|20 years 30 days 48:00:00|[fwh9y81232uisuiehuf,ewnuihxy8dyf232]|{locations: ['vancouver'], transfer: {day: 2020-01-01, amount: [120,50]}}|matthew perry||2022-06-06|True|default|1.0|10|[1,2,3]|1970-01-01 10:00:00.004666
+2021-06-30|1946-08-25 19:07:22|10 years 5 months 13:00:00.000024|[2huh9y89fsfw23,23nsihufhw723]|{locations: ['paris'], transfer: {day: 2000-01-01, amount: [20,5000]}}|4||2022-06-06|True|default|1.0|10|[1,2,3]|1970-01-01 10:00:00.004666
 
 -LOG PartialColumnsSequenceSerial
 -STATEMENT CREATE SEQUENCE seq;
@@ -90,11 +90,11 @@ Binder exception: Table knows3 does not contain column dummy.
 ---- ok
 -STATEMENT MATCH (row:tableOfTypes2) WHERE row.id >= 20 AND row.id <= 24 RETURN row.*;
 ---- 5
-20|0|57.579280|True|1731-09-26|1731-09-26 03:30:08|OdM|[93,,86,37]
-21|7|64.630960|False|1307-01-26|1307-01-26 03:31:08|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|[]
-22|71|37.963386|True|1455-07-26|1455-07-26 03:07:03|dRvHHdyNXYfSUcicaxBoQEKQUfgex|[72,,45,,81]
-23|58|42.774957|False|1181-10-16|1181-10-16 18:19:43|ISImRVpUjynGMFRQyYmeIUVjM|
-24|75|53.813224|False|1942-10-24|1942-10-24 09:30:16|naDlQ|[97,91,28,26,]
+20|0|57.57927988444504|True|1731-09-26|1731-09-26 03:30:08|OdM|[93,,86,37]
+21|7|64.63096008521194|False|1307-01-26|1307-01-26 03:31:08|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|[]
+22|71|37.96338599119158|True|1455-07-26|1455-07-26 03:07:03|dRvHHdyNXYfSUcicaxBoQEKQUfgex|[72,,45,,81]
+23|58|42.77495690534291|False|1181-10-16|1181-10-16 18:19:43|ISImRVpUjynGMFRQyYmeIUVjM|
+24|75|53.81322438284334|False|1942-10-24|1942-10-24 09:30:16|naDlQ|[97,91,28,26,]
 
 -LOG PartialColumns
 -STATEMENT CREATE NODE TABLE tableOfTypes3 (id INT64, int64Column INT64, doubleColumn DOUBLE, booleanColumn BOOLEAN,
@@ -107,11 +107,11 @@ Binder exception: Table knows3 does not contain column dummy.
 ---- ok
 -STATEMENT MATCH (row:tableOfTypes3) WHERE row.id >= 20 AND row.id <= 24 RETURN row.*;
 ---- 5
-20|0|57.579280|True||||1731-09-26|1731-09-26 03:30:08|OdM||||[93,,86,37]|
-21|7|64.630960|False||||1307-01-26|1307-01-26 03:31:08|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX||||[]|
-22|71|37.963386|True||||1455-07-26|1455-07-26 03:07:03|dRvHHdyNXYfSUcicaxBoQEKQUfgex||||[72,,45,,81]|
-23|58|42.774957|False||||1181-10-16|1181-10-16 18:19:43|ISImRVpUjynGMFRQyYmeIUVjM|||||
-24|75|53.813224|False||||1942-10-24|1942-10-24 09:30:16|naDlQ||||[97,91,28,26,]|
+20|0|57.57927988444504|True||||1731-09-26|1731-09-26 03:30:08|OdM||||[93,,86,37]|
+21|7|64.63096008521194|False||||1307-01-26|1307-01-26 03:31:08|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX||||[]|
+22|71|37.96338599119158|True||||1455-07-26|1455-07-26 03:07:03|dRvHHdyNXYfSUcicaxBoQEKQUfgex||||[72,,45,,81]|
+23|58|42.77495690534291|False||||1181-10-16|1181-10-16 18:19:43|ISImRVpUjynGMFRQyYmeIUVjM|||||
+24|75|53.81322438284334|False||||1942-10-24|1942-10-24 09:30:16|naDlQ||||[97,91,28,26,]|
 
 -LOG PartialColumnsReorder
 -STATEMENT CREATE NODE TABLE tableOfTypes4 (nullDateColumn DATE, booleanColumn BOOLEAN, stringColumn STRING,
@@ -126,11 +126,11 @@ Binder exception: Table knows3 does not contain column dummy.
 ---- ok
 -STATEMENT MATCH (row:tableOfTypes4) WHERE row.id >= 20 AND row.id <= 24 RETURN row.*;
 ---- 5
-|False|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|7|||1307-01-26 03:31:08|||1307-01-26||64.630960|[]|21|
-|False|ISImRVpUjynGMFRQyYmeIUVjM|58|||1181-10-16 18:19:43|||1181-10-16||42.774957||23|
-|False|naDlQ|75|||1942-10-24 09:30:16|||1942-10-24||53.813224|[97,91,28,26,]|24|
-|True|OdM|0|||1731-09-26 03:30:08|||1731-09-26||57.579280|[93,,86,37]|20|
-|True|dRvHHdyNXYfSUcicaxBoQEKQUfgex|71|||1455-07-26 03:07:03|||1455-07-26||37.963386|[72,,45,,81]|22|
+|False|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|7|||1307-01-26 03:31:08|||1307-01-26||64.63096008521194|[]|21|
+|False|ISImRVpUjynGMFRQyYmeIUVjM|58|||1181-10-16 18:19:43|||1181-10-16||42.77495690534291||23|
+|False|naDlQ|75|||1942-10-24 09:30:16|||1942-10-24||53.81322438284334|[97,91,28,26,]|24|
+|True|OdM|0|||1731-09-26 03:30:08|||1731-09-26||57.57927988444504|[93,,86,37]|20|
+|True|dRvHHdyNXYfSUcicaxBoQEKQUfgex|71|||1455-07-26 03:07:03|||1455-07-26||37.96338599119158|[72,,45,,81]|22|
 
 -LOG PartialCopyException1
 -STATEMENT CREATE NODE TABLE tableOfTypes6 (id INT64, int64Column INT64, doubleColumn DOUBLE, booleanColumn BOOLEAN,
@@ -188,11 +188,11 @@ Binder exception: Detect duplicate column name booleanColumn during COPY.
 -STATEMENT MATCH (row:tableOfTypes10) WHERE row.id >= 20 AND row.id <= 24 RETURN
     row.id, row.int64Column, row.doubleColumn, row.booleanColumn, row.dateColumn, row.timestampColumn, row.stringColumn, row.listOfInt;
 ---- 5
-20|0|57.579280|True|1731-09-26|1731-09-26 03:30:08|OdM|[93,,86,37]
-21|7|64.630960|False|1307-01-26|1307-01-26 03:31:08|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|[]
-22|71|37.963386|True|1455-07-26|1455-07-26 03:07:03|dRvHHdyNXYfSUcicaxBoQEKQUfgex|[72,,45,,81]
-23|58|42.774957|False|1181-10-16|1181-10-16 18:19:43|ISImRVpUjynGMFRQyYmeIUVjM|
-24|75|53.813224|False|1942-10-24|1942-10-24 09:30:16|naDlQ|[97,91,28,26,]
+20|0|57.57927988444504|True|1731-09-26|1731-09-26 03:30:08|OdM|[93,,86,37]
+21|7|64.63096008521194|False|1307-01-26|1307-01-26 03:31:08|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|[]
+22|71|37.96338599119158|True|1455-07-26|1455-07-26 03:07:03|dRvHHdyNXYfSUcicaxBoQEKQUfgex|[72,,45,,81]
+23|58|42.77495690534291|False|1181-10-16|1181-10-16 18:19:43|ISImRVpUjynGMFRQyYmeIUVjM|
+24|75|53.81322438284334|False|1942-10-24|1942-10-24 09:30:16|naDlQ|[97,91,28,26,]
 -STATEMENT MATCH (row:tableOfTypes10) RETURN sum(row.serialPk);
 ---- 1
 1249925001
@@ -225,11 +225,11 @@ listOfString, listOfListOfInt64, structColumn) FROM
 ---- ok
 -STATEMENT MATCH (row:tableOfTypes12) WHERE row.id >= 20 AND row.id <= 24 RETURN row.*;
 ---- 5
-|False|42.774957|[16,38,98,61,2]||[EzPWolZ2iCsga46o,lbhcKq7DDPeiX,yaxsyrbzolAyVWlxj,5Rlse62CKuIitVf4,yKOx0P]|58||||||2043-08-19|[[95,209,75,7],[197],[69,244],[164,160,153,125]]|23|||{ID: 682, name: 06SBnT}|ISImRVpUjynGMFRQyYmeIUVjM|
-|False|53.813224|[94,17,22]||[gVYovI30hQyC,b6OpP]|75||||||1971-12-05|[[81,66],[255,44],[37]]|24|||{ID: 185, name: 7xymBThq}|naDlQ|
-|False|64.630960|[53,44,76,78]||[V0yNTz60W2i4J,LN3F2erCELm]|7||||||2090-07-13|[[191,62],[64,259,183,130,116],[49,29,222,249,128],[222,169,22,80],[206,59]]|21|||{ID: 956, name: GNX5sv9V}|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|
-|True|37.963386|[74]||[GOLV1]|71||||||2048-04-24|[[139,156,218],[148,187,62],[158,118],[297,151]]|22|||{ID: 838, name: gRdEkZSI8qQ7dIH}|dRvHHdyNXYfSUcicaxBoQEKQUfgex|
-|True|57.579280|[85,11,98,6]||[wl7evae,lLtQIMJI,vNvYnjt27]|0||||||2094-08-19|[[131,129]]|20|||{ID: 717, name: 3oOf}|OdM|
+|False|42.77495690534291|[16,38,98,61,2]||[EzPWolZ2iCsga46o,lbhcKq7DDPeiX,yaxsyrbzolAyVWlxj,5Rlse62CKuIitVf4,yKOx0P]|58||||||2043-08-19|[[95,209,75,7],[197],[69,244],[164,160,153,125]]|23|||{ID: 682, name: 06SBnT}|ISImRVpUjynGMFRQyYmeIUVjM|
+|False|53.81322438284334|[94,17,22]||[gVYovI30hQyC,b6OpP]|75||||||1971-12-05|[[81,66],[255,44],[37]]|24|||{ID: 185, name: 7xymBThq}|naDlQ|
+|False|64.63096008521194|[53,44,76,78]||[V0yNTz60W2i4J,LN3F2erCELm]|7||||||2090-07-13|[[191,62],[64,259,183,130,116],[49,29,222,249,128],[222,169,22,80],[206,59]]|21|||{ID: 956, name: GNX5sv9V}|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|
+|True|37.96338599119158|[74]||[GOLV1]|71||||||2048-04-24|[[139,156,218],[148,187,62],[158,118],[297,151]]|22|||{ID: 838, name: gRdEkZSI8qQ7dIH}|dRvHHdyNXYfSUcicaxBoQEKQUfgex|
+|True|57.57927988444504|[85,11,98,6]||[wl7evae,lLtQIMJI,vNvYnjt27]|0||||||2094-08-19|[[131,129]]|20|||{ID: 717, name: 3oOf}|OdM|
 -STATEMENT CREATE NODE TABLE tableOfTypes13 (nullStructColumn STRUCT(ID int64, name STRING), booleanColumn BOOLEAN,
                                              doubleColumn DOUBLE, listOfInt64 INT64[], nullListOfListOfInt64 INT64[][],
                                              listOfString STRING[], int64Column INT64, nullId INT64,
@@ -261,11 +261,11 @@ Conversion exception: Unsupported casting function from DATE to INT64.
 ---- ok
 -STATEMENT MATCH (row:tableOfTypes14) WHERE row.id >= 20 AND row.id <= 24 RETURN row.*;
 ---- 5
-2022-06-06|False|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|7|True|default|1307-01-26 03:31:08|1.000000|10|1307-01-26|[1,2,3]|64.630960|[]|21|1970-01-01 10:00:00.004666
-2022-06-06|False|ISImRVpUjynGMFRQyYmeIUVjM|58|True|default|1181-10-16 18:19:43|1.000000|10|1181-10-16|[1,2,3]|42.774957||23|1970-01-01 10:00:00.004666
-2022-06-06|False|naDlQ|75|True|default|1942-10-24 09:30:16|1.000000|10|1942-10-24|[1,2,3]|53.813224|[97,91,28,26,]|24|1970-01-01 10:00:00.004666
-2022-06-06|True|OdM|0|True|default|1731-09-26 03:30:08|1.000000|10|1731-09-26|[1,2,3]|57.579280|[93,,86,37]|20|1970-01-01 10:00:00.004666
-2022-06-06|True|dRvHHdyNXYfSUcicaxBoQEKQUfgex|71|True|default|1455-07-26 03:07:03|1.000000|10|1455-07-26|[1,2,3]|37.963386|[72,,45,,81]|22|1970-01-01 10:00:00.004666
+2022-06-06|False|AjbxHQThEtDDlOjbzMjCQSXlvGQEjcFLykESrnFHwPKX|7|True|default|1307-01-26 03:31:08|1.0|10|1307-01-26|[1,2,3]|64.63096008521194|[]|21|1970-01-01 10:00:00.004666
+2022-06-06|False|ISImRVpUjynGMFRQyYmeIUVjM|58|True|default|1181-10-16 18:19:43|1.0|10|1181-10-16|[1,2,3]|42.77495690534291||23|1970-01-01 10:00:00.004666
+2022-06-06|False|naDlQ|75|True|default|1942-10-24 09:30:16|1.0|10|1942-10-24|[1,2,3]|53.81322438284334|[97,91,28,26,]|24|1970-01-01 10:00:00.004666
+2022-06-06|True|OdM|0|True|default|1731-09-26 03:30:08|1.0|10|1731-09-26|[1,2,3]|57.57927988444504|[93,,86,37]|20|1970-01-01 10:00:00.004666
+2022-06-06|True|dRvHHdyNXYfSUcicaxBoQEKQUfgex|71|True|default|1455-07-26 03:07:03|1.0|10|1455-07-26|[1,2,3]|37.96338599119158|[72,,45,,81]|22|1970-01-01 10:00:00.004666
 
 -LOG PartialColumnsDefaultSequence
 -STATEMENT CREATE SEQUENCE seq;

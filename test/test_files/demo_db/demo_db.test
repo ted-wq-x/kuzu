@@ -282,9 +282,9 @@ Zhang|50|2022
 -LOG ReturnGroupByAgg
 -STATEMENT MATCH (a:User)-[e:Follows]->(b:User) RETURN a, avg(b.age) as avgFriendAge;
 ---- 3
-{_ID: 0:0, _LABEL: User, name: Adam, age: 30}|45.000000
-{_ID: 0:1, _LABEL: User, name: Karissa, age: 40}|50.000000
-{_ID: 0:2, _LABEL: User, name: Zhang, age: 50}|25.000000
+{_ID: 0:0, _LABEL: User, name: Adam, age: 30}|45.0
+{_ID: 0:1, _LABEL: User, name: Karissa, age: 40}|50.0
+{_ID: 0:2, _LABEL: User, name: Zhang, age: 50}|25.0
 
 -LOG ReturnGroupByAgg2
 -STATEMENT MATCH (u:User)-[:LivesIn]->(c:City) RETURN c.name, COUNT(*);
@@ -360,8 +360,8 @@ Adam|30
 -LOG With1
 -STATEMENT MATCH (a:User) WITH avg(a.age) as avgAge MATCH (b:User) WHERE b.age > avgAge RETURN *;
 ---- 2
-36.250000|{_ID: 0:1, _LABEL: User, name: Karissa, age: 40}
-36.250000|{_ID: 0:2, _LABEL: User, name: Zhang, age: 50}
+36.25|{_ID: 0:1, _LABEL: User, name: Karissa, age: 40}
+36.25|{_ID: 0:2, _LABEL: User, name: Zhang, age: 50}
 
 -LOG With2
 -STATEMENT MATCH (a:User) WITH a ORDER BY a.age DESC LIMIT 1 MATCH (a)-[:Follows]->(b:User) RETURN *;

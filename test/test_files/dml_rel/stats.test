@@ -62,38 +62,38 @@
 ---- ok
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN min;
 ---- 1
-1.000000
+1.0
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN max;
 ---- 1
-1.000000
+1.0
 -STATEMENT MATCH (n1:N1), (n2:N2) WHERE n1.id = n2.id AND n1.id = 2 CREATE (n1)-[r:Rel1 {value: 5}]->(n2)
 ---- ok
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN min;
 ---- 1
-1.000000
+1.0
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN max;
 ---- 1
-5.000000
+5.0
 -STATEMENT CREATE (:N1 {id: 3}), (:N2 {id: 3})
 ---- ok
 -STATEMENT MATCH (n1:N1), (n2:N2) WHERE n1.id = n2.id AND n1.id = 3 CREATE (n1)-[r:Rel1 {value: 2}]->(n2)
 ---- ok
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN min;
 ---- 1
-1.000000
+1.0
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN max;
 ---- 1
-5.000000
+5.0
 -STATEMENT CREATE (:N1 {id: 4}), (:N2 {id: 4})
 ---- ok
 -STATEMENT MATCH (n1:N1), (n2:N2) WHERE n1.id = n2.id AND n1.id = 4 CREATE (n1)-[r:Rel1 {value: 6}]->(n2)
 ---- ok
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN min;
 ---- 1
-1.000000
+1.0
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN max;
 ---- 1
-6.000000
+6.0
 
 -CASE DeleteIntegerStats
 -STATEMENT CREATE NODE TABLE N1(id INT64, PRIMARY KEY(id));
@@ -158,7 +158,7 @@ True
 ---- ok
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN max;
 ---- 1
-2.000000
+2.0
 -STATEMENT MATCH (n1)-[a:Rel1 {value: 2}]->(n2) SET a.value = 3.123456;
 ---- ok
 -STATEMENT CALL storage_info('Rel1') WHERE column_name = "fwd_value" RETURN max;

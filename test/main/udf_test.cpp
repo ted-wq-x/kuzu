@@ -151,8 +151,8 @@ TEST_F(ApiTest, UnaryUDFFloat) {
     conn->createScalarFunction("times2", &times2);
     auto actualResult =
         TestHelper::convertResultToString(*conn->query("MATCH (p:person) return times2(p.age)"));
-    auto expectedResult = std::vector<std::string>{"70.000000", "60.000000", "90.000000",
-        "40.000000", "40.000000", "50.000000", "80.000000", "166.000000"};
+    auto expectedResult =
+        std::vector<std::string>{"70.0", "60.0", "90.0", "40.0", "40.0", "50.0", "80.0", "166.0"};
     sortAndCheckTestResults(actualResult, expectedResult);
 }
 
@@ -164,8 +164,8 @@ TEST_F(ApiTest, UnaryUDFDouble) {
     conn->createScalarFunction("timesFloat", &timesFloat);
     auto actualResult = TestHelper::convertResultToString(
         *conn->query("MATCH (p:person) return timesFloat(to_int32(p.ID))"));
-    auto expectedResult = std::vector<std::string>{"0.000000", "4.800000", "7.200000", "12.000000",
-        "16.800000", "19.200000", "21.600000", "24.000000"};
+    auto expectedResult =
+        std::vector<std::string>{"0.0", "4.8", "7.199999999999999", "12.0", "16.8", "19.2", "21.599999999999998", "24.0"};
     sortAndCheckTestResults(actualResult, expectedResult);
 }
 

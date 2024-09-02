@@ -1408,10 +1408,10 @@ TEST_F(CApiValueTest, NodeValToString) {
 
     char* str = kuzu_value_to_string(&node);
     ASSERT_STREQ(str,
-        "{_ID: 1:0, _LABEL: organisation, ID: 1, name: ABFsUni, orgCode: 325, mark: 3.700000, "
+        "{_ID: 1:0, _LABEL: organisation, ID: 1, name: ABFsUni, orgCode: 325, mark: 3.7, "
         "score: -2, history: 10 years 5 months 13 hours 24 us, licenseValidInterval: 3 years "
-        "5 days, rating: 1.000000, state: {revenue: 138, location: ['toronto','montr,eal'], "
-        "stock: {price: [96,56], volume: 1000}}, info: 3.120000}");
+        "5 days, rating: 1.0, state: {revenue: 138, location: ['toronto','montr,eal'], "
+        "stock: {price: [96,56], volume: 1000}}, info: 3.12}");
     kuzu_destroy_string(str);
 
     kuzu_value_destroy(&node);
@@ -1501,8 +1501,8 @@ TEST_F(CApiValueTest, RelValToString) {
     ASSERT_TRUE(rel._is_owned_by_cpp);
     char* str;
     ASSERT_EQ(kuzu_rel_val_to_string(&rel, &str), KuzuSuccess);
-    ASSERT_STREQ(str, "(0:2)-{_LABEL: workAt, _ID: 5:0, year: 2015, grading: [3.800000,2.500000], "
-                      "rating: 8.200000}->(1:1)");
+    ASSERT_STREQ(str, "(0:2)-{_LABEL: workAt, _ID: 5:0, year: 2015, grading: [3.8,2.5], "
+                      "rating: 8.2}->(1:1)");
     kuzu_destroy_string(str);
     kuzu_value_destroy(&rel);
     kuzu_flat_tuple_destroy(&flatTuple);

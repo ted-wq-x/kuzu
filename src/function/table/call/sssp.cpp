@@ -32,7 +32,7 @@ static bool stringToBool(const std::string& str) {
 }
 
 static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* context,
-    TableFuncBindInput* input) {
+    ScanTableFuncBindInput* input) {
     std::vector<std::string> returnColumnNames;
     std::vector<LogicalType> returnTypes;
     auto resultType = input->inputs[6].getValue<std::string>();
@@ -79,8 +79,7 @@ static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* context,
     // 回溯先forward再backwoard.false时则是直接backward
     bool backTrackUsingFB = true;
     if (input->inputs.size() == 11) {
-        auto parameter = input->inputs[10].getValue<std::string>();
-        backTrackUsingFB = stringToBool(parameter);
+        backTrackUsingFB = input->inputs[10].getValue<bool>();
     }
     KU_ASSERT(nodeFilterStr.empty());
 

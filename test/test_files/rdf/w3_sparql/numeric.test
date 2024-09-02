@@ -15,7 +15,7 @@
         WHERE p.iri = "http://www.example.org/dec"
         RETURN AVG(cast(o.val, "DOUBLE"))
 ---- 1
-2.220000
+2.22
 
 #PREFIX : <http://www.example.org/>
 #SELECT ?s (AVG(?o) AS ?avg)
@@ -30,9 +30,9 @@
         WHERE avg <= 2.0
         RETURN s_iri, avg
 ---- 3
-http://www.example.org/ints|2.000000
-http://www.example.org/mixed1|1.600000
-http://www.example.org/mixed2|1.200000
+http://www.example.org/ints|2.0
+http://www.example.org/mixed1|1.6
+http://www.example.org/mixed2|1.2000000000000002
 
 #PREFIX ex: <http://example.com/>
 #SELECT ?x (MAX(?value) AS ?max)
@@ -51,7 +51,7 @@ http://www.example.org/mixed2|1.200000
 #        WHERE x.iri = "http://www.example.org/decimals"
 #        RETURN collect(o.val)
 #---- 1
-#[1.000000,2.200000,3.500000]
+#[1.0,2.2,3.5]
 
 #PREFIX : <http://www.example.org/>
 #SELECT (MAX(?o) AS ?max)
@@ -75,17 +75,17 @@ http://www.example.org/mixed2|1.200000
         WITH s.iri AS s_iri, MIN(cast(o.val, "DOUBLE")) AS min
         RETURN s_iri, min
 ---- 5
-http://www.example.org/decimals|1.000000
-http://www.example.org/doubles|100.000000
-http://www.example.org/ints|1.000000
-http://www.example.org/mixed1|1.000000
-http://www.example.org/mixed2|0.200000
+http://www.example.org/decimals|1.0
+http://www.example.org/doubles|100.0
+http://www.example.org/ints|1.0
+http://www.example.org/mixed1|1.0
+http://www.example.org/mixed2|0.2
 
 -LOG Sum
 -STATEMENT MATCH (s)-[p]->(o)
         RETURN SUM(cast(o.val, "DOUBLE"))
 ---- 1
-32118.300000
+32118.300000000003
 
 #SELECT (COUNT(?O) AS ?C)
 #WHERE { ?S ?P ?O }

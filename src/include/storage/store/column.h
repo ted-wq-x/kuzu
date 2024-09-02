@@ -168,7 +168,7 @@ public:
         common::ValueVector* resultVector, uint64_t offsetInVector) override {
         Column::scan(transaction, state, startOffsetInGroup, endOffsetInGroup, resultVector,
             offsetInVector);
-        populateCommonTableIDUnfiltered(resultVector);
+        populateCommonTableID(resultVector);
     }
 
     void lookupInternal(transaction::Transaction* transaction, const ChunkState& state,

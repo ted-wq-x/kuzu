@@ -24,72 +24,33 @@ public:
         globalBitSet = std::make_shared<InternalIDCountBitSet>(sharedData.context->getCatalog(),
             sharedData.context->getStorageManager(), sharedData.context->getTx());
         globalBitSet->markVisited(nodeID, 1);
-    }
 
-    void scanTask(std::shared_ptr<storage::RelTableScanState> readState,
-        common::ValueVector& srcVector, std::shared_ptr<RelTableInfo> info,
-        std::shared_ptr<InternalIDCountBitSet> threadBitSet, RelDataDirection relDataDirection,
-        Mission& mission, const processor::ResultSet& resultSet,
-        evaluator::ExpressionEvaluator* relExpr) {
-        auto relTable = info->relTable;
-        readState->direction = relDataDirection;
-        // 因为读取的都是相同nodeGroup里数据,故不需要每次都reset
-        readState->dataScanState->resetState();
-        auto dataChunkToSelect = resultSet.dataChunks[0];
-        auto& selectVector = dataChunkToSelect->state->getSelVectorUnsafe();
-        auto dstIdDataChunk = dataChunkToSelect->getValueVector(0);
-        auto tx = sharedData.context->getTx();
-        for (auto& offset : mission.offsets) {
-            internalID_t currentNodeID{offset, mission.tableID};
-            srcVector.setValue<nodeID_t>(0, currentNodeID);
-            relTable->initializeScanState(tx, *readState.get());
-            auto count = globalBitSet->getNodeValueCount(currentNodeID);
-            while (readState->hasMoreToRead(tx)) {
-                relTable->scan(tx, *readState);
-
-                if (relExpr) {
-                    bool hasAtLeastOneSelectedValue = relExpr->select(selectVector);
-                    if (!dataChunkToSelect->state->isFlat() &&
-                        dataChunkToSelect->state->getSelVector().isUnfiltered()) {
-                        dataChunkToSelect->state->getSelVectorUnsafe().setToFiltered();
-                    }
-                    if (!hasAtLeastOneSelectedValue) {
-                        continue;
-                    }
-                }
-                for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
-                    auto nbrID = dstIdDataChunk->getValue<nodeID_t>(i);
-                    if (globalBitSet->isVisited(nbrID)) {
-                        continue;
-                    }
-                    threadBitSet->markVisited(nbrID, count);
-                }
-            }
+        common::ExtendDirection extendDirection = getExtendDirection(direction);
+        std::shared_ptr<Expression> filterExpr = nullptr;
+        if (sharedData.relFilter) {
+            filterExpr = sharedData.relFilter->getExpression();
         }
+        scanners =
+            createRelTableCollectionScanner(*sharedData.context, extendDirection, filterExpr);
     }
 
     void funcTask(uint32_t threadId) {
         auto rs = sharedData.createResultSet();
+
+        auto localScanners = copyScanners(scanners);
+        initRelTableCollectionScanner(*sharedData.context, localScanners, rs.get());
+
         auto relEvaluate = sharedData.initEvaluator(*rs.get());
-        auto srcVector =
-            common::ValueVector(LogicalType::INTERNAL_ID(), sharedData.context->getMemoryManager());
-        srcVector.state = DataChunkState::getSingleValueDataChunkState();
-        std::vector<
-            std::pair<std::shared_ptr<RelTableInfo>, std::shared_ptr<storage::RelTableScanState>>>
-            relTableScanStates;
-        for (auto& [tableID, info] : *sharedData.reltables) {
-            auto readState = std::make_shared<storage::RelTableScanState>(info->columnIDs,
-                RelDataDirection::FWD);
-            readState->nodeIDVector = &srcVector;
-            for (const auto& item : rs->getDataChunk(0)->valueVectors) {
-                readState->outputVectors.push_back(item.get());
-            }
-            relTableScanStates.emplace_back(info, std::move(readState));
-        }
         evaluator::ExpressionEvaluator* relFilter = nullptr;
         if (relEvaluate) {
             relFilter = relEvaluate.get();
         }
+
+        auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
+        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(2);
+        auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
+        auto tx = sharedData.context->getTx();
+
         auto threadBitSet = sharedData.getThreadBitSet(threadId);
         auto size = nextFrontier.size();
         while (true) {
@@ -99,18 +60,32 @@ public:
             }
             auto& data = nextFrontier[tid];
             auto tableID = data.tableID;
-            for (auto& [info, relDataReadState] : relTableScanStates) {
-                if (direction == "out" || direction == "both") {
-                    if (tableID == info->srcTableID) {
-                        scanTask(relDataReadState, srcVector, info, threadBitSet,
-                            RelDataDirection::FWD, data, *rs.get(), relFilter);
+            if (!localScanners.contains(tableID)) {
+                continue;
+            }
+            auto& currentScanner = localScanners.at(tableID);
+            for (auto& offset : data.offsets) {
+                internalID_t currentNodeID({offset, tableID});
+                srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
+                currentScanner.resetState();
+                auto count = globalBitSet->getNodeValueCount(currentNodeID);
+                while (currentScanner.scan(selectVector, tx)) {
+                    if (relFilter) {
+                        bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
+                        if (!dstIdValueVector->state->isFlat() &&
+                            dstIdValueVector->state->getSelVector().isUnfiltered()) {
+                            dstIdValueVector->state->getSelVectorUnsafe().setToFiltered();
+                        }
+                        if (!hasAtLeastOneSelectedValue) {
+                            continue;
+                        }
                     }
-                }
-
-                if (direction == "in" || direction == "both") {
-                    if (tableID == info->dstTableID) {
-                        scanTask(relDataReadState, srcVector, info, threadBitSet,
-                            RelDataDirection::BWD, data, *rs.get(), relFilter);
+                    for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
+                        auto nbrID = dstIdValueVector->getValue<nodeID_t>(i);
+                        if (globalBitSet->isVisited(nbrID)) {
+                            continue;
+                        }
+                        threadBitSet->markVisited(nbrID, count);
                     }
                 }
             }
@@ -225,6 +200,8 @@ public:
 
     // 记录点的count数
     std::shared_ptr<InternalIDCountBitSet> globalBitSet;
+
+    common::table_id_map_t<RelTableCollectionScanner> scanners;
 };
 
 common::offset_t countFunc(TableFuncInput& input, TableFuncOutput& output) {

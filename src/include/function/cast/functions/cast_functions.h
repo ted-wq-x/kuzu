@@ -4,6 +4,7 @@
 #include "common/string_format.h"
 #include "common/type_utils.h"
 #include "common/vector/value_vector.h"
+#include "fmt/format.h"
 #include "function/cast/functions/numeric_cast.h"
 
 namespace kuzu {
@@ -14,25 +15,7 @@ struct CastToString {
     static inline void operation(T& input, common::ku_string_t& result,
         common::ValueVector& inputVector, common::ValueVector& resultVector) {
         auto str = common::TypeUtils::toString(input, (void*)&inputVector);
-        auto remove_trailing_zeros = [](std::string str) -> std::string {
-            auto pos = str.find('.');
-            if (pos == std::string::npos) {
-                return str;
-            }
-            for (size_t i = pos + 1; i < str.size(); ++i) {
-                if (!isdigit(str[i])) {
-                    return str;
-                }
-            }
-            while (str.back() == '0') {
-                str.pop_back();
-            }
-            if (str.back() == '.') {
-                str.push_back('0');
-            }
-            return str;
-        };
-        common::StringVector::addString(&resultVector, result, remove_trailing_zeros(str));
+        common::StringVector::addString(&resultVector, result, str);
     }
 };
 
@@ -397,5 +380,18 @@ inline void CastBetweenTimestamp::operation(const common::timestamp_sec_t& input
     operation<common::timestamp_t, common::timestamp_ms_t>(output, output);
 }
 
+template<>
+inline void CastToString::operation(float& input, common::ku_string_t& result,
+    common::ValueVector& /*inputVector*/, common::ValueVector& resultVector) {
+    auto str = kuzu_fmt::format("{}", input);
+    common::StringVector::addString(&resultVector, result, str);
+}
+
+template<>
+inline void CastToString::operation(double& input, common::ku_string_t& result,
+    common::ValueVector& /*inputVector*/, common::ValueVector& resultVector) {
+    auto str = kuzu_fmt::format("{}", input);
+    common::StringVector::addString(&resultVector, result, str);
+}
 } // namespace function
 } // namespace kuzu

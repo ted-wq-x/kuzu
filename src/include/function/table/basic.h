@@ -7,6 +7,7 @@
 #include "catalog/catalog.h"
 #include "common/cast.h"
 #include "common/data_chunk/sel_vector.h"
+#include "common/enums/extend_direction.h"
 #include "common/exception/binder.h"
 #include "common/string_format.h"
 #include "common/system_message.h"
@@ -16,13 +17,23 @@
 #include "main/database_manager.h"
 #include "parser/parser.h"
 #include "parser/query/graph_pattern/rel_pattern.h"
+#include "planner/operator/extend/logical_extend.h"
 #include "planner/operator/schema.h"
 #include "processor/expression_mapper.h"
+#include "processor/operator/scan/scan_multi_rel_tables.h"
+#include "processor/operator/scan/scan_rel_table.h"
+#include "processor/plan_mapper.h"
+#include "storage/local_storage/local_rel_table.h"
+#include "storage/storage_manager.h"
 #include "storage/store/node_table.h"
 #include "storage/store/rel_table.h"
-using namespace kuzu::catalog;
-using namespace kuzu::common;
+
+using namespace kuzu::processor;
 using namespace kuzu::binder;
+using namespace kuzu::common;
+using namespace kuzu::planner;
+using namespace kuzu::storage;
+using namespace kuzu::catalog;
 
 namespace kuzu {
 namespace function {
@@ -38,7 +49,7 @@ static std::vector<uint8_t> initNumTable() {
 
 const static std::vector<uint8_t> numTable = initNumTable();
 
-static offset_t getNodeOffset(uint32_t blockID, uint64_t pos) {
+static uint32_t getNodeOffset(uint32_t blockID, uint64_t pos) {
     // bitset的每一个元素实际标记了64个元素是否存在,i<<6是该元素offset的起点位置，加上pos%67就是实际offset的值
     return (blockID << 6) + numTable[pos % 67];
 }
@@ -63,14 +74,14 @@ static std::pair<uint32_t, uint32_t> distributeTasks(uint32_t tableSize, uint32_
 class BitSet {
 public:
     BitSet() : bits(0) {}
-    BitSet(size_t size) : bits((size + 63) / 64) {}
+    BitSet(uint32_t size) : bits((size + 63) >> 6) {}
 
-    void set(size_t index) { bits[index / 64] |= (1ULL << (index % 64)); }
+    void set(uint32_t index) { bits[index >> 6] |= (1ULL << (index & 63)); }
 
-    bool test(size_t index) const { return bits[index / 64] & (1ULL << (index % 64)); }
-    bool testAndReset(size_t index) {
-        uint64_t& x = bits[index / 64];
-        auto y = (1ULL << (index % 64));
+    bool test(uint32_t index) const { return bits[index >> 6] & (1ULL << (index & 63)); }
+    bool testAndReset(uint32_t index) {
+        uint64_t& x = bits[index >> 6];
+        auto y = (1ULL << (index & 63));
         auto ans = x & y;
         if (ans) {
             x &= ~y;
@@ -78,23 +89,22 @@ public:
         return ans;
     }
 
-    void resize(size_t size) { bits.resize((size + 63) / 64); }
-
+    void resize(uint32_t size) { bits.resize((size + 63) >> 6); }
 
 private:
     // right<=63
-    inline uint64_t preserve_range(uint64_t value, int left, int right) {
+    inline uint64_t preserve_range(uint64_t value, uint32_t left, uint32_t right) {
         // 创建掩码，保留 left 位（包含）到 right 位（不包含）
         uint64_t mask = ((1ULL << (right - left)) - 1) << (left);
         return value & mask;
     }
     // 创建掩码，保留 left 位（包含）到 right 位（包含）
-    inline uint64_t preserve_range_include(uint64_t value, int left) {
+    inline uint64_t preserve_range_include(uint64_t value, uint32_t left) {
         uint64_t mask = (~0ULL << left);
         return value & mask;
     }
 
-    inline void range(size_t blockId, uint64_t now, std::vector<size_t>& result) {
+    inline void range(uint32_t blockId, uint64_t now, std::vector<uint32_t>& result) {
         while (now) {
             auto pos = now ^ (now & (now - 1));
             auto offset = getNodeOffset(blockId, pos);
@@ -105,12 +115,12 @@ private:
 
 public:
     // include,exclude
-    std::vector<size_t> range(size_t l, size_t r) {
-        std::vector<size_t> result;
+    std::vector<uint32_t> range(uint32_t l, uint32_t r) {
+        std::vector<uint32_t> result;
         auto startBlock = l >> 6;
         auto endBlock = r >> 6;
-        auto startOffset = l % 64;
-        auto endOffset = r % 64;
+        auto startOffset = l & 63;
+        auto endOffset = r & 63;
 
         if (startBlock == endBlock) {
             auto value = preserve_range(bits[startBlock], startOffset, endOffset);
@@ -144,7 +154,7 @@ public:
         blockFlags.resize(maxNodeTableID);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
-            auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
+            auto size = (nodeTable->getNumRows() + 63) >> 6;
             nodeIDMark[tableID].reserve(size);
             nodeIDMark[tableID].resize(size, 0);
             blockFlags[tableID].resize(size);
@@ -322,7 +332,7 @@ public:
         blockFlags.resize(maxNodeTableID);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
-            auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
+            auto size = (nodeTable->getNumRows() + 63) >> 6;
             numBlocks += size;
             nodeIDMark[tableID].reserve(size);
             nodeIDMark[tableID].resize(size);
@@ -447,7 +457,7 @@ public:
         tableBlockNum.resize(maxNodeTableID);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
-            auto size = (nodeTable->getNumTuples(tx) + 63) >> 6;
+            auto size = (nodeTable->getNumRows() + 63) >> 6;
             numBlocks += size;
             nodeIDMark[tableID].reserve(size);
             nodeIDMark[tableID].resize(size);
@@ -518,7 +528,8 @@ template<typename T>
 static common::offset_t lookupPK(transaction::Transaction* tx, storage::NodeTable* nodeTable,
     const T key) {
     common::offset_t result;
-    if (!nodeTable->getPKIndex()->lookup(tx, key, result)) {
+    if (!nodeTable->getPKIndex()->lookup(tx, key, result,
+            [&](offset_t offset) { return nodeTable->isVisible(tx, offset); })) {
         return INVALID_OFFSET;
     }
     return result;
@@ -526,7 +537,7 @@ static common::offset_t lookupPK(transaction::Transaction* tx, storage::NodeTabl
 
 static common::offset_t getOffset(transaction::Transaction* tx, storage::NodeTable* nodeTable,
     std::string primaryKey) {
-    auto& primaryKeyType = nodeTable->getColumn(nodeTable->getPKColumnID())->getDataType();
+    auto& primaryKeyType = nodeTable->getColumn(nodeTable->getPKColumnID()).getDataType();
     switch (primaryKeyType.getPhysicalType()) {
     case PhysicalTypeID::UINT8: {
         uint8_t key = std::stoull(primaryKey);
@@ -607,12 +618,11 @@ static std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>
         std::vector<column_id_t> columnIDs;
         for (const auto& prop : *props) {
             auto property = *ku_dynamic_cast<Expression*, PropertyExpression*>(prop.get());
-            if (!property.hasPropertyID(tableID)) {
+            if (!property.hasProperty(tableID)) {
                 columnIDs.push_back(UINT32_MAX);
             } else {
-                auto propertyID = property.getPropertyID(tableID);
                 auto tableEntry = catalog->getTableCatalogEntry(transaction, tableID);
-                columnIDs.push_back(tableEntry->getColumnID(propertyID));
+                columnIDs.push_back(tableEntry->getColumnID(property.getPropertyName()));
             }
         }
         auto relTableInfo = std::make_shared<RelTableInfo>(transaction,
@@ -630,7 +640,7 @@ static std::pair<std::shared_ptr<Expression>, std::shared_ptr<Expression>> parse
         algoParameter->getTableNames(), QueryRelType::NON_RECURSIVE, parser::ArrowDirection::BOTH,
         std::vector<parser::s_parsed_expr_pair>{}, std::move(recursiveInfo));
 
-    auto nodeTableIDs = context->getCatalog()->getNodeTableIDs(context->getTx());
+    auto nodeTableIDs = binder.bindTableEntries({}, true);
     auto leftNode = std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_left",
         "", nodeTableIDs);
     auto rightNode = std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_right",
@@ -652,8 +662,14 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
         relTableInfos) {
     std::unordered_set<std::string> relLabels;
     expression_vector props;
+    relColumnTypeIds = std::make_shared<std::vector<LogicalTypeID>>();
+    // 起点,边id,nbr_id
+    relColumnTypeIds->push_back(LogicalTypeID::INTERNAL_ID);
+    relColumnTypeIds->push_back(LogicalTypeID::INTERNAL_ID);
+    relColumnTypeIds->push_back(LogicalTypeID::INTERNAL_ID);
+
     if (!relFilterStr.empty()) {
-        auto algoPara = parser::Parser::parseAlgoParams(relFilterStr);
+        auto algoPara = parser::Parser::parseAlgoParams(relFilterStr, context);
         auto list = algoPara->getTableNames();
         relLabels.insert(list.begin(), list.end());
 
@@ -674,24 +690,15 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
             processor::ExpressionMapper expressionMapper(&schema);
             relFilter = expressionMapper.getEvaluator(whereExpression);
 
-            std::vector<LogicalTypeID> relColumnTypes;
             for (const auto& item : schema.getExpressionsInScope()) {
-                relColumnTypes.push_back(item->getDataType().getLogicalTypeID());
+                relColumnTypeIds->push_back(item->getDataType().getLogicalTypeID());
             }
-
-            relColumnTypeIds = std::make_shared<std::vector<LogicalTypeID>>(relColumnTypes);
         }
     }
 
     relTableInfos =
         std::make_shared<std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>>(
             makeRelTableInfos(&props, context, relLabels));
-
-    if (!relColumnTypeIds) {
-        std::vector<LogicalTypeID> relColumnTypes;
-        relColumnTypes.push_back(LogicalTypeID::INTERNAL_ID);
-        relColumnTypeIds = std::make_shared<std::vector<LogicalTypeID>>(relColumnTypes);
-    }
 }
 
 static nodeID_t getNodeID(main::ClientContext* context, std::string tableName,
@@ -732,5 +739,146 @@ struct Mission {
     offset_t back() { return offsets.back(); }
     void emplace_back(offset_t offset_t) { offsets.emplace_back(offset_t); }
 };
+
+static common::ExtendDirection getExtendDirection(std::string direction) {
+    if (direction == "both") {
+        return common::ExtendDirection::BOTH;
+    } else if (direction == "in") {
+        return common::ExtendDirection::BWD;
+    } else {
+        return common::ExtendDirection::FWD;
+    }
+}
+
+static ScanRelTableInfo getRelTableScanInfo(const TableCatalogEntry& tableCatalogEntry,
+    RelDataDirection direction, DataPos boundNodeIDPos, RelTable* relTable,
+    const expression_vector& properties, const std::vector<ColumnPredicateSet>& columnPredicates) {
+    auto relTableID = tableCatalogEntry.getTableID();
+    std::vector<column_id_t> columnIDs;
+    // We always should scan nbrID from relTable. This is not a property in the schema label, so
+    // cannot be bound to a column in the front-end.
+    columnIDs.push_back(NBR_ID_COLUMN_ID);
+    for (auto& expr : properties) {
+        auto& property = expr->constCast<PropertyExpression>();
+        if (property.hasProperty(relTableID)) {
+            columnIDs.push_back(tableCatalogEntry.getColumnID(property.getPropertyName()));
+        } else {
+            columnIDs.push_back(INVALID_COLUMN_ID);
+        }
+    }
+    return ScanRelTableInfo(relTable, direction, boundNodeIDPos, std::move(columnIDs),
+        copyVector(columnPredicates));
+}
+
+static RelTableCollectionScanner populateRelTableCollectionScanner(table_id_t boundNodeTableID,
+    const std::vector<RelTableCatalogEntry*>& relEntries, DataPos boundNodeIDPos,
+    ExtendDirection extendDirection, const expression_vector& properties,
+    const std::vector<ColumnPredicateSet>& columnPredicates,
+    const main::ClientContext& clientContext) {
+    std::vector<ScanRelTableInfo> scanInfos;
+    auto storageManager = clientContext.getStorageManager();
+    for (auto entry : relEntries) {
+        auto& relTableEntry = *entry;
+        auto relTable = storageManager->getTable(entry->getTableID())->ptrCast<RelTable>();
+        switch (extendDirection) {
+        case ExtendDirection::FWD: {
+            if (relTableEntry.getBoundTableID(RelDataDirection::FWD) == boundNodeTableID) {
+                scanInfos.push_back(getRelTableScanInfo(relTableEntry, RelDataDirection::FWD,
+                    boundNodeIDPos, relTable, properties, columnPredicates));
+            }
+        } break;
+        case ExtendDirection::BWD: {
+            if (relTableEntry.getBoundTableID(RelDataDirection::BWD) == boundNodeTableID) {
+                scanInfos.push_back(getRelTableScanInfo(relTableEntry, RelDataDirection::BWD,
+                    boundNodeIDPos, relTable, properties, columnPredicates));
+            }
+        } break;
+        case ExtendDirection::BOTH: {
+            if (relTableEntry.getBoundTableID(RelDataDirection::FWD) == boundNodeTableID) {
+                scanInfos.push_back(getRelTableScanInfo(relTableEntry, RelDataDirection::FWD,
+                    boundNodeIDPos, relTable, properties, columnPredicates));
+            }
+            if (relTableEntry.getBoundTableID(RelDataDirection::BWD) == boundNodeTableID) {
+                scanInfos.push_back(getRelTableScanInfo(relTableEntry, RelDataDirection::BWD,
+                    boundNodeIDPos, relTable, properties, columnPredicates));
+            }
+        } break;
+        default:
+            KU_UNREACHABLE;
+        }
+    }
+    return RelTableCollectionScanner(std::move(scanInfos));
+}
+
+static expression_vector collectPropertiesToRead(const std::shared_ptr<Expression> expression) {
+    if (expression == nullptr) {
+        return expression_vector{};
+    }
+    auto collector = PropertyExprCollector();
+    collector.visit(expression);
+    return collector.getPropertyExprs();
+}
+
+static common::table_id_map_t<RelTableCollectionScanner> copyScanners(
+    common::table_id_map_t<RelTableCollectionScanner>& scanners) {
+    table_id_map_t<RelTableCollectionScanner> ans;
+    for (const auto& scan : scanners) {
+        ans.emplace(scan.first, scan.second.copy());
+    }
+    return ans;
+}
+static common::table_id_map_t<RelTableCollectionScanner> createRelTableCollectionScanner(
+    const main::ClientContext& context, ExtendDirection extendDirection,
+    const std::shared_ptr<Expression> filterExpression) {
+    auto propExprs = ExpressionUtil::removeDuplication(collectPropertiesToRead(filterExpression));
+
+    table_id_map_t<RelTableCollectionScanner> scanners;
+    auto catalog = context.getCatalog();
+    auto tx = context.getTx();
+    auto relEntries = catalog->getRelTableEntries(tx);
+    for (auto boundNodeTableID : catalog->getNodeTableIDs(tx)) {
+        auto scanner = populateRelTableCollectionScanner(boundNodeTableID, relEntries,
+            DataPos(0, 0), extendDirection, propExprs, {}, context);
+        if (!scanner.empty()) {
+            scanners.insert({boundNodeTableID, std::move(scanner)});
+        }
+    }
+    return scanners;
+}
+
+static void initVectors(storage::TableScanState& state, const ResultSet& resultSet,
+    const ScanTableInfo& info) {
+    state.IDVector = resultSet.getValueVector(info.IDPos).get();
+    state.rowIdxVector->state = state.IDVector->state;
+    for (auto& pos : info.outVectorsPos) {
+        state.outputVectors.push_back(resultSet.getValueVector(pos).get());
+    }
+}
+
+static void initRelTableCollectionScanner(const main::ClientContext& context,
+    common::table_id_map_t<RelTableCollectionScanner>& scanners, ResultSet* resultSet) {
+    std::vector<DataPos> outVectorsPos;
+    for (size_t i = 0; i < resultSet->dataChunks[0]->getNumValueVectors() - 2; ++i) {
+        outVectorsPos.push_back(DataPos(0, i + 2));
+    }
+    ScanTableInfo scanTableInfo(DataPos(0, 1), outVectorsPos);
+
+    for (auto& [_, scanner] : scanners) {
+        for (auto& relInfo : scanner.relInfos) {
+            relInfo.initScanState();
+            initVectors(*relInfo.scanState, *resultSet, scanTableInfo);
+            auto& scanState = relInfo.scanState->cast<RelTableScanState>();
+            scanState.boundNodeIDVector = resultSet->getValueVector(relInfo.boundNodeIDPos).get();
+            if (const auto localRelTable = context.getTx()->getLocalStorage()->getLocalTable(
+                    relInfo.table->getTableID(), LocalStorage::NotExistAction::RETURN_NULL)) {
+                auto localTableColumnIDs = LocalRelTable::rewriteLocalColumnIDs(relInfo.direction,
+                    relInfo.scanState->columnIDs);
+                relInfo.scanState->localTableScanState =
+                    std::make_unique<LocalRelTableScanState>(*relInfo.scanState,
+                        localTableColumnIDs, localRelTable->ptrCast<LocalRelTable>());
+            }
+        }
+    }
+}
 } // namespace function
 } // namespace kuzu

@@ -167,7 +167,7 @@ private:
         const std::unordered_map<std::string, std::unique_ptr<common::Value>>& inputParams);
 
     std::unique_ptr<QueryResult> executeNoLock(PreparedStatement* preparedStatement,
-        uint32_t planIdx = 0u, std::optional<uint64_t> queryID = std::nullopt);
+        uint32_t planIdx = 0u, bool requiredNexTx = true,std::optional<uint64_t> queryID = std::nullopt);
 
     bool canExecuteWriteQuery();
 

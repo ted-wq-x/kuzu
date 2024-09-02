@@ -51,17 +51,16 @@ function_set ListExtractFunction::getFunctionSet() {
     return result;
 }
 
-static std::unique_ptr<FunctionBindData> ListApplyBindFunc(
-    const binder::expression_vector& arguments, Function* function) {
-    auto &resultType = ListType::getChildType(arguments[0]->dataType);
-    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(function);
+static std::unique_ptr<FunctionBindData> ListApplyBindFunc(ScalarBindFuncInput input) {
+    auto& resultType = ListType::getChildType(input.arguments[0]->dataType);
+    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(input.definition);
     TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
         scalarFunction->execFunc =
             BinaryExecListExtractFunction<list_entry_t, int64_t, T, ListApply>;
     });
     std::vector<LogicalType> paramTypes;
-    paramTypes.push_back(arguments[0]->getDataType().copy());
-    paramTypes.push_back(LogicalType(function->parameterTypeIDs[1]));
+    paramTypes.push_back(input.arguments[0]->getDataType().copy());
+    paramTypes.push_back(LogicalType(input.definition->parameterTypeIDs[1]));
     return std::make_unique<FunctionBindData>(std::move(paramTypes), resultType.copy());
 }
 
@@ -76,15 +75,14 @@ function_set ListApplyFunction::getFunctionSet() {
     return result;
 }
 
-static std::unique_ptr<FunctionBindData> ListHeadBindFunc(
-    const binder::expression_vector& arguments, Function* function) {
-    auto &resultType = ListType::getChildType(arguments[0]->dataType);
-    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(function);
+static std::unique_ptr<FunctionBindData> ListHeadBindFunc(ScalarBindFuncInput input) {
+    auto& resultType = ListType::getChildType(input.arguments[0]->dataType);
+    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(input.definition);
     TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
         scalarFunction->execFunc = UnaryExecListExtractFunction<list_entry_t, T, ListHead>;
     });
     std::vector<LogicalType> paramTypes;
-    paramTypes.push_back(arguments[0]->getDataType().copy());
+    paramTypes.push_back(input.arguments[0]->getDataType().copy());
     return std::make_unique<FunctionBindData>(std::move(paramTypes), resultType.copy());
 }
 
@@ -99,15 +97,14 @@ function_set ListHeadFunction::getFunctionSet() {
     return result;
 }
 
-static std::unique_ptr<FunctionBindData> ListLastBindFunc(
-    const binder::expression_vector& arguments, Function* function) {
-    auto &resultType = ListType::getChildType(arguments[0]->dataType);
-    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(function);
+static std::unique_ptr<FunctionBindData> ListLastBindFunc(ScalarBindFuncInput input) {
+    auto& resultType = ListType::getChildType(input.arguments[0]->dataType);
+    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(input.definition);
     TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
         scalarFunction->execFunc = UnaryExecListExtractFunction<list_entry_t, T, ListLast>;
     });
     std::vector<LogicalType> paramTypes;
-    paramTypes.push_back(arguments[0]->getDataType().copy());
+    paramTypes.push_back(input.arguments[0]->getDataType().copy());
     return std::make_unique<FunctionBindData>(std::move(paramTypes), resultType.copy());
 }
 

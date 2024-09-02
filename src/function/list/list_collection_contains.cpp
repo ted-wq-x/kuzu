@@ -8,9 +8,9 @@ using namespace kuzu::common;
 namespace kuzu {
 namespace function {
 
-static std::unique_ptr<FunctionBindData> bindFunc(const binder::expression_vector& arguments,
-    Function* function) {
-    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(function);
+static std::unique_ptr<FunctionBindData> bindFunc(ScalarBindFuncInput input) {
+    auto arguments = input.arguments;
+    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(input.definition);
     common::TypeUtils::visit(
         ListType::getChildType(arguments[0]->dataType).getPhysicalType(),
         [&arguments, &scalarFunction]<ComparableTypes T>(T) {

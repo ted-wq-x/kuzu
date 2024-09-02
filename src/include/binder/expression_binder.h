@@ -81,7 +81,6 @@ public:
     std::shared_ptr<Expression> bindStartNodeExpression(const Expression& expression);
     std::shared_ptr<Expression> bindEndNodeExpression(const Expression& expression);
     std::shared_ptr<Expression> bindLabelFunction(const Expression& expression);
-    std::shared_ptr<Expression> bindLabelsFunction(const Expression& expression);
 
     // Parameter expressions.
     std::shared_ptr<Expression> bindParameterExpression(

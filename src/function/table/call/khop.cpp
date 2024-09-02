@@ -8,7 +8,7 @@ static common::offset_t tableFunc(TableFuncInput& input, TableFuncOutput& output
 }
 
 static std::unique_ptr<TableFuncBindData> bindFunc(main::ClientContext* context,
-    TableFuncBindInput* input) {
+    ScanTableFuncBindInput* input) {
     return rewriteBindFunc(context, input, {"node_num"});
 }
 

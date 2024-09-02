@@ -1,6 +1,7 @@
 #include "common/type_utils.h"
 
 #include "common/vector/value_vector.h"
+#include "fmt/format.h"
 
 namespace kuzu {
 namespace common {
@@ -31,9 +32,9 @@ std::string TypeUtils::entryToString(const LogicalType& dataType, const uint8_t*
     case LogicalTypeID::INT128:
         return TypeUtils::toString(*reinterpret_cast<const int128_t*>(value));
     case LogicalTypeID::DOUBLE:
-        return TypeUtils::toString(*reinterpret_cast<const double*>(value));
+        return kuzu_fmt::format("{}", *reinterpret_cast<const double*>(value));
     case LogicalTypeID::FLOAT:
-        return TypeUtils::toString(*reinterpret_cast<const float*>(value));
+        return kuzu_fmt::format("{}", *reinterpret_cast<const float*>(value));
     case LogicalTypeID::DECIMAL:
         switch (dataType.getPhysicalType()) {
         case PhysicalTypeID::INT16:

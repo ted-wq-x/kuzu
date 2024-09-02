@@ -34,22 +34,22 @@
 ---- ok
 -STATEMENT CALL storage_info('test') WHERE column_name = "value" RETURN min, max;
 ---- 1
-1.000000|1.000000
+1.0|1.0
 -STATEMENT CREATE (a:test {value:5})
 ---- ok
 -STATEMENT CALL storage_info('test') WHERE column_name = "value" RETURN min, max;
 ---- 1
-1.000000|5.000000
+1.0|5.0
 -STATEMENT CREATE (a:test {value:2})
 ---- ok
 -STATEMENT CALL storage_info('test') WHERE column_name = "value" RETURN min, max;
 ---- 1
-1.000000|5.000000
+1.0|5.0
 -STATEMENT CREATE (a:test {value:6})
 ---- ok
 -STATEMENT CALL storage_info('test') WHERE column_name = "value" RETURN min, max;
 ---- 1
-1.000000|6.000000
+1.0|6.0
 
 -CASE DeleteIntegerStats
 -STATEMENT CREATE NODE TABLE test(id SERIAL, value INT8, PRIMARY KEY(id));
@@ -112,7 +112,7 @@ True
 ---- ok
 -STATEMENT CALL storage_info('test') WHERE column_name = "value" RETURN max;
 ---- 1
-2.000000
+2.0
 -STATEMENT MATCH (a:test) WHERE a.value = 2 SET a.value = 3.123456
 ---- ok
 -STATEMENT CALL storage_info('test') WHERE column_name = "value" RETURN max;

@@ -22,7 +22,7 @@
 2|Bob|102|Bob|102|Bob
 -STATEMENT CREATE (a:person {ID:80, isWorker:true,age:22,eyeSight:1.1}) RETURN a.ID, a.age, a.fName, a.eyeSight;
 ---- 1
-80|22||1.100000
+80|22||1.1
 -STATEMENT CREATE (a:organisation {ID:0, name:'test'}) RETURN a, a.history;
 ---- 1
 {_ID: 1:4611686018427387904, _LABEL: organisation, ID: 0, name: test}|

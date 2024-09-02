@@ -337,14 +337,14 @@ UNCOMPRESSED
 ---- ok
 -STATEMENT MATCH (t:test) RETURN t.*;
 ---- 2
-0.100000
-0.200000
+0.1
+0.2
 -STATEMENT MATCH (t:test) WHERE t.id > 0.15 RETURN t.id;
 ---- 1
-0.200000
+0.2
 -STATEMENT MATCH (t:test) WHERE t.id = 0.1 RETURN t.id;
 ---- 1
-0.100000
+0.1
 
 -CASE CreateFloatPK
 -STATEMENT CREATE NODE TABLE test(id FLOAT, PRIMARY KEY(id));
@@ -355,26 +355,26 @@ UNCOMPRESSED
 ---- ok
 -STATEMENT MATCH (t:test) RETURN t.*;
 ---- 2
-0.100000
-0.200000
+0.1
+0.2
 -STATEMENT MATCH (t:test) WHERE t.id > 0.15 RETURN t.id;
 ---- 1
-0.200000
+0.2
 -STATEMENT MATCH (t:test) WHERE t.id = to_float(0.1) RETURN t.id;
 ---- 1
-0.100000
+0.1
 -STATEMENT CREATE (t:test {id:0});
 ---- ok
 # Zero and negative zero need to be equivalent
 -STATEMENT MATCH (t:test) WHERE t.id = (0.0 * -1) RETURN t.id;
 ---- 1
-0.000000
+0.0
 -STATEMENT MATCH (t:test) WHERE t.id = -0.0 RETURN t.id;
 ---- 1
-0.000000
+0.0
 -STATEMENT MATCH (t:test) WHERE t.id = to_float("-0.0") RETURN t.id;
 ---- 1
-0.000000
+0.0
 # infinity should work
 -STATEMENT CREATE (t:test {id:1.0/0.0});
 ---- ok

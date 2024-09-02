@@ -28,21 +28,21 @@
 ---- ok
 -STATEMENT MATCH (a:person) RETURN a.*
 ---- 5
-0|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
-2|[12,8]|[Bobby]|[[8,9],[9,10]]|[98,42,93,88]|0.990000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12
-3|[4,5]|[Carmen,Fred]|[[8,10]]|[91,75,21,95]|1.000000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13
-5|[1,9]|[Wolfeschlegelstein,Daniel]|[[7,4],[8,8],[9]]|[76,88,99,89]|1.300000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14
-7|[2]|[Ein]|[[6],[7],[8]]|[96,59,65,88]|1.463000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15
+0|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
+2|[12,8]|[Bobby]|[[8,9],[9,10]]|[98,42,93,88]|0.99|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12
+3|[4,5]|[Carmen,Fred]|[[8,10]]|[91,75,21,95]|1.0|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13
+5|[1,9]|[Wolfeschlegelstein,Daniel]|[[7,4],[8,8],[9]]|[76,88,99,89]|1.3|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14
+7|[2]|[Ein]|[[6],[7],[8]]|[96,59,65,88]|1.463|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15
 
 # skipped checkpoint here
 -RELOADDB
 -STATEMENT MATCH (a:person) RETURN a.*
 ---- 5
-0|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
-2|[12,8]|[Bobby]|[[8,9],[9,10]]|[98,42,93,88]|0.990000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12
-3|[4,5]|[Carmen,Fred]|[[8,10]]|[91,75,21,95]|1.000000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13
-5|[1,9]|[Wolfeschlegelstein,Daniel]|[[7,4],[8,8],[9]]|[76,88,99,89]|1.300000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14
-7|[2]|[Ein]|[[6],[7],[8]]|[96,59,65,88]|1.463000|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15
+0|[10,5]|[Aida]|[[10,8],[6,7,8]]|[96,54,86,92]|1.731|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
+2|[12,8]|[Bobby]|[[8,9],[9,10]]|[98,42,93,88]|0.99|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12
+3|[4,5]|[Carmen,Fred]|[[8,10]]|[91,75,21,95]|1.0|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13
+5|[1,9]|[Wolfeschlegelstein,Daniel]|[[7,4],[8,8],[9]]|[76,88,99,89]|1.3|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14
+7|[2]|[Ein]|[[6],[7],[8]]|[96,59,65,88]|1.463|a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15
 
 -CASE DeleteNodeRecovery
 -STATEMENT CALL auto_checkpoint=false;
@@ -79,7 +79,7 @@
 ---- ok
 -STATEMENT MATCH (o:organisation) RETURN o.*
 ---- 3
-1|{revenue: 138, location: ['toronto','montr,eal'], stock: {price: [96,56], volume: 1000}}|3.120000
+1|{revenue: 138, location: ['toronto','montr,eal'], stock: {price: [96,56], volume: 1000}}|3.12
 4|{revenue: 152, location: ["vanco,uver north area"], stock: {price: [15,78,671], volume: 432}}|abcd
 6|{revenue: 558, location: ['very long city name','new york'], stock: {price: [22], volume: 99}}|2023-12-15
 
@@ -87,7 +87,7 @@
 -RELOADDB
 -STATEMENT MATCH (o:organisation) RETURN o.*
 ---- 3
-1|{revenue: 138, location: ['toronto','montr,eal'], stock: {price: [96,56], volume: 1000}}|3.120000
+1|{revenue: 138, location: ['toronto','montr,eal'], stock: {price: [96,56], volume: 1000}}|3.12
 4|{revenue: 152, location: ["vanco,uver north area"], stock: {price: [15,78,671], volume: 432}}|abcd
 6|{revenue: 558, location: ['very long city name','new york'], stock: {price: [22], volume: 99}}|2023-12-15
 

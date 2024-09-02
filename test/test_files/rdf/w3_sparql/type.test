@@ -26,11 +26,11 @@ http://example.org/n5
             WHERE p.iri = "http://example.org/num"
             RETURN s.iri, o.val, ceil(CAST(o.val, "double"))
 ---- 5
-http://example.org/n1|-1|-1.000000
-http://example.org/n2|-1.600000|-1.000000
-http://example.org/n3|1.100000|2.000000
-http://example.org/n4|-2|-2.000000
-http://example.org/n5|2.500000|3.000000
+http://example.org/n1|-1|-1.0
+http://example.org/n2|-1.600000|-1.0
+http://example.org/n3|1.100000|2.0
+http://example.org/n4|-2|-2.0
+http://example.org/n5|2.500000|3.0
 
 #SELECT (CONCAT(?str1,?str2) AS ?str) WHERE {
 #	:s6 :str ?str1 .
@@ -79,11 +79,11 @@ http://example.org/s6|abc
             WHERE p.iri = "http://example.org/num"
             RETURN s.iri, o.val, floor(CAST(o.val, "double"))
 ---- 5
-http://example.org/n1|-1|-1.000000
-http://example.org/n2|-1.600000|-2.000000
-http://example.org/n3|1.100000|1.000000
-http://example.org/n4|-2|-2.000000
-http://example.org/n5|2.500000|2.000000
+http://example.org/n1|-1|-1.0
+http://example.org/n2|-1.600000|-2.0
+http://example.org/n3|1.100000|1.0
+http://example.org/n4|-2|-2.0
+http://example.org/n5|2.500000|2.0
 
 -LOG IF
 -STATEMENT MATCH (s)-[p]->(o)
@@ -147,11 +147,11 @@ foo|3
             WHERE p.iri = "http://example.org/num"
             RETURN s.iri, o.val, round(CAST(o.val, "double"), 0)
 ---- 5
-http://example.org/n1|-1|-1.000000
-http://example.org/n2|-1.600000|-2.000000
-http://example.org/n3|1.100000|1.000000
-http://example.org/n4|-2|-2.000000
-http://example.org/n5|2.500000|3.000000
+http://example.org/n1|-1|-1.0
+http://example.org/n2|-1.600000|-2.0
+http://example.org/n3|1.100000|1.0
+http://example.org/n4|-2|-2.0
+http://example.org/n5|2.500000|3.0
 
 #SELECT ?s ?str WHERE {
 #	?s ?p ?str

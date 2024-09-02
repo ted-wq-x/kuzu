@@ -32,12 +32,12 @@ AB
 -LOG q6
 -STATEMENT return toFloat("2.34");
 ---- 1
-2.340000
+2.34
 
 -LOG q7
 -STATEMENT return toDouble("2.34");
 ---- 1
-2.340000
+2.34
 
 -LOG q8
 -STATEMENT return tostring(1.2);

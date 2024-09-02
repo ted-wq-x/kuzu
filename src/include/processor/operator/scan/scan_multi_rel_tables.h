@@ -40,12 +40,15 @@ private:
     RelTableCollectionScanner(const RelTableCollectionScanner& other)
         : relInfos{copyVector(other.relInfos)} {}
 
-private:
+public:
     std::vector<ScanRelTableInfo> relInfos;
+
+private:
     std::vector<bool> directionValues;
     common::ValueVector* directionVector = nullptr;
-    common::idx_t currentTableIdx = common::INVALID_IDX;
     uint32_t nextTableIdx = 0;
+public:
+    common::idx_t currentTableIdx = common::INVALID_IDX;
 };
 
 class ScanMultiRelTable : public ScanTable {
