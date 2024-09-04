@@ -67,10 +67,11 @@ private:
 struct ScanNodeTablePrintInfo final : OPPrintInfo {
     std::vector<std::string> tableNames;
     binder::expression_vector properties;
+    std::string alias;
 
     ScanNodeTablePrintInfo(std::vector<std::string> tableNames,
-        binder::expression_vector properties)
-        : tableNames{std::move(tableNames)}, properties{std::move(properties)} {}
+        binder::expression_vector properties, std::string alias)
+        : tableNames{std::move(tableNames)}, properties{std::move(properties)}, alias{alias} {}
 
     std::string toString() const override;
 

@@ -9,9 +9,11 @@ namespace processor {
 struct PrimaryKeyScanPrintInfo final : OPPrintInfo {
     binder::expression_vector expressions;
     std::string key;
+    std::string alias;
 
-    PrimaryKeyScanPrintInfo(binder::expression_vector expressions, std::string key)
-        : expressions(std::move(expressions)), key(std::move(key)) {}
+    PrimaryKeyScanPrintInfo(binder::expression_vector expressions, std::string key,
+        std::string alias)
+        : expressions(std::move(expressions)), key(std::move(key)), alias(std::move(alias)) {}
 
     std::string toString() const override;
 

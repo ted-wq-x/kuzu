@@ -53,7 +53,8 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapScanNodeTable(LogicalOperator* 
 
     switch (scan.getScanType()) {
     case LogicalScanNodeTableType::SCAN: {
-        auto printInfo = std::make_unique<ScanNodeTablePrintInfo>(tableNames, scan.getProperties());
+        auto printInfo = std::make_unique<ScanNodeTablePrintInfo>(tableNames, scan.getProperties(),
+            scan.getAlias());
         auto progressSharedState = std::make_shared<ScanNodeTableProgressSharedState>();
         return std::make_unique<ScanNodeTable>(std::move(scanInfo), std::move(tableInfos),
             std::move(sharedStates), getOperatorID(), std::move(printInfo), progressSharedState);
@@ -73,7 +74,7 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapScanNodeTable(LogicalOperator* 
         auto evaluator = exprMapper.getEvaluator(primaryKeyScanInfo.key);
         auto sharedState = std::make_shared<PrimaryKeyScanSharedState>(tableInfos.size());
         auto printInfo = std::make_unique<PrimaryKeyScanPrintInfo>(scan.getProperties(),
-            primaryKeyScanInfo.key->toString());
+            primaryKeyScanInfo.key->toString(), scan.getAlias());
         return std::make_unique<PrimaryKeyScanNodeTable>(std::move(scanInfo), std::move(tableInfos),
             std::move(evaluator), std::move(sharedState), getOperatorID(), std::move(printInfo));
     }

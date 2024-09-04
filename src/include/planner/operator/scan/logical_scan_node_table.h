@@ -53,9 +53,10 @@ class LogicalScanNodeTable final : public LogicalOperator {
 
 public:
     LogicalScanNodeTable(std::shared_ptr<binder::Expression> nodeID,
-        std::vector<common::table_id_t> nodeTableIDs, binder::expression_vector properties)
+        std::vector<common::table_id_t> nodeTableIDs, binder::expression_vector properties,
+        const std::string alias)
         : LogicalOperator{type_}, scanType{defaultScanType}, nodeID{std::move(nodeID)},
-          nodeTableIDs{std::move(nodeTableIDs)}, properties{std::move(properties)} {}
+          nodeTableIDs{std::move(nodeTableIDs)}, properties{std::move(properties)}, alias{alias} {}
     LogicalScanNodeTable(const LogicalScanNodeTable& other);
 
     void computeFactorizedSchema() override;
@@ -83,6 +84,8 @@ public:
 
     ExtraScanNodeTableInfo* getExtraInfo() const { return extraInfo.get(); }
 
+    std::string getAlias() const { return alias; }
+
     std::unique_ptr<LogicalOperator> copy() override;
 
 private:
@@ -92,6 +95,7 @@ private:
     binder::expression_vector properties;
     std::vector<storage::ColumnPredicateSet> propertyPredicates;
     std::unique_ptr<ExtraScanNodeTableInfo> extraInfo;
+    std::string alias;
 };
 
 } // namespace planner

@@ -10,7 +10,14 @@ namespace kuzu {
 namespace processor {
 
 std::string ScanNodeTablePrintInfo::toString() const {
-    std::string result = "Tables: ";
+    std::string result;
+    if (alias != "") {
+        result += "Alias: ";
+        result += alias;
+        result += ",Tables: ";
+    } else {
+        result += "Tables: ";
+    }
     for (auto& tableName : tableNames) {
         result += tableName;
         if (tableName != tableNames.back()) {
