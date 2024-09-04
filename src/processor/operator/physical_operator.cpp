@@ -224,26 +224,6 @@ std::unordered_map<std::string, std::string> PhysicalOperator::getProfilerKeyVal
         result.insert({"ExecutionTime", std::to_string(getExecutionTime(profiler))});
         result.insert({"NumOutputTuples", std::to_string(getNumOutputTuples(profiler))});
     }
-    if (isSink()) {
-        const Sink* sink = ku_dynamic_cast<const PhysicalOperator*, const Sink*>(this);
-        Sink* pSink = const_cast<Sink*>(sink);
-        ResultSetDescriptor* pDescriptor = pSink->getResultSetDescriptor();
-
-        if (pDescriptor != nullptr) {
-            std::vector<std::unique_ptr<DataChunkDescriptor>>& dataChunkDescriptors =
-                pDescriptor->dataChunkDescriptors;
-            std::string desc;
-            auto size = dataChunkDescriptors.size();
-            for (auto i = 0u; i < size; ++i) {
-                auto dcd = dataChunkDescriptors.at(i).get()->toString();
-                desc += dcd;
-                if (i != size) {
-                    desc += ",";
-                }
-            }
-            result.insert({"Out", desc});
-        }
-    }
     return result;
 }
 
