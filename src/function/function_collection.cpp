@@ -236,9 +236,10 @@ FunctionCollection* FunctionCollection::getFunctions() {
         // Table functions
         TABLE_FUNCTION(CurrentSettingFunction), TABLE_FUNCTION(DBVersionFunction),
         TABLE_FUNCTION(ShowTablesFunction), TABLE_FUNCTION(ShowWarningsFunction),
-        TABLE_FUNCTION(TableInfoFunction), TABLE_FUNCTION(ShowConnectionFunction),
-        TABLE_FUNCTION(StorageInfoFunction), TABLE_FUNCTION(ShowAttachedDatabasesFunction),
-        TABLE_FUNCTION(ShowSequencesFunction), TABLE_FUNCTION(ShowFunctionsFunction),
+        TABLE_FUNCTION(ClearWarningsFunction), TABLE_FUNCTION(TableInfoFunction),
+        TABLE_FUNCTION(ShowConnectionFunction), TABLE_FUNCTION(StorageInfoFunction),
+        TABLE_FUNCTION(ShowAttachedDatabasesFunction), TABLE_FUNCTION(ShowSequencesFunction),
+        TABLE_FUNCTION(ShowFunctionsFunction),
 
         TABLE_FUNCTION(GraphBspKhopFunction), TABLE_FUNCTION(GraphBspKhopRcFunction),
         TABLE_FUNCTION(GraphBspSsspFunction),
