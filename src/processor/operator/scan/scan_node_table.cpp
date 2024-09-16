@@ -114,7 +114,7 @@ bool ScanNodeTable::getNextTuplesInternal(ExecutionContext* context) {
         if (!skipScan) {
             while (scanState.source != TableScanSource::NONE &&
                    info.table->scan(transaction, scanState)) {
-                auto selectedSize = scanState.IDVector->state->getSelVector().getSelSize();
+                auto selectedSize = scanState.outState->getSelVector().getSelSize();
                 if (selectedSize > 0) {
                     metrics->numOutputTuple.increase(selectedSize);
                     return true;
