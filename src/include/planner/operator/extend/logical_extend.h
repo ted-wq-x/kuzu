@@ -7,7 +7,7 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalExtend : public BaseLogicalExtend {
+class LogicalExtend final : public BaseLogicalExtend {
     static constexpr LogicalOperatorType type_ = LogicalOperatorType::EXTEND;
 
 public:
@@ -17,7 +17,7 @@ public:
         binder::expression_vector properties, std::shared_ptr<LogicalOperator> child)
         : BaseLogicalExtend{type_, std::move(boundNode), std::move(nbrNode), std::move(rel),
               direction, extendFromSource, std::move(child)},
-          properties{std::move(properties)} {}
+          scanNbrID{true}, properties{std::move(properties)} {}
 
     f_group_pos_set getGroupsPosToFlatten() override;
 
@@ -31,6 +31,8 @@ public:
     const std::vector<storage::ColumnPredicateSet>& getPropertyPredicates() const {
         return propertyPredicates;
     }
+    void setScanNbrID(bool scanNbrID_) { scanNbrID = scanNbrID_; }
+    bool shouldScanNbrID() const { return scanNbrID; }
 
     std::unique_ptr<LogicalOperator> copy() override;
 
@@ -51,6 +53,7 @@ public:
     }
 
 private:
+    bool scanNbrID;
     binder::expression_vector properties;
     std::vector<storage::ColumnPredicateSet> propertyPredicates;
 };

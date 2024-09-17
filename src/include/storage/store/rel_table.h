@@ -18,7 +18,6 @@ class MemoryManager;
 struct LocalRelTableScanState;
 struct RelTableScanState : TableScanState {
     common::RelDataDirection direction;
-    common::ValueVector* boundNodeIDVector;
     common::offset_t boundNodeOffset;
     Column* csrOffsetColumn;
     Column* csrLengthColumn;
@@ -41,9 +40,8 @@ struct RelTableScanState : TableScanState {
         Column* csrOffsetCol, Column* csrLengthCol, common::RelDataDirection direction,
         std::vector<ColumnPredicateSet> columnPredicateSets)
         : TableScanState{columnIDs, columns, std::move(columnPredicateSets)}, direction{direction},
-          boundNodeIDVector{nullptr}, boundNodeOffset{common::INVALID_OFFSET},
-          csrOffsetColumn{csrOffsetCol}, csrLengthColumn{csrLengthCol},
-          localTableScanState{nullptr} {
+          boundNodeOffset{common::INVALID_OFFSET}, csrOffsetColumn{csrOffsetCol},
+          csrLengthColumn{csrLengthCol}, localTableScanState{nullptr} {
         nodeGroupScanState =
             std::make_unique<CSRNodeGroupScanState>(memoryManager, this->columnIDs.size());
         if (!this->columnPredicateSets.empty()) {
@@ -72,7 +70,7 @@ struct LocalRelTableScanState final : RelTableScanState {
         const std::vector<common::column_id_t>& columnIDs, LocalRelTable* localRelTable)
         : RelTableScanState{memoryManager, columnIDs}, localRelTable{localRelTable} {
         direction = state.direction;
-        boundNodeIDVector = state.boundNodeIDVector;
+        nodeIDVector = state.nodeIDVector;
         outputVectors = state.outputVectors;
         // Setting source to UNCOMMITTED is not necessary but just to keep it semantically
         // consistent.

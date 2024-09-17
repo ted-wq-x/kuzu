@@ -64,6 +64,7 @@ void ScanRelTableInfo::initScanState(MemoryManager& memoryManager) {
         if (columnID == INVALID_COLUMN_ID) {
             columns.push_back(nullptr);
         } else {
+            KU_ASSERT(columnID < table->getNumColumns());
             columns.push_back(table->getColumn(columnID, direction));
         }
     }
@@ -73,7 +74,6 @@ void ScanRelTableInfo::initScanState(MemoryManager& memoryManager) {
 }
 
 void ScanRelTable::initLocalStateInternal(ResultSet* resultSet, ExecutionContext* context) {
-    ScanTable::initLocalStateInternal(resultSet, context);
     relInfo.initScanState(*context->clientContext->getMemoryManager());
     initVectors(*relInfo.scanState, *resultSet);
     if (const auto localRelTable =
@@ -89,8 +89,9 @@ void ScanRelTable::initLocalStateInternal(ResultSet* resultSet, ExecutionContext
 
 void ScanRelTable::initVectors(TableScanState& state, const ResultSet& resultSet) const {
     ScanTable::initVectors(state, resultSet);
-    state.cast<RelTableScanState>().boundNodeIDVector =
-        resultSet.getValueVector(relInfo.boundNodeIDPos).get();
+    KU_ASSERT(!info.outVectorsPos.empty());
+    state.rowIdxVector->state = resultSet.getValueVector(info.outVectorsPos[0])->state;
+    state.outState = state.rowIdxVector->state.get();
 }
 
 bool ScanRelTable::getNextTuplesInternal(ExecutionContext* context) {
