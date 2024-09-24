@@ -39,22 +39,21 @@ namespace kuzu {
 namespace function {
 
 #define SCALAR_FUNCTION_BASE(_PARAM, _NAME)                                                        \
-    { _PARAM::getFunctionSet, _NAME, CatalogEntryType::SCALAR_FUNCTION_ENTRY }
+    {_PARAM::getFunctionSet, _NAME, CatalogEntryType::SCALAR_FUNCTION_ENTRY}
 #define SCALAR_FUNCTION(_PARAM) SCALAR_FUNCTION_BASE(_PARAM, _PARAM::name)
 #define SCALAR_FUNCTION_ALIAS(_PARAM) SCALAR_FUNCTION_BASE(_PARAM::alias, _PARAM::name)
 #define SCALAR_FUNCTION_ALIAS2(_PARAM) SCALAR_FUNCTION_BASE(_PARAM, _PARAM::alias)
 #define REWRITE_FUNCTION(_PARAM)                                                                   \
-    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::REWRITE_FUNCTION_ENTRY }
+    {_PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::REWRITE_FUNCTION_ENTRY}
 #define AGGREGATE_FUNCTION(_PARAM)                                                                 \
-    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::AGGREGATE_FUNCTION_ENTRY }
+    {_PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::AGGREGATE_FUNCTION_ENTRY}
 #define EXPORT_FUNCTION(_PARAM)                                                                    \
-    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::COPY_FUNCTION_ENTRY }
+    {_PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::COPY_FUNCTION_ENTRY}
 #define TABLE_FUNCTION(_PARAM)                                                                     \
-    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::TABLE_FUNCTION_ENTRY }
+    {_PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::TABLE_FUNCTION_ENTRY}
 #define ALGORITHM_FUNCTION(_PARAM)                                                                 \
-    { _PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::GDS_FUNCTION_ENTRY }
-#define FINAL_FUNCTION                                                                             \
-    { nullptr, nullptr, CatalogEntryType::SCALAR_FUNCTION_ENTRY }
+    {_PARAM::getFunctionSet, _PARAM::name, CatalogEntryType::GDS_FUNCTION_ENTRY}
+#define FINAL_FUNCTION {nullptr, nullptr, CatalogEntryType::SCALAR_FUNCTION_ENTRY}
 
 FunctionCollection* FunctionCollection::getFunctions() {
     static FunctionCollection functions[] = {
@@ -95,10 +94,11 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(RegexpFullMatchFunction), SCALAR_FUNCTION(RegexpMatchesFunction),
         SCALAR_FUNCTION(RegexpReplaceFunction), SCALAR_FUNCTION(RegexpExtractFunction),
         SCALAR_FUNCTION(RegexpExtractAllFunction), SCALAR_FUNCTION(LevenshteinFunction),
-        SCALAR_FUNCTION(InitCapFunction), SCALAR_FUNCTION(StringSplitFunction),
-        SCALAR_FUNCTION_ALIAS(StrSplitFunction), SCALAR_FUNCTION_ALIAS(StringToArrayFunction),
-        SCALAR_FUNCTION(SplitPartFunction), SCALAR_FUNCTION_ALIAS2(ConcatFunction),
-        SCALAR_FUNCTION_ALIAS2(LowerFunction), SCALAR_FUNCTION_ALIAS2(UpperFunction),
+        SCALAR_FUNCTION(RegexpSplitToArrayFunction), SCALAR_FUNCTION(InitCapFunction),
+        SCALAR_FUNCTION(StringSplitFunction), SCALAR_FUNCTION_ALIAS(StrSplitFunction),
+        SCALAR_FUNCTION_ALIAS(StringToArrayFunction), SCALAR_FUNCTION(SplitPartFunction),
+        SCALAR_FUNCTION_ALIAS2(ConcatFunction), SCALAR_FUNCTION_ALIAS2(LowerFunction),
+        SCALAR_FUNCTION_ALIAS2(UpperFunction),
 
         // Array Functions
         SCALAR_FUNCTION(ArrayValueFunction), SCALAR_FUNCTION(ArrayCrossProductFunction),
@@ -126,8 +126,7 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(ListTransformFunction), SCALAR_FUNCTION(ListFilterFunction),
         SCALAR_FUNCTION(ListReduceFunction), SCALAR_FUNCTION(ListAnyFunction),
         SCALAR_FUNCTION(ListAllFunction), SCALAR_FUNCTION(ListNoneFunction),
-        SCALAR_FUNCTION(ListSingleFunction),
-        SCALAR_FUNCTION_ALIAS2(ListAppendFunction),
+        SCALAR_FUNCTION(ListSingleFunction), SCALAR_FUNCTION_ALIAS2(ListAppendFunction),
         SCALAR_FUNCTION_ALIAS2(ListSortFunction), SCALAR_FUNCTION_ALIAS2(SizeFunction),
         SCALAR_FUNCTION(ListApplyFunction), SCALAR_FUNCTION(ListHeadFunction),
         SCALAR_FUNCTION(ListTailFunction), SCALAR_FUNCTION(ListLastFunction),
@@ -201,9 +200,8 @@ FunctionCollection* FunctionCollection::getFunctions() {
         SCALAR_FUNCTION(UnionExtractFunction),
 
         // Node/rel functions
-        SCALAR_FUNCTION(TableIDFunction),
-        SCALAR_FUNCTION(OffsetFunction), REWRITE_FUNCTION(IDFunction),
-        REWRITE_FUNCTION(UIDFunction),
+        SCALAR_FUNCTION(TableIDFunction), SCALAR_FUNCTION(OffsetFunction),
+        REWRITE_FUNCTION(IDFunction), REWRITE_FUNCTION(UIDFunction),
 
         // Path functions
         SCALAR_FUNCTION(NodesFunction), SCALAR_FUNCTION(RelsFunction),
