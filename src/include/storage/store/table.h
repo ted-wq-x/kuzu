@@ -72,11 +72,11 @@ struct TableScanState {
 
     template<class TARGET>
     TARGET& cast() {
-        return common::ku_dynamic_cast<TableScanState&, TARGET&>(*this);
+        return common::ku_dynamic_cast<TARGET&>(*this);
     }
     template<class TARGETT>
     const TARGETT& cast() const {
-        return common::ku_dynamic_cast<const TableScanState&, const TARGETT&>(*this);
+        return common::ku_dynamic_cast<const TARGETT&>(*this);
     }
 };
 
@@ -89,11 +89,11 @@ struct TableInsertState {
 
     template<typename T>
     const T& constCast() const {
-        return common::ku_dynamic_cast<const TableInsertState&, const T&>(*this);
+        return common::ku_dynamic_cast<const T&>(*this);
     }
     template<typename T>
     T& cast() {
-        return common::ku_dynamic_cast<TableInsertState&, T&>(*this);
+        return common::ku_dynamic_cast<T&>(*this);
     }
 };
 
@@ -107,11 +107,11 @@ struct TableUpdateState {
 
     template<typename T>
     const T& constCast() const {
-        return common::ku_dynamic_cast<const TableUpdateState&, const T&>(*this);
+        return common::ku_dynamic_cast<const T&>(*this);
     }
     template<typename T>
     T& cast() {
-        return common::ku_dynamic_cast<TableUpdateState&, T&>(*this);
+        return common::ku_dynamic_cast<T&>(*this);
     }
 };
 
@@ -120,11 +120,11 @@ struct TableDeleteState {
 
     template<typename T>
     const T& constCast() const {
-        return common::ku_dynamic_cast<const TableDeleteState&, const T&>(*this);
+        return common::ku_dynamic_cast<const T&>(*this);
     }
     template<typename T>
     T& cast() {
-        return common::ku_dynamic_cast<TableDeleteState&, T&>(*this);
+        return common::ku_dynamic_cast<T&>(*this);
     }
 };
 
@@ -176,15 +176,15 @@ public:
 
     template<class TARGET>
     TARGET& cast() {
-        return common::ku_dynamic_cast<Table&, TARGET&>(*this);
+        return common::ku_dynamic_cast<TARGET&>(*this);
     }
     template<class TARGET>
     const TARGET& cast() const {
-        return common::ku_dynamic_cast<const Table&, const TARGET&>(*this);
+        return common::ku_dynamic_cast<const TARGET&>(*this);
     }
     template<class TARGET>
     TARGET* ptrCast() {
-        return common::ku_dynamic_cast<Table*, TARGET*>(this);
+        return common::ku_dynamic_cast<TARGET*>(this);
     }
 
     MemoryManager& getMemoryManager() const { return *memoryManager; }
