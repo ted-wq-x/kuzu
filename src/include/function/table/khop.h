@@ -118,7 +118,7 @@ static uint64_t funcTask(KhopSharedData& sharedData, uint32_t threadId,
     }
 
     auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
-    auto dstIdValueVector = rs->dataChunks[0]->getValueVector(2);
+    auto dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
     auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
     auto tx = sharedData.context->getTx();
     auto& globalBitSet = *sharedData.globalBitSet;
@@ -136,7 +136,7 @@ static uint64_t funcTask(KhopSharedData& sharedData, uint32_t threadId,
         for (auto& currentNodeID : data) {
             srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
             currentScanner.resetState();
-            while (currentScanner.scan(selectVector, tx)) {
+            while (currentScanner.scan(tx)) {
                 if (relFilter) {
                     bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
                     if (!dstIdValueVector->state->isFlat() &&
@@ -149,7 +149,8 @@ static uint64_t funcTask(KhopSharedData& sharedData, uint32_t threadId,
                 }
                 const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector->getData());
                 for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
-                    threadBitSet->markIfUnVisitedReturnVisited(globalBitSet, nbrData[i]);
+                    auto pos = selectVector[i];
+                    threadBitSet->markIfUnVisitedReturnVisited(globalBitSet, nbrData[pos]);
                 }
             }
         }
@@ -173,7 +174,7 @@ static uint64_t funcRCTask(KhopSharedData& sharedData, uint32_t threadId, bool i
     uint64_t edgeCount = 0;
 
     auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
-    auto dstIdValueVector = rs->dataChunks[0]->getValueVector(2);
+    auto dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
     auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
     auto tx = sharedData.context->getTx();
 
@@ -190,7 +191,7 @@ static uint64_t funcRCTask(KhopSharedData& sharedData, uint32_t threadId, bool i
         for (auto& currentNodeID : data) {
             srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
             currentScanner.resetState();
-            while (currentScanner.scan(selectVector, tx)) {
+            while (currentScanner.scan(tx)) {
                 if (relFilter) {
                     bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
                     if (!dstIdValueVector->state->isFlat() &&
@@ -206,9 +207,10 @@ static uint64_t funcRCTask(KhopSharedData& sharedData, uint32_t threadId, bool i
                     edgeCount += selectVector.getSelSize();
                 }
 
+                const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector->getData());
                 for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
-                    auto nbrID = dstIdValueVector->getValue<nodeID_t>(i);
-                    if (threadBitSet->markIfUnVisitedReturnVisited(globalBitSet, nbrID)) {
+                    auto pos = selectVector[i];
+                    if (threadBitSet->markIfUnVisitedReturnVisited(globalBitSet, nbrData[pos])) {
                         continue;
                     }
                     if (sharedData.direction == "both" && isFinal &&

@@ -67,9 +67,9 @@ public:
                     columns.push_back(&nodeInfo.table->getColumn(columnID));
                 }
             }
-            nodeInfo.localScanState =
-                std::make_unique<storage::NodeTableScanState>(nodeInfo.columnIDs, columns);
-            nodeInfo.localScanState->IDVector = newInputVector.get();
+            nodeInfo.localScanState = std::make_unique<storage::NodeTableScanState>(
+                nodeInfo.table->getTableID(), nodeInfo.columnIDs, columns);
+            nodeInfo.localScanState->nodeIDVector = newInputVector.get();
             nodeInfo.localScanState->rowIdxVector->state = newInputVector->state;
             auto newOutputVector = std::make_shared<common::ValueVector>(
                 outputVectorDataType->at(pair.first), memoryManager);
@@ -89,7 +89,7 @@ public:
         nodeInfo.localScanState->source = storage::TableScanSource::COMMITTED;
         nodeInfo.localScanState->nodeGroupIdx =
             storage::StorageUtils::getNodeGroupIdx(nodeID.offset);
-        nodeInfo.table->initializeScanState(transaction, *nodeInfo.localScanState);
+        nodeInfo.table->initScanState(transaction, *nodeInfo.localScanState);
         nodeInfo.table->lookup(transaction, *nodeInfo.localScanState);
         return outputVector->at(nodeID.tableID)->getAsValue(0)->toString();
     };
@@ -165,7 +165,7 @@ public:
         auto size = nextFrontier.size();
 
         auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
-        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(2);
+        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
         auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
         auto tx = sharedData.context->getTx();
 
@@ -185,7 +185,7 @@ public:
                 internalID_t currentNodeID{offset, data.tableID};
                 srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
                 currentScanner.resetState();
-                while (currentScanner.scan(selectVector, tx)) {
+                while (currentScanner.scan(tx)) {
                     if (relFilter) {
                         bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
                         if (!dstIdValueVector->state->isFlat() &&
@@ -196,8 +196,9 @@ public:
                             continue;
                         }
                     }
+                    const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector->getData());
                     for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
-                        auto nbrID = dstIdValueVector->getValue<nodeID_t>(i);
+                        auto nbrID = nbrData[selectVector[i]];
                         if (globalBitSet->isVisited(nbrID)) {
                             continue;
                         }
@@ -418,7 +419,7 @@ public:
         auto size = nextFrontier.size();
 
         auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
-        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(2);
+        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
         auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
         auto tx = sharedData.context->getTx();
 
@@ -440,7 +441,7 @@ public:
                 srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
                 currentScanner.resetState();
                 auto currentNodeRk = localNodeTableScanState.lookUp(currentNodeID);
-                while (currentScanner.scan(selectVector, tx)) {
+                while (currentScanner.scan(tx)) {
                     if (relFilter) {
                         bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
                         if (!dstIdValueVector->state->isFlat() &&
@@ -451,8 +452,9 @@ public:
                             continue;
                         }
                     }
+                    const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector->getData());
                     for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
-                        auto nbrID = dstIdValueVector->getValue<nodeID_t>(i);
+                        auto nbrID = nbrData[selectVector[i]];
                         if (intersectionBitSet.isVisited(nbrID)) {
                             threadBitSet->markVisited(currentNodeID);
                             auto nbrRk = localNodeTableScanState.lookUp(nbrID);
@@ -527,7 +529,7 @@ public:
         }
 
         auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
-        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(2);
+        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
         auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
         auto tx = sharedData.context->getTx();
 
@@ -555,7 +557,7 @@ public:
                 internalID_t currentNodeID({offset, tableID});
                 srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
                 currentScanner.resetState();
-                while (currentScanner.scan(selectVector, tx)) {
+                while (currentScanner.scan(tx)) {
                     if (relFilter) {
                         bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
                         if (!dstIdValueVector->state->isFlat() &&
@@ -566,8 +568,9 @@ public:
                             continue;
                         }
                     }
+                    const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector->getData());
                     for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
-                        auto nbrID = dstIdValueVector->getValue<nodeID_t>(i);
+                        auto nbrID = nbrData[selectVector[i]];
                         if (scanState.globalBitSet->getNodeValueDist(nbrID) == target_dist) {
                             threadBitSet->markVisited(nbrID);
                             auto nbrRk = locaNodeTableScanState.lookUp(nbrID);
@@ -644,7 +647,7 @@ public:
             extendDirection, filterExpr);
 
         int32_t hop = (pathLength == 1) ? scanState.hop : scanState.hop - 1;
-        while (hop-->0) {
+        while (hop-- > 0) {
             taskID = 0;
             std::vector<
                 std::future<std::map<nodeID_t, std::vector<std::vector<BackTrackPathNode>>>>>

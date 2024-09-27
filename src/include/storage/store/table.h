@@ -18,6 +18,7 @@ enum class TableScanSource : uint8_t { COMMITTED = 0, UNCOMMITTED = 1, NONE = UI
 
 struct TableScanState {
     common::table_id_t tableID;
+    //存储查询到的rowID,构造器初始化
     std::unique_ptr<common::ValueVector> rowIdxVector;
     // Node/Rel ID vector. We assume all output vectors are within the same DataChunk as this one.
     common::ValueVector* nodeIDVector;

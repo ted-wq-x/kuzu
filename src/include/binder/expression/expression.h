@@ -67,9 +67,6 @@ public:
     bool hasAlias() const { return !alias.empty(); }
     std::string getAlias() const { return alias; }
 
-    void setVariableAs() { variableAs = true; }
-    bool isVariableAs() const { return variableAs; }
-
     common::idx_t getNumChildren() const { return children.size(); }
     std::shared_ptr<Expression> getChild(common::idx_t idx) const {
         KU_ASSERT(idx < children.size());
@@ -120,7 +117,6 @@ protected:
     std::string uniqueName;
     std::string alias;
     expression_vector children;
-    bool variableAs = false;
 };
 
 struct ExpressionHasher {

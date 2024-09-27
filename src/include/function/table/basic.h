@@ -24,6 +24,7 @@
 #include "processor/operator/scan/scan_rel_table.h"
 #include "processor/plan_mapper.h"
 #include "storage/local_storage/local_rel_table.h"
+#include "storage/local_storage/local_storage.h"
 #include "storage/storage_manager.h"
 #include "storage/store/node_table.h"
 #include "storage/store/rel_table.h"
@@ -632,7 +633,7 @@ static std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>
     return reltables;
 }
 
-static std::pair<std::shared_ptr<Expression>, std::shared_ptr<Expression>> parseExpr(
+static std::tuple<std::shared_ptr<Expression>,std::shared_ptr<Expression>, std::shared_ptr<Expression>> parseExpr(
     main::ClientContext* context, const parser::AlgoParameter* algoParameter) {
     binder::Binder binder(context);
     auto recursiveInfo = parser::RecursiveRelPatternInfo();
@@ -643,6 +644,8 @@ static std::pair<std::shared_ptr<Expression>, std::shared_ptr<Expression>> parse
     auto nodeTableIDs = binder.bindTableEntries({}, true);
     auto leftNode = std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_left",
         "", nodeTableIDs);
+    leftNode->setInternalID(
+        PropertyExpression::construct(LogicalType::INTERNAL_ID(), InternalKeyword::ID, *leftNode));
     auto rightNode = std::make_shared<NodeExpression>(LogicalType(LogicalTypeID::NODE), "wq_right",
         "", nodeTableIDs);
     rightNode->setInternalID(
@@ -652,7 +655,7 @@ static std::pair<std::shared_ptr<Expression>, std::shared_ptr<Expression>> parse
     auto relExpression = binder.bindQueryRel(relPattern, leftNode, rightNode, qg);
 
     return {binder.bindWhereExpression(*algoParameter->getWherePredicate()),
-        rightNode->getInternalID()};
+        leftNode->getInternalID(),rightNode->getInternalID()};
 }
 
 static void computeRelFilter(main::ClientContext* context, std::string& relFilterStr,
@@ -663,8 +666,8 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
     std::unordered_set<std::string> relLabels;
     expression_vector props;
     relColumnTypeIds = std::make_shared<std::vector<LogicalTypeID>>();
-    // 起点,边id,nbr_id
-    relColumnTypeIds->push_back(LogicalTypeID::INTERNAL_ID);
+    // 起点,nbr_id
+    // 按照schema构造的rs,第一个是scanNode的rowID列,后面是extend的列
     relColumnTypeIds->push_back(LogicalTypeID::INTERNAL_ID);
     relColumnTypeIds->push_back(LogicalTypeID::INTERNAL_ID);
 
@@ -674,7 +677,7 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
         relLabels.insert(list.begin(), list.end());
 
         if (algoPara->hasWherePredicate()) {
-            auto [whereExpression, nbrNodeExp] = parseExpr(context, algoPara.get());
+            auto [whereExpression, srcNodeExp,nbrNodeExp] = parseExpr(context, algoPara.get());
             // 确定属性的位置
             auto expressionCollector = binder::PropertyExprCollector();
             expressionCollector.visit(whereExpression);
@@ -683,10 +686,12 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
 
             auto schema = planner::Schema();
             schema.createGroup();
+            schema.insertToGroupAndScope(srcNodeExp, 0); // 起点[占位作用]
             schema.insertToGroupAndScope(nbrNodeExp, 0); // nbr node id
             for (auto& prop : props) {
                 schema.insertToGroupAndScope(prop, 0);
             }
+            //schema作为extend的输出schema,给下游filter使用
             processor::ExpressionMapper expressionMapper(&schema);
             relFilter = expressionMapper.getEvaluator(whereExpression);
 
@@ -751,13 +756,13 @@ static common::ExtendDirection getExtendDirection(std::string direction) {
 }
 
 static ScanRelTableInfo getRelTableScanInfo(const TableCatalogEntry& tableCatalogEntry,
-    RelDataDirection direction, DataPos boundNodeIDPos, RelTable* relTable,
+    RelDataDirection direction, RelTable* relTable, bool shouldScanNbrID,
     const expression_vector& properties, const std::vector<ColumnPredicateSet>& columnPredicates) {
     auto relTableID = tableCatalogEntry.getTableID();
     std::vector<column_id_t> columnIDs;
     // We always should scan nbrID from relTable. This is not a property in the schema label, so
     // cannot be bound to a column in the front-end.
-    columnIDs.push_back(NBR_ID_COLUMN_ID);
+    columnIDs.push_back(shouldScanNbrID ? NBR_ID_COLUMN_ID : INVALID_COLUMN_ID);
     for (auto& expr : properties) {
         auto& property = expr->constCast<PropertyExpression>();
         if (property.hasProperty(relTableID)) {
@@ -766,41 +771,45 @@ static ScanRelTableInfo getRelTableScanInfo(const TableCatalogEntry& tableCatalo
             columnIDs.push_back(INVALID_COLUMN_ID);
         }
     }
-    return ScanRelTableInfo(relTable, direction, boundNodeIDPos, std::move(columnIDs),
+    return ScanRelTableInfo(relTable, direction, std::move(columnIDs),
         copyVector(columnPredicates));
 }
 
 static RelTableCollectionScanner populateRelTableCollectionScanner(table_id_t boundNodeTableID,
-    const std::vector<RelTableCatalogEntry*>& relEntries, DataPos boundNodeIDPos,
-    ExtendDirection extendDirection, const expression_vector& properties,
+    const table_id_set_t& nbrTableIDs, const std::vector<RelTableCatalogEntry*>& relEntries,
+    ExtendDirection extendDirection, bool shouldScanNbrID, const expression_vector& properties,
     const std::vector<ColumnPredicateSet>& columnPredicates,
     const main::ClientContext& clientContext) {
     std::vector<ScanRelTableInfo> scanInfos;
-    auto storageManager = clientContext.getStorageManager();
+    const auto storageManager = clientContext.getStorageManager();
     for (auto entry : relEntries) {
         auto& relTableEntry = *entry;
         auto relTable = storageManager->getTable(entry->getTableID())->ptrCast<RelTable>();
         switch (extendDirection) {
         case ExtendDirection::FWD: {
-            if (relTableEntry.getBoundTableID(RelDataDirection::FWD) == boundNodeTableID) {
+            if (relTableEntry.getBoundTableID(RelDataDirection::FWD) == boundNodeTableID &&
+                nbrTableIDs.contains(relTableEntry.getNbrTableID(RelDataDirection::FWD))) {
                 scanInfos.push_back(getRelTableScanInfo(relTableEntry, RelDataDirection::FWD,
-                    boundNodeIDPos, relTable, properties, columnPredicates));
+                    relTable, shouldScanNbrID, properties, columnPredicates));
             }
         } break;
         case ExtendDirection::BWD: {
-            if (relTableEntry.getBoundTableID(RelDataDirection::BWD) == boundNodeTableID) {
+            if (relTableEntry.getBoundTableID(RelDataDirection::BWD) == boundNodeTableID &&
+                nbrTableIDs.contains(relTableEntry.getNbrTableID(RelDataDirection::BWD))) {
                 scanInfos.push_back(getRelTableScanInfo(relTableEntry, RelDataDirection::BWD,
-                    boundNodeIDPos, relTable, properties, columnPredicates));
+                    relTable, shouldScanNbrID, properties, columnPredicates));
             }
         } break;
         case ExtendDirection::BOTH: {
-            if (relTableEntry.getBoundTableID(RelDataDirection::FWD) == boundNodeTableID) {
+            if (relTableEntry.getBoundTableID(RelDataDirection::FWD) == boundNodeTableID &&
+                nbrTableIDs.contains(relTableEntry.getNbrTableID(RelDataDirection::FWD))) {
                 scanInfos.push_back(getRelTableScanInfo(relTableEntry, RelDataDirection::FWD,
-                    boundNodeIDPos, relTable, properties, columnPredicates));
+                    relTable, shouldScanNbrID, properties, columnPredicates));
             }
-            if (relTableEntry.getBoundTableID(RelDataDirection::BWD) == boundNodeTableID) {
+            if (relTableEntry.getBoundTableID(RelDataDirection::BWD) == boundNodeTableID &&
+                nbrTableIDs.contains(relTableEntry.getNbrTableID(RelDataDirection::BWD))) {
                 scanInfos.push_back(getRelTableScanInfo(relTableEntry, RelDataDirection::BWD,
-                    boundNodeIDPos, relTable, properties, columnPredicates));
+                    relTable, shouldScanNbrID, properties, columnPredicates));
             }
         } break;
         default:
@@ -835,10 +844,13 @@ static common::table_id_map_t<RelTableCollectionScanner> createRelTableCollectio
     table_id_map_t<RelTableCollectionScanner> scanners;
     auto catalog = context.getCatalog();
     auto tx = context.getTx();
-    auto relEntries = catalog->getRelTableEntries(tx);
-    for (auto boundNodeTableID : catalog->getNodeTableIDs(tx)) {
-        auto scanner = populateRelTableCollectionScanner(boundNodeTableID, relEntries,
-            DataPos(0, 0), extendDirection, propExprs, {}, context);
+    table_id_set_t nodeEntries;
+    for (const auto& nodeID : catalog->getNodeTableIDs(tx)) {
+        nodeEntries.insert(nodeID);
+    }
+    for (auto boundNodeTableID : nodeEntries) {
+        auto scanner = populateRelTableCollectionScanner(boundNodeTableID, nodeEntries,
+            catalog->getRelTableEntries(tx), extendDirection, true, propExprs, {}, context);
         if (!scanner.empty()) {
             scanners.insert({boundNodeTableID, std::move(scanner)});
         }
@@ -848,27 +860,29 @@ static common::table_id_map_t<RelTableCollectionScanner> createRelTableCollectio
 
 static void initVectors(storage::TableScanState& state, const ResultSet& resultSet,
     const ScanTableInfo& info) {
-    state.IDVector = resultSet.getValueVector(info.IDPos).get();
-    state.rowIdxVector->state = state.IDVector->state;
+    state.nodeIDVector = resultSet.getValueVector(info.nodeIDPos).get();
     for (auto& pos : info.outVectorsPos) {
         state.outputVectors.push_back(resultSet.getValueVector(pos).get());
     }
+    //列0为nbrID的dataPOS
+    state.rowIdxVector->state = resultSet.getValueVector(info.outVectorsPos[0])->state;
+    state.outState = state.rowIdxVector->state.get();
 }
 
 static void initRelTableCollectionScanner(const main::ClientContext& context,
     common::table_id_map_t<RelTableCollectionScanner>& scanners, ResultSet* resultSet) {
+    //需要输出的列,在rs中的位置.scan哪些列,在relInfo中,而relInfo中的列信息和计算rs中的列信息方式一致,故
     std::vector<DataPos> outVectorsPos;
-    for (size_t i = 0; i < resultSet->dataChunks[0]->getNumValueVectors() - 2; ++i) {
-        outVectorsPos.push_back(DataPos(0, i + 2));
+    for (size_t i = 0; i < resultSet->dataChunks[0]->getNumValueVectors() - 1; ++i) {
+        //rs中第一列作为输入的
+        outVectorsPos.push_back(DataPos(0, i + 1));
     }
-    ScanTableInfo scanTableInfo(DataPos(0, 1), outVectorsPos);
-
+    //rs中的第0个是输入
+    ScanTableInfo scanTableInfo(DataPos(0, 0), outVectorsPos);
     for (auto& [_, scanner] : scanners) {
         for (auto& relInfo : scanner.relInfos) {
             relInfo.initScanState();
             initVectors(*relInfo.scanState, *resultSet, scanTableInfo);
-            auto& scanState = relInfo.scanState->cast<RelTableScanState>();
-            scanState.boundNodeIDVector = resultSet->getValueVector(relInfo.boundNodeIDPos).get();
             if (const auto localRelTable = context.getTx()->getLocalStorage()->getLocalTable(
                     relInfo.table->getTableID(), LocalStorage::NotExistAction::RETURN_NULL)) {
                 auto localTableColumnIDs = LocalRelTable::rewriteLocalColumnIDs(relInfo.direction,

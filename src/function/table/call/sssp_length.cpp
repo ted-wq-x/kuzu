@@ -47,7 +47,7 @@ public:
         }
 
         auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
-        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(2);
+        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
         auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
         auto tx = sharedData.context->getTx();
 
@@ -67,7 +67,7 @@ public:
             for (auto& currentNodeID : data) {
                 srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
                 currentScanner.resetState();
-                while (currentScanner.scan(selectVector, tx)) {
+                while (currentScanner.scan(tx)) {
                     if (relFilter) {
                         bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
                         if (!dstIdValueVector->state->isFlat() &&
@@ -78,8 +78,9 @@ public:
                             continue;
                         }
                     }
+                    const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector->getData());
                     for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
-                        auto nbrID = dstIdValueVector->getValue<nodeID_t>(i);
+                        auto nbrID = nbrData[selectVector[i]];
                         threadBitSet->markIfUnVisitedReturnVisited(*globalBitSet, nbrID);
                     }
                 }
