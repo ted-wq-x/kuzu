@@ -150,12 +150,15 @@ void Planner::planGDSCall(const BoundReadingClause& readingClause,
             planReadOp(getGDSCall(readingClause), predicatesToPush, *plan);
         }
     }
-    if (bindData->hasNodeOutput()) {
+
+    auto nodeOutput = bindData->getNodeOutput();
+    KU_ASSERT(nodeOutput != nullptr);
+    auto properties = getProperties(*nodeOutput);
+    if (!properties.empty()) {
         auto& node = bindData->getNodeOutput()->constCast<NodeExpression>();
         auto scanPlan = LogicalPlan();
         cardinalityEstimator.addNodeIDDom(*node.getInternalID(), node.getTableIDs());
-        auto properties = node.getPropertyExprs();
-        appendScanNodeTable(node.getInternalID(), node.getTableIDs(), properties, node.getVariableName(),scanPlan);
+        appendScanNodeTable(node.getInternalID(), node.getTableIDs(), properties, node.getVariableName(), scanPlan);
         expression_vector joinConditions;
         joinConditions.push_back(node.getInternalID());
         for (auto& plan : plans) {
