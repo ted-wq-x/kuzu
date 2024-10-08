@@ -48,7 +48,7 @@ function_set IDFunction::getFunctionSet() {
 static std::shared_ptr<binder::Expression> UidRewriteFunc(const expression_vector& params,
     ExpressionBinder* binder) {
     KU_ASSERT(params.size() == 1);
-    auto node = ku_dynamic_cast<Expression*, NodeExpression*>(params[0].get());
+    auto node = ku_dynamic_cast<NodeExpression*>(params[0].get());
     KU_ASSERT(!node->isMultiLabeled());
     return node->getPrimaryKey(node->getSingleEntry()->getTableID());
 }

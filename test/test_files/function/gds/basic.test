@@ -89,11 +89,11 @@ Hubert Blaine Wolfeschlegelsteinhausenbergerdorff||2
 |DEsWork|0
 -STATEMENT PROJECT GRAPH PK (person, knows) CALL page_rank(PK) RETURN _node.fName, rank;
 ---- 8
-Alice|0.125000
-Bob|0.125000
-Carol|0.125000
-Dan|0.125000
-Elizabeth|0.022734
-Farooq|0.018750
-Greg|0.018750
-Hubert Blaine Wolfeschlegelsteinhausenbergerdorff|0.018750
+Alice|0.125
+Bob|0.125
+Carol|0.125
+Dan|0.125
+Elizabeth|0.022734375
+Farooq|0.018750000000000003
+Greg|0.018750000000000003
+Hubert Blaine Wolfeschlegelsteinhausenbergerdorff|0.018750000000000003

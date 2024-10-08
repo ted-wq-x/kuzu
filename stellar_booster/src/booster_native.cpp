@@ -265,8 +265,8 @@ JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_datab
     uint64_t buffer = static_cast<uint64_t>(buffer_pool_size);
     SystemConfig::enableCpuAffinity = enableCpuAffinity;
     SystemConfig::lruCacheSize = lruCacheSize;
-    SystemConfig systemConfig;
-    systemConfig.bufferPoolSize = buffer == 0 ? -1u : buffer;
+    SystemConfig systemConfig{};
+    systemConfig.bufferPoolSize = buffer == 0 ? systemConfig.bufferPoolSize : buffer;
     systemConfig.enableCompression = enable_compression;
     systemConfig.readOnly = read_only;
     systemConfig.maxDBSize = max_db_size == 0 ? systemConfig.maxDBSize : max_db_size;

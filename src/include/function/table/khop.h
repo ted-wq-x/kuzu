@@ -117,9 +117,9 @@ static uint64_t funcTask(KhopSharedData& sharedData, uint32_t threadId,
         relFilter = relEvaluate.get();
     }
 
-    auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
-    auto dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
-    auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
+    auto& srcIdValueVector = rs->dataChunks[0]->getValueVectorMutable(0);
+    auto& dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
+    auto& selectVector = dstIdValueVector.state->getSelVectorUnsafe();
     auto tx = sharedData.context->getTx();
     auto& globalBitSet = *sharedData.globalBitSet;
     while (true) {
@@ -134,20 +134,20 @@ static uint64_t funcTask(KhopSharedData& sharedData, uint32_t threadId,
         }
         auto& currentScanner = localScanners.at(tableID);
         for (auto& currentNodeID : data) {
-            srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
+            srcIdValueVector.setValue<nodeID_t>(0, currentNodeID);
             currentScanner.resetState();
             while (currentScanner.scan(tx)) {
                 if (relFilter) {
                     bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
-                    if (!dstIdValueVector->state->isFlat() &&
-                        dstIdValueVector->state->getSelVector().isUnfiltered()) {
-                        dstIdValueVector->state->getSelVectorUnsafe().setToFiltered();
+                    if (!dstIdValueVector.state->isFlat() &&
+                        dstIdValueVector.state->getSelVector().isUnfiltered()) {
+                        dstIdValueVector.state->getSelVectorUnsafe().setToFiltered();
                     }
                     if (!hasAtLeastOneSelectedValue) {
                         continue;
                     }
                 }
-                const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector->getData());
+                const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector.getData());
                 for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
                     auto pos = selectVector[i];
                     threadBitSet->markIfUnVisitedReturnVisited(globalBitSet, nbrData[pos]);
@@ -173,9 +173,9 @@ static uint64_t funcRCTask(KhopSharedData& sharedData, uint32_t threadId, bool i
     }
     uint64_t edgeCount = 0;
 
-    auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
-    auto dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
-    auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
+    auto& srcIdValueVector = rs->dataChunks[0]->getValueVectorMutable(0);
+    auto& dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
+    auto& selectVector = dstIdValueVector.state->getSelVectorUnsafe();
     auto tx = sharedData.context->getTx();
 
     while (true) {
@@ -189,14 +189,14 @@ static uint64_t funcRCTask(KhopSharedData& sharedData, uint32_t threadId, bool i
         auto& currentScanner = localScanners.at(tableID);
         auto& globalBitSet = *sharedData.globalBitSet;
         for (auto& currentNodeID : data) {
-            srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
+            srcIdValueVector.setValue<nodeID_t>(0, currentNodeID);
             currentScanner.resetState();
             while (currentScanner.scan(tx)) {
                 if (relFilter) {
                     bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
-                    if (!dstIdValueVector->state->isFlat() &&
-                        dstIdValueVector->state->getSelVector().isUnfiltered()) {
-                        dstIdValueVector->state->getSelVectorUnsafe().setToFiltered();
+                    if (!dstIdValueVector.state->isFlat() &&
+                        dstIdValueVector.state->getSelVector().isUnfiltered()) {
+                        dstIdValueVector.state->getSelVectorUnsafe().setToFiltered();
                     }
                     if (!hasAtLeastOneSelectedValue) {
                         continue;
@@ -207,7 +207,7 @@ static uint64_t funcRCTask(KhopSharedData& sharedData, uint32_t threadId, bool i
                     edgeCount += selectVector.getSelSize();
                 }
 
-                const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector->getData());
+                const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector.getData());
                 for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
                     auto pos = selectVector[i];
                     if (threadBitSet->markIfUnVisitedReturnVisited(globalBitSet, nbrData[pos])) {
@@ -295,9 +295,9 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
     auto maxHop = bindData->maxHop;
     auto numThreads = bindData->numThreads;
     if (maxHop == 0) {
-        dataChunk.getValueVector(0)->setValue<int64_t>(pos, 0);
+        dataChunk.getValueVectorMutable(0).setValue<int64_t>(pos, 0);
         if (isRc) {
-            dataChunk.getValueVector(1)->setValue<int64_t>(pos, 0);
+            dataChunk.getValueVectorMutable(1).setValue<int64_t>(pos, 0);
         }
         return 1;
     }
@@ -366,12 +366,12 @@ static common::offset_t rewriteTableFunc(TableFuncInput& input, TableFuncOutput&
         edgeResult += edgeResults[i];
     }
     if (isRc) {
-        dataChunk.getValueVector(0)->setValue(pos,
+        dataChunk.getValueVectorMutable(0).setValue(pos,
             (bindData->parameter ? nodeResults.back() : nodeResult));
-        dataChunk.getValueVector(1)->setValue(pos,
+        dataChunk.getValueVectorMutable(1).setValue(pos,
             (bindData->parameter ? edgeResults.back() : edgeResult));
     } else {
-        dataChunk.getValueVector(0)->setValue(pos,
+        dataChunk.getValueVectorMutable(0).setValue(pos,
             (bindData->parameter ? nodeResults.back() : nodeResult));
     }
     return 1;

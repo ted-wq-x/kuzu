@@ -46,9 +46,9 @@ public:
             relFilter = relEvaluate.get();
         }
 
-        auto srcIdValueVector = rs->dataChunks[0]->getValueVector(0);
-        auto dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
-        auto& selectVector = dstIdValueVector->state->getSelVectorUnsafe();
+        auto &srcIdValueVector = rs->dataChunks[0]->getValueVectorMutable(0);
+        auto &dstIdValueVector = rs->dataChunks[0]->getValueVector(1);
+        auto& selectVector = dstIdValueVector.state->getSelVectorUnsafe();
         auto tx = sharedData.context->getTx();
 
         auto threadBitSet = sharedData.getThreadBitSet(threadId);
@@ -65,20 +65,21 @@ public:
             }
             auto& currentScanner = localScanners.at(tableID);
             for (auto& currentNodeID : data) {
-                srcIdValueVector->setValue<nodeID_t>(0, currentNodeID);
+                srcIdValueVector.setValue<nodeID_t>(0, currentNodeID);
+//                srcIdValueVector.state.
                 currentScanner.resetState();
                 while (currentScanner.scan(tx)) {
                     if (relFilter) {
                         bool hasAtLeastOneSelectedValue = relFilter->select(selectVector);
-                        if (!dstIdValueVector->state->isFlat() &&
-                            dstIdValueVector->state->getSelVector().isUnfiltered()) {
-                            dstIdValueVector->state->getSelVectorUnsafe().setToFiltered();
+                        if (!dstIdValueVector.state->isFlat() &&
+                            dstIdValueVector.state->getSelVector().isUnfiltered()) {
+                            dstIdValueVector.state->getSelVectorUnsafe().setToFiltered();
                         }
                         if (!hasAtLeastOneSelectedValue) {
                             continue;
                         }
                     }
-                    const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector->getData());
+                    const auto nbrData = reinterpret_cast<nodeID_t*>(dstIdValueVector.getData());
                     for (auto i = 0u; i < selectVector.getSelSize(); ++i) {
                         auto nbrID = nbrData[selectVector[i]];
                         threadBitSet->markIfUnVisitedReturnVisited(*globalBitSet, nbrID);
@@ -244,7 +245,7 @@ common::offset_t lengthFunc(TableFuncInput& input, TableFuncOutput& output) {
             }
         }
     }
-    dataChunk.getValueVector(0)->setValue<int64_t>(pos, result);
+    dataChunk.getValueVectorMutable(0).setValue<int64_t>(pos, result);
     return 1;
 }
 

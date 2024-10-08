@@ -506,8 +506,8 @@ public:
     explicit RelTableInfo(transaction::Transaction* tx, storage::StorageManager* storage,
         Catalog* catalog, table_id_t tableID) {
         relTable = storage->getTable(tableID)->ptrCast<storage::RelTable>();
-        auto relTableEntry = ku_dynamic_cast<TableCatalogEntry*, RelTableCatalogEntry*>(
-            catalog->getTableCatalogEntry(tx, tableID));
+        auto relTableEntry =
+            ku_dynamic_cast<RelTableCatalogEntry*>(catalog->getTableCatalogEntry(tx, tableID));
         srcTableID = relTableEntry->getSrcTableID();
         dstTableID = relTableEntry->getDstTableID();
     }
@@ -515,8 +515,8 @@ public:
         Catalog* catalog, table_id_t tableID, std::vector<common::column_id_t> columnIDs)
         : columnIDs(std::move(columnIDs)) {
         relTable = storage->getTable(tableID)->ptrCast<storage::RelTable>();
-        auto relTableEntry = ku_dynamic_cast<TableCatalogEntry*, RelTableCatalogEntry*>(
-            catalog->getTableCatalogEntry(tx, tableID));
+        auto relTableEntry =
+            ku_dynamic_cast<RelTableCatalogEntry*>(catalog->getTableCatalogEntry(tx, tableID));
         srcTableID = relTableEntry->getSrcTableID();
         dstTableID = relTableEntry->getDstTableID();
     }
@@ -618,7 +618,7 @@ static std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>
     for (const auto& tableID : tableIDs) {
         std::vector<column_id_t> columnIDs;
         for (const auto& prop : *props) {
-            auto property = *ku_dynamic_cast<Expression*, PropertyExpression*>(prop.get());
+            auto property = *ku_dynamic_cast<PropertyExpression*>(prop.get());
             if (!property.hasProperty(tableID)) {
                 columnIDs.push_back(UINT32_MAX);
             } else {
@@ -633,8 +633,9 @@ static std::vector<std::pair<common::table_id_t, std::shared_ptr<RelTableInfo>>>
     return reltables;
 }
 
-static std::tuple<std::shared_ptr<Expression>,std::shared_ptr<Expression>, std::shared_ptr<Expression>> parseExpr(
-    main::ClientContext* context, const parser::AlgoParameter* algoParameter) {
+static std::tuple<std::shared_ptr<Expression>, std::shared_ptr<Expression>,
+    std::shared_ptr<Expression>>
+parseExpr(main::ClientContext* context, const parser::AlgoParameter* algoParameter) {
     binder::Binder binder(context);
     auto recursiveInfo = parser::RecursiveRelPatternInfo();
     auto relPattern = parser::RelPattern(algoParameter->getVariableName(),
@@ -655,7 +656,7 @@ static std::tuple<std::shared_ptr<Expression>,std::shared_ptr<Expression>, std::
     auto relExpression = binder.bindQueryRel(relPattern, leftNode, rightNode, qg);
 
     return {binder.bindWhereExpression(*algoParameter->getWherePredicate()),
-        leftNode->getInternalID(),rightNode->getInternalID()};
+        leftNode->getInternalID(), rightNode->getInternalID()};
 }
 
 static void computeRelFilter(main::ClientContext* context, std::string& relFilterStr,
@@ -677,7 +678,7 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
         relLabels.insert(list.begin(), list.end());
 
         if (algoPara->hasWherePredicate()) {
-            auto [whereExpression, srcNodeExp,nbrNodeExp] = parseExpr(context, algoPara.get());
+            auto [whereExpression, srcNodeExp, nbrNodeExp] = parseExpr(context, algoPara.get());
             // 确定属性的位置
             auto expressionCollector = binder::PropertyExprCollector();
             expressionCollector.visit(whereExpression);
@@ -691,7 +692,7 @@ static void computeRelFilter(main::ClientContext* context, std::string& relFilte
             for (auto& prop : props) {
                 schema.insertToGroupAndScope(prop, 0);
             }
-            //schema作为extend的输出schema,给下游filter使用
+            // schema作为extend的输出schema,给下游filter使用
             processor::ExpressionMapper expressionMapper(&schema);
             relFilter = expressionMapper.getEvaluator(whereExpression);
 
@@ -864,24 +865,25 @@ static void initVectors(storage::TableScanState& state, const ResultSet& resultS
     for (auto& pos : info.outVectorsPos) {
         state.outputVectors.push_back(resultSet.getValueVector(pos).get());
     }
-    //列0为nbrID的dataPOS
+    // 列0为nbrID的dataPOS
     state.rowIdxVector->state = resultSet.getValueVector(info.outVectorsPos[0])->state;
     state.outState = state.rowIdxVector->state.get();
 }
 
-static void initRelTableCollectionScanner(const main::ClientContext& context,
+static void initRelTableCollectionScanner(main::ClientContext& context,
     common::table_id_map_t<RelTableCollectionScanner>& scanners, ResultSet* resultSet) {
-    //需要输出的列,在rs中的位置.scan哪些列,在relInfo中,而relInfo中的列信息和计算rs中的列信息方式一致,故
+    // 需要输出的列,在rs中的位置.scan哪些列,在relInfo中,而relInfo中的列信息和计算rs中的列信息方式一致,故
     std::vector<DataPos> outVectorsPos;
     for (size_t i = 0; i < resultSet->dataChunks[0]->getNumValueVectors() - 1; ++i) {
-        //rs中第一列作为输入的
+        // rs中第一列作为输入的
         outVectorsPos.push_back(DataPos(0, i + 1));
     }
-    //rs中的第0个是输入
+    // rs中的第0个是输入
     ScanTableInfo scanTableInfo(DataPos(0, 0), outVectorsPos);
+    ExecutionContext executionContext(nullptr, &context, 0);
     for (auto& [_, scanner] : scanners) {
         for (auto& relInfo : scanner.relInfos) {
-            relInfo.initScanState();
+            relInfo.initScanState(&executionContext);
             initVectors(*relInfo.scanState, *resultSet, scanTableInfo);
             if (const auto localRelTable = context.getTx()->getLocalStorage()->getLocalTable(
                     relInfo.table->getTableID(), LocalStorage::NotExistAction::RETURN_NULL)) {

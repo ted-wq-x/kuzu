@@ -53,7 +53,7 @@ function_set ListExtractFunction::getFunctionSet() {
 
 static std::unique_ptr<FunctionBindData> ListApplyBindFunc(ScalarBindFuncInput input) {
     auto& resultType = ListType::getChildType(input.arguments[0]->dataType);
-    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(input.definition);
+    auto scalarFunction = ku_dynamic_cast<ScalarFunction*>(input.definition);
     TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
         scalarFunction->execFunc =
             BinaryExecListExtractFunction<list_entry_t, int64_t, T, ListApply>;
@@ -77,7 +77,7 @@ function_set ListApplyFunction::getFunctionSet() {
 
 static std::unique_ptr<FunctionBindData> ListHeadBindFunc(ScalarBindFuncInput input) {
     auto& resultType = ListType::getChildType(input.arguments[0]->dataType);
-    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(input.definition);
+    auto scalarFunction = ku_dynamic_cast<ScalarFunction*>(input.definition);
     TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
         scalarFunction->execFunc = UnaryExecListExtractFunction<list_entry_t, T, ListHead>;
     });
@@ -99,7 +99,7 @@ function_set ListHeadFunction::getFunctionSet() {
 
 static std::unique_ptr<FunctionBindData> ListLastBindFunc(ScalarBindFuncInput input) {
     auto& resultType = ListType::getChildType(input.arguments[0]->dataType);
-    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(input.definition);
+    auto scalarFunction = ku_dynamic_cast<ScalarFunction*>(input.definition);
     TypeUtils::visit(resultType.getPhysicalType(), [&scalarFunction]<typename T>(T) {
         scalarFunction->execFunc = UnaryExecListExtractFunction<list_entry_t, T, ListLast>;
     });

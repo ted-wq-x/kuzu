@@ -10,7 +10,7 @@ namespace function {
 
 static std::unique_ptr<FunctionBindData> bindFunc(ScalarBindFuncInput input) {
     auto arguments = input.arguments;
-    auto scalarFunction = ku_dynamic_cast<Function*, ScalarFunction*>(input.definition);
+    auto scalarFunction = ku_dynamic_cast<ScalarFunction*>(input.definition);
     common::TypeUtils::visit(
         ListType::getChildType(arguments[0]->dataType).getPhysicalType(),
         [&arguments, &scalarFunction]<ComparableTypes T>(T) {
