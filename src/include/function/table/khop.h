@@ -63,6 +63,8 @@ public:
             dataChunk->insert(j,
                 std::make_shared<ValueVector>(columnType[j], context->getMemoryManager()));
         }
+        //scan rel时的起点id vector,设置状态为1
+        dataChunk->getValueVectorMutable(0).state = DataChunkState::getSingleValueDataChunkState();
         resultSet.insert(0, dataChunk);
         return std::make_unique<processor::ResultSet>(resultSet);
     }
