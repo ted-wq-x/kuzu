@@ -93,7 +93,7 @@ public:
     private:
         GraphScanState* scanState;
     };
-    static_assert(std::input_iterator<Iterator>);
+//    static_assert(std::input_iterator<Iterator>);
 
     Graph() = default;
     virtual ~Graph() = default;

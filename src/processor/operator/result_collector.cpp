@@ -45,7 +45,7 @@ void ResultCollector::executeInternal(ExecutionContext* context) {
         }
     }
     if (!payloadVectors.empty()) {
-        metrics->numOutputTuple.increase(localTable->getNumTuples());
+        metrics->numOutputTuple.increase(localTable->getTotalNumFlatTuples());
         sharedState->mergeLocalTable(*localTable);
     }
 }

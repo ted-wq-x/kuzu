@@ -117,10 +117,10 @@ bool ScanNodeTable::getNextTuplesInternal(ExecutionContext* context) {
         const auto& info = nodeInfos[currentTableIdx];
         auto& scanState = *info.localScanState;
         while (info.table->scan(transaction, scanState)) {
-            auto selectedSize = scanState.outState->getSelVector().getSelSize();
-            if (selectedSize > 0) {
+            const auto outputSize = scanState.outState->getSelVector().getSelSize();
+            if (outputSize > 0) {
                 scanState.outState->setToUnflat();
-                metrics->numOutputTuple.increase(selectedSize);
+                metrics->numOutputTuple.increase(outputSize);
                 return true;
             }
         }
