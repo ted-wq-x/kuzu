@@ -23,8 +23,9 @@ void Planner::appendScanNodeTable(std::shared_ptr<Expression> nodeID,
     std::vector<table_id_t> tableIDs, const expression_vector& properties, const std::string alias,
     LogicalPlan& plan) {
     auto propertiesToScan_ = removeInternalIDProperty(properties);
+    auto printInfo = std::make_unique<OPPrintInfo>();
     auto scan = make_shared<LogicalScanNodeTable>(std::move(nodeID), std::move(tableIDs),
-        propertiesToScan_, alias);
+        propertiesToScan_, std::move(printInfo));
     scan->computeFactorizedSchema();
     plan.setCardinality(cardinalityEstimator.estimateScanNode(scan.get()));
     plan.setLastOperator(std::move(scan));

@@ -62,7 +62,8 @@ std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::visitFilterReplace(
         // Avoid executing child plan if literal is Null or False.
         auto& literalExpr = predicate->constCast<LiteralExpression>();
         if (literalExpr.isNull() || !literalExpr.getValue().getValue<bool>()) {
-            return std::make_shared<LogicalEmptyResult>(*op->getSchema());
+            auto printInfo = std::make_unique<OPPrintInfo>();
+            return std::make_shared<LogicalEmptyResult>(*op->getSchema(), std::move(printInfo));
         }
         // Ignore if literal is True.
     } else {
@@ -117,8 +118,9 @@ std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::visitCrossProductRepla
     if (joinConditions.empty()) { // Nothing to push down. Terminate.
         return finishPushDown(op);
     }
+    auto printInfo = std::make_unique<OPPrintInfo>();
     auto hashJoin = std::make_shared<LogicalHashJoin>(joinConditions, JoinType::INNER,
-        nullptr /* mark */, op->getChild(0), op->getChild(1));
+        nullptr /* mark */, op->getChild(0), op->getChild(1), std::move(printInfo));
     // For non-id based joins, we disable side way information passing.
     hashJoin->getSIPInfoUnsafe().position = SemiMaskPosition::PROHIBIT;
     hashJoin->computeFlatSchema();
@@ -237,6 +239,18 @@ std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::finishPushDown(
     return root;
 }
 
+std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::appendScanNodeTable(
+    std::shared_ptr<binder::Expression> nodeID, std::vector<common::table_id_t> nodeTableIDs,
+    binder::expression_vector properties, std::shared_ptr<planner::LogicalOperator> child) {
+    if (properties.empty()) {
+        return child;
+    }
+    auto printInfo = std::make_unique<OPPrintInfo>();
+    auto scanNodeTable = std::make_shared<LogicalScanNodeTable>(std::move(nodeID),
+        std::move(nodeTableIDs), std::move(properties), std::move(printInfo));
+    scanNodeTable->computeFlatSchema();
+    return scanNodeTable;
+}
 
 std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::appendFilters(
     const expression_vector& predicates, std::shared_ptr<LogicalOperator> child) {
@@ -252,7 +266,9 @@ std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::appendFilters(
 
 std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::appendFilter(
     std::shared_ptr<Expression> predicate, std::shared_ptr<LogicalOperator> child) {
-    auto filter = std::make_shared<LogicalFilter>(std::move(predicate), std::move(child));
+    auto printInfo = std::make_unique<OPPrintInfo>();
+    auto filter = std::make_shared<LogicalFilter>(std::move(predicate), std::move(child),
+        std::move(printInfo));
     filter->computeFlatSchema();
     return filter;
 }
