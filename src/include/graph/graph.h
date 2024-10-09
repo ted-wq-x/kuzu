@@ -46,6 +46,7 @@ public:
 
     class Iterator {
     public:
+        Iterator() : scanState(nullptr) {}
         explicit constexpr Iterator(GraphScanState* scanState) : scanState{scanState} {}
         DEFAULT_BOTH_MOVE(Iterator);
         Iterator(const Iterator& other) = default;
@@ -69,6 +70,9 @@ public:
             // Only needed for comparing to the end, so they are equal if and only if both are null
             return scanState == nullptr && other.scanState == nullptr;
         }
+
+        bool operator!=(const Iterator& other) const { return !(*this == other); }
+
         // Counts and consumes the iterator
         uint64_t count() {
             // TODO(bmwinger): avoid scanning if all that's necessary is to count the results
@@ -93,7 +97,7 @@ public:
     private:
         GraphScanState* scanState;
     };
-//    static_assert(std::input_iterator<Iterator>);
+    static_assert(std::input_iterator<Iterator>);
 
     Graph() = default;
     virtual ~Graph() = default;
