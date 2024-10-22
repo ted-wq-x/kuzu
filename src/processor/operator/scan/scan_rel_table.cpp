@@ -58,7 +58,7 @@ std::string ScanRelTablePrintInfo::toString() const {
 }
 
 void ScanRelTableInfo::initScanState(const ExecutionContext* context) {
-    std::vector<Column*> columns;
+    std::vector<const Column*> columns;
     columns.reserve(columnIDs.size());
     for (const auto columnID : columnIDs) {
         if (columnID == INVALID_COLUMN_ID) {
