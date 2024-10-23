@@ -3,6 +3,7 @@
 #include "common/exception/interrupt.h"
 #include "processor/operator/sink.h"
 #include "common/exception/runtime.h"
+#include "common/task_system/progress_bar.h"
 
 using namespace kuzu::common;
 
