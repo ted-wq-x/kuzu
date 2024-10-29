@@ -46,14 +46,10 @@ struct ScanNodeTableInfo {
 
     std::unique_ptr<storage::NodeTableScanState> localScanState = nullptr;
 
-    ScanNodeTableInfo(storage::NodeTable* table, std::vector<common::column_id_t> columnIDs)
-        : table{table}, columnIDs{std::move(columnIDs)} {}
-
     ScanNodeTableInfo(storage::NodeTable* table, std::vector<common::column_id_t> columnIDs,
         std::vector<storage::ColumnPredicateSet> columnPredicates)
         : table{table}, columnIDs{std::move(columnIDs)},
           columnPredicates{std::move(columnPredicates)} {}
-
     EXPLICIT_COPY_DEFAULT_MOVE(ScanNodeTableInfo);
 
     void initScanState(common::NodeSemiMask* semiMask);
@@ -66,12 +62,13 @@ private:
 
 struct ScanNodeTablePrintInfo final : OPPrintInfo {
     std::vector<std::string> tableNames;
-    binder::expression_vector properties;
     std::string alias;
+    binder::expression_vector properties;
 
-    ScanNodeTablePrintInfo(std::vector<std::string> tableNames,
-        binder::expression_vector properties, std::string alias)
-        : tableNames{std::move(tableNames)}, properties{std::move(properties)}, alias{alias} {}
+    ScanNodeTablePrintInfo(std::vector<std::string> tableNames, std::string alias,
+        binder::expression_vector properties)
+        : tableNames{std::move(tableNames)}, alias{std::move(alias)},
+          properties{std::move(properties)} {}
 
     std::string toString() const override;
 
@@ -81,7 +78,8 @@ struct ScanNodeTablePrintInfo final : OPPrintInfo {
 
 private:
     ScanNodeTablePrintInfo(const ScanNodeTablePrintInfo& other)
-        : OPPrintInfo{other}, tableNames{other.tableNames}, properties{other.properties} {}
+        : OPPrintInfo{other}, tableNames{other.tableNames}, alias{other.alias},
+          properties{other.properties} {}
 };
 
 class ScanNodeTable final : public ScanTable {
