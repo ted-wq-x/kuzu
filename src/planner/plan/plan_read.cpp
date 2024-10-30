@@ -158,8 +158,7 @@ void Planner::planGDSCall(const BoundReadingClause& readingClause,
         auto scanPlan = LogicalPlan();
         cardinalityEstimator.addNodeIDDom(clientContext->getTx(), *node.getInternalID(),
             node.getTableIDs());
-        appendScanNodeTable(node.getInternalID(), node.getTableIDs(), properties,
-            node.getVariableName(), scanPlan);
+        appendScanNodeTable(node.getInternalID(), node.getTableIDs(), properties, scanPlan);
         expression_vector joinConditions;
         joinConditions.push_back(node.getInternalID());
         for (auto& plan : plans) {

@@ -1,8 +1,8 @@
 package io.transwarp.stellardb_booster;
 
 /**
-* Booster data type ID.
-*/
+ * Booster data type ID.
+ */
 public enum BoosterDataTypeID {
     ANY(0),
     NODE(10),
@@ -36,7 +36,8 @@ public enum BoosterDataTypeID {
     STRUCT(53),
     MAP(54),
     UNION(55),
-    UUID(56),;
+    UUID(56),
+    ;
 
     public final int value;
 

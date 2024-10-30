@@ -110,14 +110,13 @@ public class BoosterClient {
     }
 
     public static void finalizeAll() throws BoosterObjectRefDestroyedException {
-        Iterator<BoosterClient> iter = instances.values().iterator();
-        while (iter.hasNext()) {
-            iter.next().finalize();
+        for (BoosterClient boosterClient : instances.values()) {
+            boosterClient.finalize();
         }
     }
 
     public void finalize() throws BoosterObjectRefDestroyedException {
-        this.database.destroy();
+        this.database.close();
     }
 
     public final String graphName;
@@ -145,7 +144,7 @@ public class BoosterClient {
 
     public void clear() throws BoosterObjectRefDestroyedException {
         refCount.set(0);
-        database.destroy();
+        database.close();
     }
 
     public BoosterConnection createConnection() throws BoosterObjectRefDestroyedException {

@@ -1,14 +1,15 @@
 package io.transwarp.stellardb_booster;
 
 /**
-* FlatTuple stores a vector of values.
-*/
-public class BoosterFlatTuple {
+ * FlatTuple stores a vector of values.
+ */
+public class BoosterFlatTuple implements AutoCloseable {
     long ft_ref;
     boolean destroyed = false;
 
     /**
      * Check if the flat tuple has been destroyed.
+     *
      * @throws BoosterObjectRefDestroyedException If the flat tuple has been destroyed.
      */
     private void checkNotDestroyed() throws BoosterObjectRefDestroyedException {
@@ -18,18 +19,20 @@ public class BoosterFlatTuple {
 
     /**
      * Finalize.
+     *
      * @throws BoosterObjectRefDestroyedException If the flat tuple has been destroyed.
      */
     @Override
-    protected void finalize() throws BoosterObjectRefDestroyedException {
+    public void close() throws BoosterObjectRefDestroyedException {
         destroy();
     }
 
     /**
      * Destroy the flat tuple.
+     *
      * @throws BoosterObjectRefDestroyedException If the flat tuple has been destroyed.
      */
-    public void destroy() throws BoosterObjectRefDestroyedException {
+    private void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         BoosterNative.flat_tuple_destroy(this);
         destroyed = true;
@@ -37,6 +40,7 @@ public class BoosterFlatTuple {
 
     /**
      * Get the value at the given index.
+     *
      * @param index: The index of the value.
      * @return The value at the given index.
      * @throws BoosterObjectRefDestroyedException If the flat tuple has been destroyed.
@@ -48,6 +52,7 @@ public class BoosterFlatTuple {
 
     /**
      * Convert the flat tuple to string.
+     *
      * @return The string representation of the flat tuple.
      */
     public String toString() {

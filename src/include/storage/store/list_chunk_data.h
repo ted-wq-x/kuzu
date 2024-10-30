@@ -79,10 +79,10 @@ public:
         dataColumnChunk->setToInMemory();
         KU_ASSERT(offsetColumnChunk->getNumValues() == numValues);
     }
-    void resize(uint64_t newCapacity, bool isInit = true) override {
-        ColumnChunkData::resize(newCapacity, isInit);
-        sizeColumnChunk->resize(newCapacity, isInit);
-        offsetColumnChunk->resize(newCapacity, isInit);
+    void resize(uint64_t newCapacity) override {
+        ColumnChunkData::resize(newCapacity);
+        sizeColumnChunk->resize(newCapacity);
+        offsetColumnChunk->resize(newCapacity);
     }
 
     void resizeWithoutPreserve(uint64_t newCapacity) override {

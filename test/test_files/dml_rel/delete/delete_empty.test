@@ -31,15 +31,15 @@
 ---- ok
 -STATEMENT MATCH (a:person)-[e:knows]->(b:person) RETURN a.ID, b.ID, e.val;
 ---- 4
-77|88|5.100000
-77|66|123456789.123000
-77|55|1.200000
-66|55|2.300000
+77|88|5.1
+77|66|123456789.123
+77|55|1.2
+66|55|2.3
 -STATEMENT MATCH (a:person)-[e:knows]->(b:person) WHERE b.ID = 66 DETACH DELETE b;
 ---- ok
 -STATEMENT CHECKPOINT;
 ---- ok
 -STATEMENT MATCH (a:person)-[e:knows]->(b:person) RETURN a.ID, b.ID, e.val;
 ---- 2
-77|88|5.100000
-77|55|1.200000
+77|88|5.1
+77|55|1.2

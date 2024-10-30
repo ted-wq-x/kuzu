@@ -11,6 +11,7 @@ public class BoosterQuerySummary {
 
     /**
      * Construct a new query summary.
+     *
      * @param cmpTime: The compiling time of the query.
      * @param exeTime: The execution time of the query.
      */
@@ -22,6 +23,7 @@ public class BoosterQuerySummary {
 
     /**
      * Get the compiling time of the query.
+     *
      * @return The compiling time of the query.
      */
     public double getCompilingTime() {
@@ -30,6 +32,7 @@ public class BoosterQuerySummary {
 
     /**
      * Get the execution time of the query.
+     *
      * @return The execution time of the query.
      */
     public double getExecutionTime() {

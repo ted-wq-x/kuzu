@@ -130,6 +130,10 @@ public class BoosterNative {
 
     protected static native void query_result_reset_iterator(BoosterQueryResult query_result);
 
+    protected static native boolean query_result_has_next_query_result(BoosterQueryResult query_result);
+
+    protected static native BoosterQueryResult query_result_get_next_query_result(BoosterQueryResult query_result);
+
     // FlatTuple
     protected static native void flat_tuple_destroy(BoosterFlatTuple flat_tuple);
 

@@ -56,9 +56,9 @@ void StringChunkData::setToInMemory() {
     dictionaryChunk->setToInMemory();
 }
 
-void StringChunkData::resize(uint64_t newCapacity, bool isInit) {
-    ColumnChunkData::resize(newCapacity, isInit);
-    indexColumnChunk->resize(newCapacity, isInit);
+void StringChunkData::resize(uint64_t newCapacity) {
+    ColumnChunkData::resize(newCapacity);
+    indexColumnChunk->resize(newCapacity);
 }
 
 void StringChunkData::resizeWithoutPreserve(uint64_t newCapacity) {

@@ -13,7 +13,7 @@
 ---- ok
 -STATEMENT MATCH (a:person) WHERE a.eyeSight >= 6 RETURN a.ID, a.eyeSight
 ---- 1
-77|123456789.123000
+77|123456789.123
 
 -CASE ZoneMapUpdateThenQueryWithoutCheckpoint
 -STATEMENT CALL enable_zone_map=true;

@@ -58,7 +58,7 @@ public:
 
         for (const auto& pair : *nodeTableInfo.get()) {
             auto nodeInfo = pair.second.copy();
-            std::vector<Column*> columns;
+            std::vector<const Column*> columns;
             columns.reserve(nodeInfo.columnIDs.size());
             for (const auto columnID : nodeInfo.columnIDs) {
                 if (columnID == INVALID_COLUMN_ID) {
@@ -108,7 +108,7 @@ private:
             auto table = storageManager->getTable(tableID)->ptrCast<storage::NodeTable>();
             std::vector<column_id_t> columnIDs;
             columnIDs.push_back(table->getPKColumnID());
-            processor::ScanNodeTableInfo info{table, std::move(columnIDs)};
+            processor::ScanNodeTableInfo info{table, std::move(columnIDs),{}};
             nodeTableInfo->insert(std::make_pair(tableID, std::move(info)));
             outputVectorDataType->insert(std::make_pair(tableID,
                 nodeTableEntry->getPrimaryKeyDefinition().getType().getLogicalTypeID()));
