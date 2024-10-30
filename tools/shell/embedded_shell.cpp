@@ -114,7 +114,7 @@ void EmbeddedShell::updateTableNames() {
 void EmbeddedShell::updateFunctionNames() {
     functionNames.clear();
     auto function = database->catalog->getFunctions(&transaction::DUMMY_TRANSACTION);
-    for (auto& [_, entry] : function->getEntries(&transaction::DUMMY_TRANSACTION)) {
+    for (auto& entry : function->getEntries(&transaction::DUMMY_TRANSACTION)) {
         if (entry->getType() == catalog::CatalogEntryType::TABLE_FUNCTION_ENTRY) {
             tableFunctionNames.push_back(entry->getName());
         } else {
