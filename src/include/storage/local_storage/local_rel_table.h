@@ -1,7 +1,8 @@
 #pragma once
 
+#include <map>
+
 #include "common/enums/rel_direction.h"
-#include "common/vector/value_vector.h"
 #include "storage/local_storage/local_table.h"
 #include "storage/store/csr_node_group.h"
 
@@ -18,6 +19,8 @@ struct TableScanState;
 struct RelTableUpdateState;
 class LocalRelTable final : public LocalTable {
 public:
+    using rel_index_t = std::map<common::offset_t, row_idx_vec_t>;
+
     static std::vector<common::LogicalType> getTypesForLocalRelTable(const RelTable& table);
 
     explicit LocalRelTable(Table& table);
@@ -29,7 +32,8 @@ public:
         TableAddColumnState& addColumnState) override;
     uint64_t getEstimatedMemUsage() override;
 
-    void checkIfNodeHasRels(common::ValueVector* srcNodeIDVector) const;
+    bool checkIfNodeHasRels(common::ValueVector* srcNodeIDVector,
+        common::RelDataDirection direction) const;
 
     common::TableType getTableType() const override { return common::TableType::REL; }
 
@@ -52,11 +56,10 @@ public:
     getNodeOffsetColumns() const {
         return nodeOffsetColumns;
     }
+    common::row_idx_t getNumTotalRows() override { return localNodeGroup->getNumRows(); }
 
-    std::map<common::offset_t, row_idx_vec_t>& getFWDIndex() { return fwdIndex; }
-    const std::map<common::offset_t, row_idx_vec_t>& getFWDIndex() const { return fwdIndex; }
-    std::map<common::offset_t, row_idx_vec_t>& getBWDIndex() { return bwdIndex; }
-    const std::map<common::offset_t, row_idx_vec_t>& getBWDIndex() const { return bwdIndex; }
+    rel_index_t& getFWDIndex() { return fwdIndex; }
+    rel_index_t& getBWDIndex() { return bwdIndex; }
     NodeGroup& getLocalNodeGroup() const { return *localNodeGroup; }
 
     static std::vector<common::column_id_t> rewriteLocalColumnIDs(
@@ -65,8 +68,8 @@ public:
         common::column_id_t columnID);
 
 private:
-    common::row_idx_t findMatchingRow(common::offset_t srcNodeOffset,
-        common::offset_t dstNodeOffset, common::offset_t relOffset);
+    common::row_idx_t findMatchingRow(transaction::Transaction* transaction,
+        common::offset_t srcNodeOffset, common::offset_t dstNodeOffset, common::offset_t relOffset);
 
 private:
     // We don't duplicate local rel tuples. Tuples are stored same as node tuples.
@@ -74,8 +77,8 @@ private:
     // [srcNodeID, dstNodeID, relID, property1, property2, ...]
     // All local rel tuples are stored in a single node group, and they are indexed by src/dst
     // NodeID.
-    std::map<common::offset_t, row_idx_vec_t> fwdIndex;
-    std::map<common::offset_t, row_idx_vec_t> bwdIndex;
+    rel_index_t fwdIndex;
+    rel_index_t bwdIndex;
     std::unique_ptr<NodeGroup> localNodeGroup;
     std::unordered_map<common::column_id_t, common::table_id_t> nodeOffsetColumns;
 };

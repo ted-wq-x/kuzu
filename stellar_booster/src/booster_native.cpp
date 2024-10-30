@@ -41,6 +41,7 @@ static jclass J_C_Exception;
 // BoosterQueryResult
 static jclass J_C_BoosterQueryResult;
 static jfieldID J_C_BoosterQueryResult_F_qr_ref;
+static jfieldID J_C_BoosterQueryResult_F_isOwnedByCPP;
 // BoosterPreparedStatement
 static jclass J_C_BoosterPreparedStatement;
 static jfieldID J_C_BoosterPreparedStatement_F_ps_ref;
@@ -569,6 +570,27 @@ Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1reset_1iterato
     QueryResult* qr = getQueryResult(env, thisQR);
     qr->resetIterator();
 }
+
+
+JNIEXPORT jboolean JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1has_1next_1query_1result(
+    JNIEnv* env, jclass, jobject thisQR) {
+    QueryResult* qr = getQueryResult(env, thisQR);
+    return qr->hasNextQueryResult();
+}
+
+JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1next_1query_1result(
+    JNIEnv* env, jclass, jobject thisQR) {
+    QueryResult* qr = getQueryResult(env, thisQR);
+    auto query_result = qr->getNextQueryResult();
+    if (query_result == nullptr) {
+        return nullptr;
+    }
+
+    jobject ret = createJavaObject(env, query_result, J_C_BoosterQueryResult, J_C_BoosterQueryResult_F_qr_ref);
+    env->SetBooleanField(ret, J_C_BoosterQueryResult_F_isOwnedByCPP, static_cast<jboolean>(true));
+    return ret;
+}
+
 
 /**
  * All FlatTuple native functions
@@ -1457,6 +1479,7 @@ void initGlobalMethodRef(JNIEnv* env) {
 
 void initGlobalFieldRef(JNIEnv* env) {
     J_C_BoosterQueryResult_F_qr_ref = env->GetFieldID(J_C_BoosterQueryResult, "qr_ref", "J");
+    J_C_BoosterQueryResult_F_isOwnedByCPP = env->GetFieldID(J_C_BoosterQueryResult, "isOwnedByCPP", "Z");
 
     J_C_BoosterPreparedStatement_F_ps_ref =
         env->GetFieldID(J_C_BoosterPreparedStatement, "ps_ref", "J");

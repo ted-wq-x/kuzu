@@ -57,7 +57,7 @@ bool tryCastToBool(const char* input, uint64_t len, bool& result) {
 void castStringToBool(const char* input, uint64_t len, bool& result) {
     if (!tryCastToBool(input, len, result)) {
         throw ConversionException{
-            stringFormat("Value {} is not a valid boolean", std::string{input, len})};
+            stringFormat("Value {} is not a valid boolean", std::string{input, (size_t)len})};
     }
 }
 
@@ -153,7 +153,7 @@ LogicalType inferMinimalTypeFromString(const std::string& str) {
 }
 
 static RE2& boolPattern() {
-    static RE2 retval("(?i)(TRUE|FALSE)");
+    static RE2 retval("(?i)(T|F|TRUE|FALSE)");
     return retval;
 }
 static RE2& intPattern() {

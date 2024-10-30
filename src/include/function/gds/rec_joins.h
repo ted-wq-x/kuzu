@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/enums/extend_direction.h"
+#include "common/enums/path_semantic.h"
 #include "function/gds/gds.h"
 #include "function/gds/gds_frontier.h"
 #include "output_writer.h"
@@ -23,22 +24,33 @@ struct RJBindData final : public GDSBindData {
     // paths. So the semantics is that of optional match.
     uint16_t lowerBound;
     uint16_t upperBound;
+    common::PathSemantic semantic;
 
     common::ExtendDirection extendDirection = common::ExtendDirection::FWD;
 
+    bool extendFromSource = true;
+    bool writePath = true;
+
+    std::shared_ptr<binder::Expression> directionExpr = nullptr;
+    std::shared_ptr<binder::Expression> lengthExpr = nullptr;
+    std::shared_ptr<binder::Expression> pathNodeIDsExpr = nullptr;
+    std::shared_ptr<binder::Expression> pathEdgeIDsExpr = nullptr;
+
     RJBindData(std::shared_ptr<binder::Expression> nodeInput,
         std::shared_ptr<binder::Expression> nodeOutput, uint16_t lowerBound, uint16_t upperBound,
-        common::ExtendDirection extendDirection)
+        common::PathSemantic semantic, common::ExtendDirection extendDirection)
         : GDSBindData{std::move(nodeOutput)}, nodeInput{std::move(nodeInput)},
-          lowerBound{lowerBound}, upperBound{upperBound}, extendDirection{extendDirection} {
+          lowerBound{lowerBound}, upperBound{upperBound}, semantic{semantic},
+          extendDirection{extendDirection} {
         KU_ASSERT(upperBound < DEFAULT_MAXIMUM_ALLOWED_UPPER_BOUND);
     }
-    RJBindData(const RJBindData& other)
-        : GDSBindData{other}, nodeInput{other.nodeInput}, lowerBound{other.lowerBound},
-          upperBound{other.upperBound}, extendDirection{other.extendDirection} {}
+    RJBindData(const RJBindData& other);
 
     bool hasNodeInput() const override { return true; }
     std::shared_ptr<binder::Expression> getNodeInput() const override { return nodeInput; }
+    bool hasNodeOutput() const override { return true; }
+
+    PathsOutputWriterInfo getPathWriterInfo() const;
 
     std::unique_ptr<GDSBindData> copy() const override {
         return std::make_unique<RJBindData>(*this);
@@ -55,7 +67,9 @@ struct RJCompState {
 
     RJCompState(std::unique_ptr<function::FrontierPair> frontierPair,
         std::unique_ptr<function::EdgeCompute> edgeCompute, std::unique_ptr<RJOutputs> outputs,
-        std::unique_ptr<RJOutputWriter> outputWriter);
+        std::unique_ptr<RJOutputWriter> outputWriter)
+        : frontierPair{std::move(frontierPair)}, edgeCompute{std::move(edgeCompute)},
+          outputs{std::move(outputs)}, outputWriter{std::move(outputWriter)} {}
 
     void initSource(common::nodeID_t sourceNodeID) const {
         frontierPair->initRJFromSource(sourceNodeID);
@@ -91,14 +105,14 @@ public:
     void exec(processor::ExecutionContext* executionContext) override;
     virtual RJCompState getRJCompState(processor::ExecutionContext* executionContext,
         common::nodeID_t sourceNodeID) = 0;
+    void setToNoPath();
+    binder::expression_vector getResultColumnsNoPath();
 
 protected:
     void validateLowerUpperBound(int64_t lowerBound, int64_t upperBound);
 
-    binder::expression_vector getBaseResultColumns(binder::Binder* binder) const;
-    std::shared_ptr<binder::Expression> getLengthColumn(binder::Binder* binder) const;
-    std::shared_ptr<binder::Expression> getPathNodeIDsColumn(binder::Binder* binder) const;
-    std::shared_ptr<binder::Expression> getPathEdgeIDsColumn(binder::Binder* binder) const;
+    binder::expression_vector getBaseResultColumns() const;
+    void bindColumnExpressions(binder::Binder* binder) const;
 };
 
 class SPAlgorithm : public RJAlgorithm {

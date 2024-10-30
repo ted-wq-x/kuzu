@@ -7,7 +7,7 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalCrossProduct : public LogicalOperator {
+class LogicalCrossProduct final : public LogicalOperator {
     static constexpr LogicalOperatorType type_ = LogicalOperatorType::CROSS_PRODUCT;
 
 public:

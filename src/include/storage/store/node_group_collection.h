@@ -1,5 +1,6 @@
 #pragma once
 
+#include "storage/stats/table_stats.h"
 #include "storage/store/group_collection.h"
 #include "storage/store/node_group.h"
 
@@ -29,7 +30,7 @@ public:
     std::pair<common::offset_t, common::offset_t> appendToLastNodeGroupAndFlushWhenFull(
         transaction::Transaction* transaction, ChunkedNodeGroup& chunkedGroup);
 
-    common::row_idx_t getNumRows();
+    common::row_idx_t getNumTotalRows();
     common::node_group_idx_t getNumNodeGroups() {
         const auto lock = nodeGroups.lock();
         return nodeGroups.getNumGroups(lock);
@@ -37,8 +38,12 @@ public:
     NodeGroup* getNodeGroupNoLock(const common::node_group_idx_t groupIdx) {
         return nodeGroups.getGroupNoLock(groupIdx);
     }
-    NodeGroup* getNodeGroup(const common::node_group_idx_t groupIdx) {
+    NodeGroup* getNodeGroup(const common::node_group_idx_t groupIdx,
+        bool mayOutOfBound = false) const {
         const auto lock = nodeGroups.lock();
+        if (mayOutOfBound && groupIdx >= nodeGroups.getNumGroups(lock)) {
+            return nullptr;
+        }
         return nodeGroups.getGroup(lock, groupIdx);
     }
     NodeGroup* getOrCreateNodeGroup(common::node_group_idx_t groupIdx, NodeGroupDataFormat format);
@@ -62,14 +67,19 @@ public:
 
     void checkpoint(MemoryManager& memoryManager, NodeGroupCheckpointState& state);
 
+    TableStats getStats() const { return stats.copy(); }
+
     void serialize(common::Serializer& ser);
+    void deserialize(common::Deserializer& deSer, MemoryManager& memoryManager);
 
 private:
     bool enableCompression;
-    common::row_idx_t numRows;
+    // Num rows in the collection regardless of deletions.
+    common::row_idx_t numTotalRows;
     std::vector<common::LogicalType> types;
     GroupCollection<NodeGroup> nodeGroups;
     FileHandle* dataFH;
+    TableStats stats;
 };
 
 } // namespace storage

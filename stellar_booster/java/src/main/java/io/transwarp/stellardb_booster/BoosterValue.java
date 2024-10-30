@@ -3,13 +3,14 @@ package io.transwarp.stellardb_booster;
 /**
  * BoosterValue can hold data of different types.
  */
-public class BoosterValue {
+public class BoosterValue implements AutoCloseable {
     long v_ref;
     boolean destroyed = false;
     boolean isOwnedByCPP = false;
 
     /**
      * Construct a BoosterValue from a val.
+     *
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
     public <T> BoosterValue(T val) throws BoosterObjectRefDestroyedException {
@@ -19,6 +20,7 @@ public class BoosterValue {
 
     /**
      * Create a null BoosterValue.
+     *
      * @return The null BoosterValue.
      */
     public static BoosterValue createNull() {
@@ -27,6 +29,7 @@ public class BoosterValue {
 
     /**
      * Create a null BoosterValue with the given data type.
+     *
      * @param data_type: The data type of the null BoosterValue.
      */
     public static BoosterValue createNullWithDataType(BoosterDataType data_type) {
@@ -35,6 +38,7 @@ public class BoosterValue {
 
     /**
      * Create a default BoosterValue with the given data type.
+     *
      * @param data_type: The data type of the default BoosterValue.
      * @return The default BoosterValue.
      */
@@ -44,6 +48,7 @@ public class BoosterValue {
 
     /**
      * Check if the BoosterValue has been destroyed.
+     *
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
     public void checkNotDestroyed() throws BoosterObjectRefDestroyedException {
@@ -53,10 +58,11 @@ public class BoosterValue {
 
     /**
      * Finalize.
+     *
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
     @Override
-    protected void finalize() throws BoosterObjectRefDestroyedException {
+    public void close() throws BoosterObjectRefDestroyedException {
         destroy();
     }
 
@@ -66,9 +72,10 @@ public class BoosterValue {
 
     /**
      * Destroy the BoosterValue.
+     *
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
-    public void destroy() throws BoosterObjectRefDestroyedException {
+    private void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         if (!isOwnedByCPP) {
             BoosterNative.value_destroy(this);
@@ -78,6 +85,7 @@ public class BoosterValue {
 
     /**
      * Check if the BoosterValue is null.
+     *
      * @return True if the BoosterValue is null, false otherwise.
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
@@ -88,6 +96,7 @@ public class BoosterValue {
 
     /**
      * Set the BoosterValue to null.
+     *
      * @param flag: True if the BoosterValue is set to null, false otherwise.
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
@@ -98,6 +107,7 @@ public class BoosterValue {
 
     /**
      * Copy the BoosterValue from another BoosterValue.
+     *
      * @param other: The BoosterValue to copy from.
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
@@ -108,6 +118,7 @@ public class BoosterValue {
 
     /**
      * Clone the BoosterValue.
+     *
      * @return The cloned BoosterValue.
      */
     public BoosterValue clone() {
@@ -119,6 +130,7 @@ public class BoosterValue {
 
     /**
      * Get the actual value from the BoosterValue.
+     *
      * @return The value of the given type.
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
@@ -129,6 +141,7 @@ public class BoosterValue {
 
     /**
      * Get the data type of the BoosterValue.
+     *
      * @return The data type of the BoosterValue.
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
@@ -139,6 +152,7 @@ public class BoosterValue {
 
     /**
      * Convert the BoosterValue to string.
+     *
      * @return The current value in string format.
      */
     public String toString() {

@@ -3,6 +3,7 @@
 #include "common/exception/interrupt.h"
 #include "processor/operator/sink.h"
 #include "common/exception/runtime.h"
+#include "common/task_system/progress_bar.h"
 
 using namespace kuzu::common;
 
@@ -41,6 +42,8 @@ std::string PhysicalOperatorUtils::operatorTypeToString(PhysicalOperatorType ope
         return "DELETE";
     case PhysicalOperatorType::DROP:
         return "DROP";
+    case PhysicalOperatorType::DUMMY_SINK:
+        return "DUMMY_SINK";
     case PhysicalOperatorType::EMPTY_RESULT:
         return "EMPTY_RESULT";
     case PhysicalOperatorType::EXPORT_DATABASE:
@@ -127,6 +130,11 @@ std::string PhysicalOperatorUtils::operatorTypeToString(PhysicalOperatorType ope
         throw RuntimeException("Unknown physical operator type.");
     }
 }
+
+std::string PhysicalOperatorUtils::operatorToString(const PhysicalOperator* physicalOp) {
+    return PhysicalOperatorUtils::operatorTypeToString(physicalOp->getOperatorType()) + "[" +
+           std::to_string(physicalOp->getOperatorID()) + "]";
+}
 // LCOV_EXCL_STOP
 
 PhysicalOperator::PhysicalOperator(PhysicalOperatorType operatorType,
@@ -178,6 +186,18 @@ bool PhysicalOperator::getNextTuple(ExecutionContext* context) {
     if (context->clientContext->interrupted()) {
         throw InterruptException{};
     }
+#ifdef __SINGLE_THREADED__
+    // In single-threaded mode, the timeout cannot be checked in the main thread
+    // because the main thread is blocked by the task execution. Instead, we
+    // check the timeout in the processor. The timeout handling may still be
+    // delayed, but it is better than checking it at the end of each task.
+    // This is the best we can do now because SIGALRM is not cross-platform.
+    if (context->clientContext->hasTimeout()) {
+        if (context->clientContext->getTimeoutRemainingInMS() == 0) {
+            throw InterruptException{};
+        }
+    }
+#endif
     metrics->executionTime.start();
     auto result = getNextTuplesInternal(context);
     context->clientContext->getProgressBar()->updateProgress(context->queryID,

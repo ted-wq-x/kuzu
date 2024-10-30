@@ -5,7 +5,7 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalLimit : public LogicalOperator {
+class LogicalLimit final : public LogicalOperator {
 public:
     LogicalLimit(uint64_t skipNum, uint64_t limitNum, std::shared_ptr<LogicalOperator> child)
         : LogicalOperator{LogicalOperatorType::LIMIT, std::move(child)}, skipNum{skipNum},
@@ -13,10 +13,10 @@ public:
 
     f_group_pos_set getGroupsPosToFlatten();
 
-    inline void computeFactorizedSchema() final { copyChildSchema(0); }
-    inline void computeFlatSchema() final { copyChildSchema(0); }
+    inline void computeFactorizedSchema() override { copyChildSchema(0); }
+    inline void computeFlatSchema() override { copyChildSchema(0); }
 
-    std::string getExpressionsForPrinting() const final;
+    std::string getExpressionsForPrinting() const override;
 
     inline bool hasSkipNum() const { return skipNum != UINT64_MAX; }
     inline uint64_t getSkipNum() const { return skipNum; }
@@ -29,7 +29,7 @@ public:
         return schema->getGroupsPosInScope();
     }
 
-    inline std::unique_ptr<LogicalOperator> copy() final {
+    inline std::unique_ptr<LogicalOperator> copy() override {
         return make_unique<LogicalLimit>(skipNum, limitNum, children[0]->copy());
     }
 

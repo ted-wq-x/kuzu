@@ -60,7 +60,7 @@ protected:
         common::sel_t posInOutputVector = 0) const override;
     void lookup(common::offset_t offsetInChunk, common::ValueVector& output,
         common::sel_t posInOutputVector) const override;
-    void initializeScanState(ChunkState& state, Column* column) const override;
+    void initializeScanState(ChunkState& state, const Column* column) const override;
 
     void write(const common::ValueVector* vector, common::offset_t offsetInVector,
         common::offset_t offsetInChunk) override;
@@ -68,11 +68,10 @@ protected:
         common::RelMultiplicity multiplicity) override;
     void write(ColumnChunkData* srcChunk, common::offset_t srcOffsetInChunk,
         common::offset_t dstOffsetInChunk, common::offset_t numValuesToCopy) override;
-    void copy(ColumnChunkData* srcChunk, common::offset_t srcOffsetInChunk,
-        common::offset_t dstOffsetInChunk, common::offset_t numValuesToCopy) override;
 
     void setToInMemory() override;
-    void resize(uint64_t newCapacity, bool isInit = true) override;
+    void resize(uint64_t newCapacity) override;
+    void resizeWithoutPreserve(uint64_t newCapacity) override;
 
     void resetToEmpty() override;
     void resetToAllNull() override;

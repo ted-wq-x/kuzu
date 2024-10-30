@@ -9,7 +9,7 @@ namespace planner {
 // This operator is specifically used to transform primary key to offset during relationship copy.
 // So it is not a source operator. I would suggest move this logic into rel copy instead of
 // maintaining an operator.
-class LogicalPrimaryKeyLookup : public LogicalOperator {
+class LogicalPrimaryKeyLookup final : public LogicalOperator {
     static constexpr LogicalOperatorType type_ = LogicalOperatorType::INDEX_LOOK_UP;
 
 public:

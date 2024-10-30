@@ -2,11 +2,8 @@
 
 #include "catalog/catalog_entry/rel_table_catalog_entry.h"
 #include "common/enums/rel_direction.h"
-#include "common/exception/message.h"
-#include "common/exception/runtime.h"
 #include "common/types/types.h"
 #include "main/client_context.h"
-#include "storage/buffer_manager/memory_manager.h"
 #include "storage/storage_utils.h"
 #include "storage/store/node_group.h"
 #include "storage/store/rel_table.h"
@@ -123,7 +120,7 @@ std::pair<CSRNodeGroupScanSource, row_idx_t> RelTableData::findMatchingRow(Trans
     // RelID output vector.
     scanChunk.insert(0, std::make_shared<ValueVector>(LogicalType::INTERNAL_ID()));
     std::vector<column_id_t> columnIDs = {REL_ID_COLUMN_ID, ROW_IDX_COLUMN_ID};
-    std::vector<Column*> columns{getColumn(REL_ID_COLUMN_ID), nullptr};
+    std::vector<const Column*> columns{getColumn(REL_ID_COLUMN_ID), nullptr};
     const auto scanState = std::make_unique<RelTableScanState>(
         *transaction->getClientContext()->getMemoryManager(), tableID, columnIDs, columns,
         csrHeaderColumns.offset.get(), csrHeaderColumns.length.get(), direction);
@@ -156,20 +153,20 @@ std::pair<CSRNodeGroupScanSource, row_idx_t> RelTableData::findMatchingRow(Trans
     return {source, matchingRowIdx};
 }
 
-void RelTableData::checkIfNodeHasRels(Transaction* transaction,
+bool RelTableData::checkIfNodeHasRels(Transaction* transaction,
     ValueVector* srcNodeIDVector) const {
     KU_ASSERT(srcNodeIDVector->state->isFlat());
     const auto nodeIDPos = srcNodeIDVector->state->getSelVector()[0];
     const auto nodeOffset = srcNodeIDVector->getValue<nodeID_t>(nodeIDPos).offset;
     const auto nodeGroupIdx = StorageUtils::getNodeGroupIdx(nodeOffset);
     if (nodeGroupIdx >= getNumNodeGroups()) {
-        return;
+        return false;
     }
     DataChunk scanChunk(1);
     // RelID output vector.
     scanChunk.insert(0, std::make_shared<ValueVector>(LogicalType::INTERNAL_ID()));
     std::vector<column_id_t> columnIDs = {REL_ID_COLUMN_ID};
-    std::vector<Column*> columns{getColumn(REL_ID_COLUMN_ID)};
+    std::vector<const Column*> columns{getColumn(REL_ID_COLUMN_ID)};
     const auto scanState = std::make_unique<RelTableScanState>(
         *transaction->getClientContext()->getMemoryManager(), tableID, columnIDs, columns,
         csrHeaderColumns.offset.get(), csrHeaderColumns.length.get(), direction);
@@ -183,11 +180,10 @@ void RelTableData::checkIfNodeHasRels(Transaction* transaction,
             break;
         }
         if (scanState->outState->getSelVector().getSelSize() > 0) {
-            throw RuntimeException(ExceptionMessage::violateDeleteNodeWithConnectedEdgesConstraint(
-                tableName, std::to_string(nodeOffset),
-                RelDataDirectionUtils::relDirectionToString(direction)));
+            return true;
         }
     }
+    return false;
 }
 
 void RelTableData::checkpoint(const std::vector<column_id_t>& columnIDs) {

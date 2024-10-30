@@ -56,7 +56,7 @@ public:
 
     void append(common::ValueVector* vector, const common::SelectionVector& selVector) override;
 
-    void initializeScanState(ChunkState& state, Column* column) const override;
+    void initializeScanState(ChunkState& state, const Column* column) const override;
     void scan(common::ValueVector& output, common::offset_t offset, common::length_t length,
         common::sel_t posInOutputVector) const override;
     void lookup(common::offset_t offsetInChunk, common::ValueVector& output,
@@ -69,8 +69,6 @@ public:
         common::RelMultiplicity multiplicity) override;
     void write(ColumnChunkData* srcChunk, common::offset_t srcOffsetInChunk,
         common::offset_t dstOffsetInChunk, common::offset_t numValuesToCopy) override;
-    void copy(ColumnChunkData* srcChunk, common::offset_t srcOffsetInChunk,
-        common::offset_t dstOffsetInChunk, common::offset_t numValuesToCopy) override;
 
     void resizeDataColumnChunk(uint64_t numValues) const { dataColumnChunk->resize(numValues); }
 
@@ -81,10 +79,16 @@ public:
         dataColumnChunk->setToInMemory();
         KU_ASSERT(offsetColumnChunk->getNumValues() == numValues);
     }
-    void resize(uint64_t newCapacity, bool isInit = true) override {
-        ColumnChunkData::resize(newCapacity, isInit);
-        sizeColumnChunk->resize(newCapacity, isInit);
-        offsetColumnChunk->resize(newCapacity, isInit);
+    void resize(uint64_t newCapacity) override {
+        ColumnChunkData::resize(newCapacity);
+        sizeColumnChunk->resize(newCapacity);
+        offsetColumnChunk->resize(newCapacity);
+    }
+
+    void resizeWithoutPreserve(uint64_t newCapacity) override {
+        ColumnChunkData::resizeWithoutPreserve(newCapacity);
+        sizeColumnChunk->resizeWithoutPreserve(newCapacity);
+        offsetColumnChunk->resizeWithoutPreserve(newCapacity);
     }
 
     common::offset_t getListStartOffset(common::offset_t offset) const;

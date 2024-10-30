@@ -5,7 +5,7 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalFlatten : public LogicalOperator {
+class LogicalFlatten final : public LogicalOperator {
 public:
     LogicalFlatten(f_group_pos groupPos, std::shared_ptr<LogicalOperator> child)
         : LogicalOperator{LogicalOperatorType::FLATTEN, std::move(child)}, groupPos{groupPos} {}

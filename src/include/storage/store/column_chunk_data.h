@@ -12,6 +12,7 @@
 #include "storage/compression/compression.h"
 #include "storage/enums/residency_state.h"
 #include "storage/store/column_chunk_metadata.h"
+#include "storage/store/column_chunk_stats.h"
 #include "storage/store/column_reader_writer.h"
 #include "storage/store/in_memory_exception_chunk.h"
 
@@ -31,7 +32,7 @@ class NullChunkData;
 
 // TODO(bmwinger): Hide access to variables.
 struct ChunkState {
-    Column* column;
+    const Column* column;
     ColumnChunkMetadata metadata;
     uint64_t numValuesPerPage = UINT64_MAX;
     std::unique_ptr<ChunkState> nullState;
@@ -99,11 +100,12 @@ public:
     friend class Spiller;
 
     ColumnChunkData(MemoryManager& mm, common::LogicalType dataType, uint64_t capacity,
-        bool enableCompression, ResidencyState residencyState, bool hasNullData);
+        bool enableCompression, ResidencyState residencyState, bool hasNullData,
+        bool initializeToZero = true);
     ColumnChunkData(MemoryManager& mm, common::LogicalType dataType, bool enableCompression,
-        const ColumnChunkMetadata& metadata, bool hasNullData);
+        const ColumnChunkMetadata& metadata, bool hasNullData, bool initializeToZero = true);
     ColumnChunkData(MemoryManager& mm, common::PhysicalTypeID physicalType, bool enableCompression,
-        const ColumnChunkMetadata& metadata, bool hasNullData);
+        const ColumnChunkMetadata& metadata, bool hasNullData, bool initializeToZero = true);
     virtual ~ColumnChunkData();
 
     template<typename T>
@@ -119,6 +121,9 @@ public:
         getData<T>()[pos] = val;
         if (pos >= numValues) {
             numValues = pos + 1;
+        }
+        if constexpr (StorageValueType<T>) {
+            inMemoryStats.update(StorageValue{val}, dataType.getPhysicalType());
         }
     }
 
@@ -164,7 +169,7 @@ public:
         const ColumnChunkMetadata& metadata) const;
 
     static common::page_idx_t getNumPagesForBytes(uint64_t numBytes) {
-        return (numBytes + common::PAGE_SIZE - 1) / common::PAGE_SIZE;
+        return (numBytes + common::KUZU_PAGE_SIZE - 1) / common::KUZU_PAGE_SIZE;
     }
 
     uint64_t getNumBytesPerValue() const { return numBytesPerValue; }
@@ -175,7 +180,7 @@ public:
     }
     uint64_t getBufferSize() const;
 
-    virtual void initializeScanState(ChunkState& state, Column* column) const;
+    virtual void initializeScanState(ChunkState& state, const Column* column) const;
     virtual void scan(common::ValueVector& output, common::offset_t offset, common::length_t length,
         common::sel_t posInOutputVector = 0) const;
     virtual void lookup(common::offset_t offsetInChunk, common::ValueVector& output,
@@ -189,14 +194,14 @@ public:
         common::RelMultiplicity multiplicity);
     virtual void write(ColumnChunkData* srcChunk, common::offset_t srcOffsetInChunk,
         common::offset_t dstOffsetInChunk, common::offset_t numValuesToCopy);
-    // TODO(Guodong): Used in `applyDeletionsToChunk`. Should unify with `write`.
-    virtual void copy(ColumnChunkData* srcChunk, common::offset_t srcOffsetInChunk,
-        common::offset_t dstOffsetInChunk, common::offset_t numValuesToCopy);
 
     virtual void setToInMemory();
     // numValues must be at least the number of values the ColumnChunk was first initialized
     // with
-    virtual void resize(uint64_t newCapacity, bool isInit = true);
+    // reverse data and zero the part exceeding the original size
+    virtual void resize(uint64_t newCapacity);
+    // the opposite of the resize method, just simple resize
+    virtual void resizeWithoutPreserve(uint64_t newCapacity);
 
     void populateWithDefaultVal(evaluator::ExpressionEvaluator& defaultEvaluator,
         uint64_t& numValues_);
@@ -234,17 +239,24 @@ public:
     void loadFromDisk();
     uint64_t spillToDisk();
 
+    ColumnChunkStats getMergedColumnChunkStats() const;
+
+    void updateStats(const common::ValueVector* vector, const common::SelectionVector& selVector);
+
 protected:
     // Initializes the data buffer and functions. They are (and should be) only called in
     // constructor.
-    void initializeBuffer(common::PhysicalTypeID physicalType, MemoryManager& mm);
-    void initializeFunction(bool enableCompression);
+    void initializeBuffer(common::PhysicalTypeID physicalType, MemoryManager& mm,
+        bool initializeToZero);
+    void initializeFunction();
 
     // Note: This function is not setting child/null chunk data recursively.
     void setToOnDisk(const ColumnChunkMetadata& metadata);
 
     virtual void copyVectorToBuffer(common::ValueVector* vector, common::offset_t startPosInChunk,
         const common::SelectionVector& selVector);
+
+    void resetInMemoryStats();
 
 private:
     using flush_buffer_func_t = std::function<ColumnChunkMetadata(const std::span<uint8_t>,
@@ -272,6 +284,10 @@ protected:
 
     // On-disk metadata for column chunk.
     ColumnChunkMetadata metadata;
+
+    // Stats for any in-memory updates applied to the column chunk
+    // This will be merged with the on-disk metadata to get the overall stats
+    ColumnChunkStats inMemoryStats;
 };
 
 template<>
@@ -293,11 +309,11 @@ public:
         bool hasNullChunk)
         : ColumnChunkData(mm, common::LogicalType::BOOL(), capacity,
               // Booleans are always bitpacked, but this can also enable constant compression
-              enableCompression, type, hasNullChunk) {}
+              enableCompression, type, hasNullChunk, true) {}
     BoolChunkData(MemoryManager& mm, bool enableCompression, const ColumnChunkMetadata& metadata,
         bool hasNullData)
-        : ColumnChunkData{mm, common::LogicalType::BOOL(), enableCompression, metadata,
-              hasNullData} {}
+        : ColumnChunkData{mm, common::LogicalType::BOOL(), enableCompression, metadata, hasNullData,
+              true} {}
 
     void append(common::ValueVector* vector, const common::SelectionVector& sel) final;
     void append(ColumnChunkData* other, common::offset_t startPosInOtherChunk,
@@ -426,10 +442,10 @@ private:
 struct ColumnChunkFactory {
     static std::unique_ptr<ColumnChunkData> createColumnChunkData(MemoryManager& mm,
         common::LogicalType dataType, bool enableCompression, uint64_t capacity,
-        ResidencyState residencyState, bool hasNullData = true);
+        ResidencyState residencyState, bool hasNullData = true, bool initializeToZero = true);
     static std::unique_ptr<ColumnChunkData> createColumnChunkData(MemoryManager& mm,
         common::LogicalType dataType, bool enableCompression, ColumnChunkMetadata& metadata,
-        bool hasNullData);
+        bool hasNullData, bool initializeToZero);
 
     static std::unique_ptr<ColumnChunkData> createNullChunkData(MemoryManager& mm,
         bool enableCompression, uint64_t capacity, ResidencyState type) {

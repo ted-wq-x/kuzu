@@ -233,6 +233,22 @@ JNIEXPORT void JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_
 
 /*
  * Class:     io_transwarp_stellardb_booster_BoosterNative
+ * Method:    query_result_has_next_query_result
+ * Signature: (Lio/transwarp/stellardb_booster/BoosterQueryResult;)Z
+ */
+JNIEXPORT jboolean JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1has_1next_1query_1result
+  (JNIEnv *, jclass, jobject);
+
+/*
+ * Class:     io_transwarp_stellardb_booster_BoosterNative
+ * Method:    query_result_get_next_query_result
+ * Signature: (Lio/transwarp/stellardb_booster/BoosterQueryResult;)Lio/transwarp/stellardb_booster/BoosterQueryResult;
+ */
+JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1next_1query_1result
+  (JNIEnv *, jclass, jobject);
+
+/*
+ * Class:     io_transwarp_stellardb_booster_BoosterNative
  * Method:    flat_tuple_destroy
  * Signature: (Lio/transwarp/stellardb_booster/BoosterFlatTuple;)V
  */
@@ -550,6 +566,22 @@ JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_val
  */
 JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1struct_1index
   (JNIEnv *, jclass, jobject, jstring);
+
+/*
+ * Class:     io_transwarp_stellardb_booster_BoosterNative
+ * Method:    value_get_map_field_name
+ * Signature: (Lio/transwarp/stellardb_booster/BoosterValue;J)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1map_1field_1name
+  (JNIEnv *, jclass, jobject, jlong);
+
+/*
+ * Class:     io_transwarp_stellardb_booster_BoosterNative
+ * Method:    value_get_map_value
+ * Signature: (Lio/transwarp/stellardb_booster/BoosterValue;J)Lio/transwarp/stellardb_booster/BoosterValue;
+ */
+JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_value_1get_1map_1value
+  (JNIEnv *, jclass, jobject, jlong);
 
 /*
  * Class:     io_transwarp_stellardb_booster_BoosterNative

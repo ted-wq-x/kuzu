@@ -37,14 +37,15 @@ struct RelTableScanState : TableScanState {
     }
 
     RelTableScanState(MemoryManager& mm, common::table_id_t tableID,
-        const std::vector<common::column_id_t>& columnIDs, const std::vector<Column*>& columns,
-        Column* csrOffsetCol, Column* csrLengthCol, common::RelDataDirection direction)
+        const std::vector<common::column_id_t>& columnIDs,
+        const std::vector<const Column*>& columns, Column* csrOffsetCol, Column* csrLengthCol,
+        common::RelDataDirection direction)
         : RelTableScanState(mm, tableID, columnIDs, columns, csrOffsetCol, csrLengthCol, direction,
               std::vector<ColumnPredicateSet>{}) {}
     RelTableScanState(MemoryManager& mm, common::table_id_t tableID,
-        const std::vector<common::column_id_t>& columnIDs, const std::vector<Column*>& columns,
-        Column* csrOffsetCol, Column* csrLengthCol, common::RelDataDirection direction,
-        std::vector<ColumnPredicateSet> columnPredicateSets);
+        const std::vector<common::column_id_t>& columnIDs,
+        const std::vector<const Column*>& columns, Column* csrOffsetCol, Column* csrLengthCol,
+        common::RelDataDirection direction, std::vector<ColumnPredicateSet> columnPredicateSets);
 
     void initState(transaction::Transaction* transaction, NodeGroup* nodeGroup) override;
 
@@ -122,6 +123,9 @@ struct RelTableDeleteState final : TableDeleteState {
 
 class RelTable final : public Table {
 public:
+    using rel_multiplicity_constraint_throw_func_t =
+        std::function<void(const std::string&, common::offset_t, common::RelDataDirection)>;
+
     RelTable(catalog::RelTableCatalogEntry* relTableEntry, const StorageManager* storageManager,
         MemoryManager* memoryManager, common::Deserializer* deSer = nullptr);
 
@@ -132,7 +136,8 @@ public:
     common::table_id_t getFromNodeTableID() const { return fromNodeTableID; }
     common::table_id_t getToNodeTableID() const { return toNodeTableID; }
 
-    void initScanState(transaction::Transaction* transaction, TableScanState& scanState) override;
+    void initScanState(transaction::Transaction* transaction,
+        TableScanState& scanState) const override;
 
     bool scanInternal(transaction::Transaction* transaction, TableScanState& scanState) override;
 
@@ -142,8 +147,11 @@ public:
 
     void detachDelete(transaction::Transaction* transaction, common::RelDataDirection direction,
         RelTableDeleteState* deleteState);
-    void checkIfNodeHasRels(transaction::Transaction* transaction,
+    bool checkIfNodeHasRels(transaction::Transaction* transaction,
         common::RelDataDirection direction, common::ValueVector* srcNodeIDVector) const;
+    void throwIfNodeHasRels(transaction::Transaction* transaction,
+        common::RelDataDirection direction, common::ValueVector* srcNodeIDVector,
+        const rel_multiplicity_constraint_throw_func_t& throwFunc) const;
 
     void addColumn(transaction::Transaction* transaction,
         TableAddColumnState& addColumnState) override;
@@ -170,7 +178,7 @@ public:
     void commit(transaction::Transaction* transaction, LocalTable* localTable) override;
     void checkpoint(common::Serializer& ser, catalog::TableCatalogEntry* tableEntry) override;
 
-    common::row_idx_t getNumRows() override { return nextRelOffset; }
+    common::row_idx_t getNumTotalRows(const transaction::Transaction* transaction) override;
 
     RelTableData* getDirectedTableData(common::RelDataDirection direction) const {
         return direction == common::RelDataDirection::FWD ? fwdRelTableData.get() :
@@ -199,6 +207,9 @@ private:
     void detachDeleteForCSRRels(transaction::Transaction* transaction,
         const RelTableData* tableData, const RelTableData* reverseTableData,
         RelTableScanState* relDataReadState, RelTableDeleteState* deleteState);
+
+    void checkRelMultiplicityConstraint(transaction::Transaction* transaction,
+        const TableInsertState& state) const;
 
 private:
     common::table_id_t fromNodeTableID;

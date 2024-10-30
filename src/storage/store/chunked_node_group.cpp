@@ -195,17 +195,48 @@ void ChunkedNodeGroup::write(const ChunkedNodeGroup& data, column_id_t offsetCol
     }
 }
 
+static ZoneMapCheckResult getZoneMapResult(const TableScanState& scanState,
+    const std::vector<std::unique_ptr<ColumnChunk>>& chunks) {
+    if (!scanState.columnPredicateSets.empty()) {
+        for (auto i = 0u; i < scanState.columnIDs.size(); i++) {
+            const auto columnID = scanState.columnIDs[i];
+            if (columnID == INVALID_COLUMN_ID || columnID == ROW_IDX_COLUMN_ID) {
+                continue;
+            }
+
+            KU_ASSERT(i < scanState.columnPredicateSets.size());
+            const auto columnZoneMapResult = scanState.columnPredicateSets[i].checkZoneMap(
+                chunks[columnID]->getData().getMergedColumnChunkStats());
+            RUNTIME_CHECK(const bool columnHasStorageValueType =
+                              TypeUtils::visit(chunks[columnID]->getDataType().getPhysicalType(),
+                                  []<typename T>(T) { return StorageValueType<T>; }));
+            KU_ASSERT(columnHasStorageValueType ||
+                      columnZoneMapResult == common::ZoneMapCheckResult::ALWAYS_SCAN);
+            if (columnZoneMapResult == common::ZoneMapCheckResult::SKIP_SCAN) {
+                return common::ZoneMapCheckResult::SKIP_SCAN;
+            }
+        }
+    }
+    return common::ZoneMapCheckResult::ALWAYS_SCAN;
+}
+
 void ChunkedNodeGroup::scan(const Transaction* transaction, const TableScanState& scanState,
     const NodeGroupScanState& nodeGroupScanState, offset_t rowIdxInGroup,
     length_t numRowsToScan) const {
     KU_ASSERT(rowIdxInGroup + numRowsToScan <= numRows);
     auto& anchorSelVector = scanState.outState->getSelVectorUnsafe();
+    if (getZoneMapResult(scanState, chunks) == common::ZoneMapCheckResult::SKIP_SCAN) {
+        anchorSelVector.setToFiltered(0);
+        return;
+    }
+
     if (versionInfo) {
         versionInfo->getSelVectorToScan(transaction->getStartTS(), transaction->getID(),
             anchorSelVector, rowIdxInGroup, numRowsToScan);
     } else {
         anchorSelVector.setToUnfiltered(numRowsToScan);
     }
+
     if (anchorSelVector.getSelSize() > 0) {
         for (auto i = 0u; i < scanState.columnIDs.size(); i++) {
             const auto columnID = scanState.columnIDs[i];
@@ -248,7 +279,7 @@ template void ChunkedNodeGroup::scanCommitted<ResidencyState::IN_MEMORY>(Transac
     ChunkedNodeGroup& output) const;
 
 bool ChunkedNodeGroup::hasDeletions(const Transaction* transaction) const {
-    return versionInfo ? versionInfo->hasDeletions(transaction) : false;
+    return versionInfo && versionInfo->hasDeletions(transaction);
 }
 
 row_idx_t ChunkedNodeGroup::getNumUpdatedRows(const Transaction* transaction,
@@ -308,13 +339,13 @@ bool ChunkedNodeGroup::delete_(const Transaction* transaction, row_idx_t rowIdxI
 
 void ChunkedNodeGroup::addColumn(Transaction* transaction,
     const TableAddColumnState& addColumnState, bool enableCompression, FileHandle* dataFH) {
-    auto numRows = getNumRows();
     auto& dataType = addColumnState.propertyDefinition.getType();
     chunks.push_back(
         std::make_unique<ColumnChunk>(*transaction->getClientContext()->getMemoryManager(),
             dataType, capacity, enableCompression, ResidencyState::IN_MEMORY));
     auto& chunkData = chunks.back()->getData();
-    chunkData.populateWithDefaultVal(addColumnState.defaultEvaluator, numRows);
+    auto numExistingRows = getNumRows();
+    chunkData.populateWithDefaultVal(addColumnState.defaultEvaluator, numExistingRows);
     if (residencyState == ResidencyState::ON_DISK) {
         KU_ASSERT(dataFH);
         chunkData.flush(*dataFH);
@@ -336,14 +367,14 @@ bool ChunkedNodeGroup::isInserted(const Transaction* transaction, row_idx_t rowI
 }
 
 bool ChunkedNodeGroup::hasAnyUpdates(const Transaction* transaction, column_id_t columnID,
-    row_idx_t startRow, length_t numRows) const {
-    return getColumnChunk(columnID).hasUpdates(transaction, startRow, numRows);
+    row_idx_t startRow, length_t numRowsToCheck) const {
+    return getColumnChunk(columnID).hasUpdates(transaction, startRow, numRowsToCheck);
 }
 
 row_idx_t ChunkedNodeGroup::getNumDeletions(const Transaction* transaction, row_idx_t startRow,
-    length_t numRows) const {
+    length_t numRowsToCheck) const {
     if (versionInfo) {
-        return versionInfo->getNumDeletions(transaction, startRow, numRows);
+        return versionInfo->getNumDeletions(transaction, startRow, numRowsToCheck);
     }
     return 0;
 }
@@ -398,8 +429,9 @@ bool ChunkedNodeGroup::hasUpdates() const {
     return false;
 }
 
-void ChunkedNodeGroup::commitInsert(row_idx_t startRow, row_idx_t numRows, transaction_t commitTS) {
-    versionInfo->commitInsert(startRow, numRows, commitTS);
+void ChunkedNodeGroup::commitInsert(row_idx_t startRow, row_idx_t numRowsToCommit,
+    transaction_t commitTS) {
+    versionInfo->commitInsert(startRow, numRowsToCommit, commitTS);
 }
 
 void ChunkedNodeGroup::rollbackInsert(row_idx_t startRow, row_idx_t numRows_) {

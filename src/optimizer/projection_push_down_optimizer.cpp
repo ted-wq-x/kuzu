@@ -1,12 +1,16 @@
 #include "optimizer/projection_push_down_optimizer.h"
 
 #include "binder/expression_visitor.h"
+#include "function/gds/gds_function_collection.h"
+#include "function/gds/rec_joins.h"
 #include "planner/operator/extend/logical_extend.h"
 #include "planner/operator/extend/logical_recursive_extend.h"
 #include "planner/operator/logical_accumulate.h"
 #include "planner/operator/logical_filter.h"
+#include "planner/operator/logical_gds_call.h"
 #include "planner/operator/logical_hash_join.h"
 #include "planner/operator/logical_intersect.h"
+#include "planner/operator/logical_node_label_filter.h"
 #include "planner/operator/logical_order_by.h"
 #include "planner/operator/logical_projection.h"
 #include "planner/operator/logical_table_function_call.h"
@@ -20,6 +24,7 @@
 using namespace kuzu::common;
 using namespace kuzu::planner;
 using namespace kuzu::binder;
+using namespace kuzu::function;
 
 namespace kuzu {
 namespace optimizer {
@@ -43,13 +48,40 @@ void ProjectionPushDownOptimizer::visitOperator(LogicalOperator* op) {
 
 void ProjectionPushDownOptimizer::visitPathPropertyProbe(LogicalOperator* op) {
     auto& pathPropertyProbe = op->cast<LogicalPathPropertyProbe>();
-    KU_ASSERT(
-        pathPropertyProbe.getChild(0)->getOperatorType() == LogicalOperatorType::RECURSIVE_EXTEND);
+    auto child = pathPropertyProbe.getChild(0);
+    if (child->getOperatorType() == LogicalOperatorType::GDS_CALL) {
+        if (!nodeOrRelInUse.contains(pathPropertyProbe.getRel())) {
+            // Path is not needed
+            pathPropertyProbe.setJoinType(planner::RecursiveJoinType::TRACK_NONE);
+            auto call = child->ptrCast<LogicalGDSCall>();
+            auto& info = call->getInfoUnsafe();
+            if (info.func.name == VarLenJoinsFunction::name) {
+                auto& rjAlg = info.func.gds->cast<RJAlgorithm>();
+                rjAlg.setToNoPath();
+                info.outExprs = rjAlg.getResultColumnsNoPath();
+            } else if (info.func.name == SingleSPPathsFunction::name) {
+                auto& rjAlg = info.func.gds->cast<RJAlgorithm>();
+                info.outExprs = rjAlg.getResultColumnsNoPath();
+                auto func = SingleSPDestinationsFunction::getFunction();
+                func.gds->setBindData(info.func.gds->getBindData()->copy());
+                info.func = std::move(func);
+            } else if (info.func.name == AllSPPathsFunction::name) {
+                auto& rjAlg = info.func.gds->cast<RJAlgorithm>();
+                info.outExprs = rjAlg.getResultColumnsNoPath();
+                auto func = AllSPDestinationsFunction::getFunction();
+                func.gds->setBindData(info.func.gds->getBindData()->copy());
+                info.func = std::move(func);
+            }
+        }
+        return;
+    }
+    KU_ASSERT(child->getOperatorType() == LogicalOperatorType::RECURSIVE_EXTEND);
     auto& recursiveExtend = pathPropertyProbe.getChild(0)->cast<LogicalRecursiveExtend>();
     auto boundNodeID = recursiveExtend.getBoundNode()->getInternalID();
     collectExpressionsInUse(boundNodeID);
     auto rel = recursiveExtend.getRel();
-    if (!nodeOrRelInUse.contains(rel)) {
+    // set TRACK_NONE only when PathSemantic=walk
+    if (!nodeOrRelInUse.contains(rel) && semantic == common::PathSemantic::WALK) {
         pathPropertyProbe.setJoinType(RecursiveJoinType::TRACK_NONE);
         recursiveExtend.setJoinType(RecursiveJoinType::TRACK_NONE);
     }
@@ -79,6 +111,11 @@ void ProjectionPushDownOptimizer::visitAccumulate(LogicalOperator* op) {
 void ProjectionPushDownOptimizer::visitFilter(LogicalOperator* op) {
     auto& filter = op->constCast<LogicalFilter>();
     collectExpressionsInUse(filter.getPredicate());
+}
+
+void ProjectionPushDownOptimizer::visitNodeLabelFilter(LogicalOperator* op) {
+    auto& filter = op->constCast<LogicalNodeLabelFilter>();
+    collectExpressionsInUse(filter.getNodeID());
 }
 
 void ProjectionPushDownOptimizer::visitHashJoin(LogicalOperator* op) {
@@ -135,7 +172,7 @@ void ProjectionPushDownOptimizer::visitIntersect(LogicalOperator* op) {
 void ProjectionPushDownOptimizer::visitProjection(LogicalOperator* op) {
     // Projection operator defines the start of a projection push down until the next projection
     // operator is seen.
-    ProjectionPushDownOptimizer optimizer;
+    ProjectionPushDownOptimizer optimizer(this->semantic);
     auto& projection = op->constCast<LogicalProjection>();
     for (auto& expression : projection.getExpressionsToProject()) {
         optimizer.collectExpressionsInUse(expression);

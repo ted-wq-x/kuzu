@@ -29,15 +29,10 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapScanNodeTable(LogicalOperator* 
     std::vector<ScanNodeTableInfo> tableInfos;
     std::vector<std::string> tableNames;
     for (const auto& tableID : tableIDs) {
+        auto tableEntry = catalog->getTableCatalogEntry(transaction, tableID);
         std::vector<column_id_t> columnIDs;
-        for (auto& expression : scan.getProperties()) {
-            auto& property = expression->constCast<PropertyExpression>();
-            if (!property.hasProperty(tableID)) {
-                columnIDs.push_back(UINT32_MAX);
-            } else {
-                auto tableEntry = catalog->getTableCatalogEntry(transaction, tableID);
-                columnIDs.push_back(tableEntry->getColumnID(property.getPropertyName()));
-            }
+        for (auto& expr : scan.getProperties()) {
+            columnIDs.push_back(expr->constCast<PropertyExpression>().getColumnID(*tableEntry));
         }
         auto table = storageManager->getTable(tableID)->ptrCast<storage::NodeTable>();
         tableInfos.emplace_back(table, std::move(columnIDs),
@@ -47,14 +42,15 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapScanNodeTable(LogicalOperator* 
     std::vector<std::shared_ptr<ScanNodeTableSharedState>> sharedStates;
     for (auto& tableID : tableIDs) {
         auto table = storageManager->getTable(tableID)->ptrCast<storage::NodeTable>();
-        auto semiMask = std::make_unique<NodeVectorLevelSemiMask>(tableID, table->getNumRows());
+        auto semiMask = RoaringBitmapSemiMaskUtil::createRoaringBitmapSemiMask(tableID,
+            table->getNumTotalRows(transaction));
         sharedStates.push_back(std::make_shared<ScanNodeTableSharedState>(std::move(semiMask)));
     }
-
+    auto alias = scan.getNodeID()->cast<PropertyExpression>().getRawVariableName();
     switch (scan.getScanType()) {
     case LogicalScanNodeTableType::SCAN: {
-        auto printInfo = std::make_unique<ScanNodeTablePrintInfo>(tableNames, scan.getProperties(),
-            scan.getAlias());
+        auto printInfo =
+            std::make_unique<ScanNodeTablePrintInfo>(tableNames, alias, scan.getProperties());
         auto progressSharedState = std::make_shared<ScanNodeTableProgressSharedState>();
         return std::make_unique<ScanNodeTable>(std::move(scanInfo), std::move(tableInfos),
             std::move(sharedStates), getOperatorID(), std::move(printInfo), progressSharedState);
@@ -74,7 +70,7 @@ std::unique_ptr<PhysicalOperator> PlanMapper::mapScanNodeTable(LogicalOperator* 
         auto evaluator = exprMapper.getEvaluator(primaryKeyScanInfo.key);
         auto sharedState = std::make_shared<PrimaryKeyScanSharedState>(tableInfos.size());
         auto printInfo = std::make_unique<PrimaryKeyScanPrintInfo>(scan.getProperties(),
-            primaryKeyScanInfo.key->toString(), scan.getAlias());
+            primaryKeyScanInfo.key->toString(), alias);
         return std::make_unique<PrimaryKeyScanNodeTable>(std::move(scanInfo), std::move(tableInfos),
             std::move(evaluator), std::move(sharedState), getOperatorID(), std::move(printInfo));
     }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "catalog/catalog_entry/table_catalog_entry.h"
-#include "common/enums/zone_map_check_result.h"
 #include "common/mask.h"
 #include "storage/predicate/column_predicate.h"
 #include "storage/store/column.h"
@@ -25,10 +24,10 @@ struct TableScanState {
     std::vector<common::ValueVector*> outputVectors;
     common::DataChunkState* outState;
     std::vector<common::column_id_t> columnIDs;
-    common::NodeSemiMask* semiMask;
+    common::RoaringBitmapSemiMask* semiMask;
 
     // Only used when scan from persistent data.
-    std::vector<Column*> columns;
+    std::vector<const Column*> columns;
 
     TableScanSource source = TableScanSource::NONE;
     common::node_group_idx_t nodeGroupIdx = common::INVALID_NODE_GROUP_IDX;
@@ -36,15 +35,14 @@ struct TableScanState {
     std::unique_ptr<NodeGroupScanState> nodeGroupScanState;
 
     std::vector<ColumnPredicateSet> columnPredicateSets;
-    common::ZoneMapCheckResult zoneMapResult = common::ZoneMapCheckResult::ALWAYS_SCAN;
 
     TableScanState(common::table_id_t tableID, std::vector<common::column_id_t> columnIDs)
         : TableScanState{tableID, std::move(columnIDs), {}} {}
     TableScanState(common::table_id_t tableID, std::vector<common::column_id_t> columnIDs,
-        std::vector<Column*> columns)
+        std::vector<const Column*> columns)
         : TableScanState{tableID, std::move(columnIDs), std::move(columns), {}} {}
     TableScanState(common::table_id_t tableID, std::vector<common::column_id_t> columnIDs,
-        std::vector<Column*> columns, std::vector<ColumnPredicateSet> columnPredicateSets)
+        std::vector<const Column*> columns, std::vector<ColumnPredicateSet> columnPredicateSets)
         : tableID{tableID}, nodeIDVector(nullptr), outState{nullptr},
           columnIDs{std::move(columnIDs)}, semiMask{nullptr}, columns{std::move(columns)},
           columnPredicateSets{std::move(columnPredicateSets)} {
@@ -69,7 +67,6 @@ struct TableScanState {
         nodeGroupIdx = common::INVALID_NODE_GROUP_IDX;
         nodeGroup = nullptr;
         nodeGroupScanState->resetState();
-        zoneMapResult = common::ZoneMapCheckResult::ALWAYS_SCAN;
     }
 
     template<class TARGET>
@@ -158,7 +155,7 @@ public:
     FileHandle* getDataFH() const { return dataFH; }
 
     virtual void initScanState(transaction::Transaction* transaction,
-        TableScanState& readState) = 0;
+        TableScanState& readState) const = 0;
     bool scan(transaction::Transaction* transaction, TableScanState& scanState);
 
     virtual void insert(transaction::Transaction* transaction, TableInsertState& insertState) = 0;
@@ -172,7 +169,7 @@ public:
     virtual void commit(transaction::Transaction* transaction, LocalTable* localTable) = 0;
     virtual void checkpoint(common::Serializer& ser, catalog::TableCatalogEntry* tableEntry) = 0;
 
-    virtual common::row_idx_t getNumRows() = 0;
+    virtual common::row_idx_t getNumTotalRows(const transaction::Transaction* transaction) = 0;
 
     void setHasChanges() { hasChanges = true; }
 

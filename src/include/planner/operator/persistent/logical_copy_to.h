@@ -6,7 +6,25 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalCopyTo : public LogicalOperator {
+struct LogicalCopyToPrintInfo final : OPPrintInfo {
+    std::vector<std::string> columnNames;
+    std::string fileName;
+
+    LogicalCopyToPrintInfo(std::vector<std::string> columnNames, std::string fileName)
+        : columnNames(std::move(columnNames)), fileName(std::move(fileName)) {}
+
+    std::string toString() const override;
+
+    std::unique_ptr<OPPrintInfo> copy() const override {
+        return std::unique_ptr<LogicalCopyToPrintInfo>(new LogicalCopyToPrintInfo(*this));
+    }
+
+private:
+    LogicalCopyToPrintInfo(const LogicalCopyToPrintInfo& other)
+        : OPPrintInfo(other), columnNames(other.columnNames), fileName(other.fileName) {}
+};
+
+class LogicalCopyTo final : public LogicalOperator {
 public:
     LogicalCopyTo(std::unique_ptr<function::ExportFuncBindData> bindData,
         function::ExportFunction exportFunc, std::shared_ptr<LogicalOperator> child)
@@ -22,6 +40,10 @@ public:
 
     std::unique_ptr<function::ExportFuncBindData> getBindData() const { return bindData->copy(); }
     function::ExportFunction getExportFunc() const { return exportFunc; };
+
+    std::unique_ptr<OPPrintInfo> getPrintInfo() const override {
+        return std::make_unique<LogicalCopyToPrintInfo>(bindData->columnNames, bindData->fileName);
+    }
 
     std::unique_ptr<LogicalOperator> copy() override {
         return make_unique<LogicalCopyTo>(bindData->copy(), exportFunc, children[0]->copy());

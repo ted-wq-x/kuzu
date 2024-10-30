@@ -5,7 +5,7 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalMultiplicityReducer : public LogicalOperator {
+class LogicalMultiplicityReducer final : public LogicalOperator {
 public:
     explicit LogicalMultiplicityReducer(std::shared_ptr<LogicalOperator> child)
         : LogicalOperator(LogicalOperatorType::MULTIPLICITY_REDUCER, std::move(child)) {}

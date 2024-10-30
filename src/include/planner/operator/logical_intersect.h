@@ -6,7 +6,7 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalIntersect : public LogicalOperator {
+class LogicalIntersect final : public LogicalOperator {
     static constexpr LogicalOperatorType type_ = LogicalOperatorType::INTERSECT;
 
 public:

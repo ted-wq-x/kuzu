@@ -113,16 +113,16 @@ void StorageDriver::scan(const std::string& nodeName, const std::string& propert
 
 uint64_t StorageDriver::getNumNodes(const std::string& nodeName) {
     clientContext->query("BEGIN TRANSACTION READ ONLY;");
-    auto table = getTable(*clientContext, nodeName);
+    auto result = getTable(*clientContext, nodeName)->getNumTotalRows(clientContext->getTx());
     clientContext->query("COMMIT");
-    return table->getNumRows();
+    return result;
 }
 
 uint64_t StorageDriver::getNumRels(const std::string& relName) {
     clientContext->query("BEGIN TRANSACTION READ ONLY;");
-    auto table = getTable(*clientContext, relName);
+    auto result = getTable(*clientContext, relName)->getNumTotalRows(clientContext->getTx());
     clientContext->query("COMMIT");
-    return table->getNumRows();
+    return result;
 }
 
 void StorageDriver::scanColumn(storage::Table* table, column_id_t columnID, offset_t* offsets,
@@ -131,7 +131,7 @@ void StorageDriver::scanColumn(storage::Table* table, column_id_t columnID, offs
     auto columnIDs = std::vector<column_id_t>{columnID};
     auto nodeTable = table->ptrCast<NodeTable>();
     auto column = &nodeTable->getColumn(columnID);
-    std::vector<Column*> columns;
+    std::vector<const Column*> columns;
     columns.push_back(column);
     auto scanState = std::make_unique<NodeTableScanState>(table->getTableID(), columnIDs, columns);
     // Create value vectors

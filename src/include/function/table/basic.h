@@ -155,7 +155,7 @@ public:
         blockFlags.resize(maxNodeTableID);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
-            auto size = (nodeTable->getNumRows() + 63) >> 6;
+            auto size = (nodeTable->getNumTotalRows(tx) + 63) >> 6;
             nodeIDMark[tableID].reserve(size);
             nodeIDMark[tableID].resize(size, 0);
             blockFlags[tableID].resize(size);
@@ -333,7 +333,7 @@ public:
         blockFlags.resize(maxNodeTableID);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
-            auto size = (nodeTable->getNumRows() + 63) >> 6;
+            auto size = (nodeTable->getNumTotalRows(tx) + 63) >> 6;
             numBlocks += size;
             nodeIDMark[tableID].reserve(size);
             nodeIDMark[tableID].resize(size);
@@ -458,7 +458,7 @@ public:
         tableBlockNum.resize(maxNodeTableID);
         for (auto tableID : nodeTableIDs) {
             auto nodeTable = storage->getTable(tableID)->ptrCast<storage::NodeTable>();
-            auto size = (nodeTable->getNumRows() + 63) >> 6;
+            auto size = (nodeTable->getNumTotalRows(tx) + 63) >> 6;
             numBlocks += size;
             nodeIDMark[tableID].reserve(size);
             nodeIDMark[tableID].resize(size);

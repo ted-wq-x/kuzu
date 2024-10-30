@@ -29,7 +29,7 @@ public:
     ColumnChunkData* getIndexColumnChunk();
     const ColumnChunkData* getIndexColumnChunk() const;
 
-    void initializeScanState(ChunkState& state, Column* column) const override;
+    void initializeScanState(ChunkState& state, const Column* column) const override;
     void scan(common::ValueVector& output, common::offset_t offset, common::length_t length,
         common::sel_t posInOutputVector = 0) const override;
     void lookup(common::offset_t offsetInChunk, common::ValueVector& output,
@@ -40,8 +40,6 @@ public:
     void write(ColumnChunkData* chunk, ColumnChunkData* dstOffsets,
         common::RelMultiplicity multiplicity) override;
     void write(ColumnChunkData* srcChunk, common::offset_t srcOffsetInChunk,
-        common::offset_t dstOffsetInChunk, common::offset_t numValuesToCopy) override;
-    void copy(ColumnChunkData* srcChunk, common::offset_t srcOffsetInChunk,
         common::offset_t dstOffsetInChunk, common::offset_t numValuesToCopy) override;
 
     template<typename T>
@@ -72,7 +70,8 @@ public:
     }
 
     void setToInMemory() override;
-    void resize(uint64_t newCapacity, bool isInit = true) override;
+    void resize(uint64_t newCapacity) override;
+    void resizeWithoutPreserve(uint64_t newCapacity) override;
     uint64_t getEstimatedMemoryUsage() const override;
 
     void serialize(common::Serializer& serializer) const override;

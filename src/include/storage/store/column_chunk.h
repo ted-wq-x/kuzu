@@ -41,12 +41,13 @@ public:
     // It would be better to take it by value so that the caller can choose to either move or copy
     // it
     ColumnChunk(MemoryManager& memoryManager, const common::LogicalType& dataType,
-        uint64_t capacity, bool enableCompression, ResidencyState residencyState);
+        uint64_t capacity, bool enableCompression, ResidencyState residencyState,
+        bool initializeToZero = true);
     ColumnChunk(MemoryManager& memoryManager, const common::LogicalType& dataType,
         bool enableCompression, ColumnChunkMetadata metadata);
     ColumnChunk(bool enableCompression, std::unique_ptr<ColumnChunkData> data);
 
-    void initializeScanState(ChunkState& state, Column* column) const;
+    void initializeScanState(ChunkState& state, const Column* column) const;
     void scan(const transaction::Transaction* transaction, const ChunkState& state,
         common::ValueVector& output, common::offset_t offsetInChunk, common::length_t length) const;
     template<ResidencyState SCAN_RESIDENCY_STATE>

@@ -6,6 +6,7 @@ package io.transwarp.stellardb_booster;
 public class BoosterValueListUtil {
     /**
      * Get the size of the list value.
+     *
      * @param value: The list value.
      * @return The size of the list value.
      * @throws BoosterObjectRefDestroyedException If the list value has been destroyed.
@@ -17,6 +18,7 @@ public class BoosterValueListUtil {
 
     /**
      * Get the element at the given index from the given list value.
+     *
      * @param value: The list value.
      * @param index: The index of the element.
      * @return The element at the given index from the given list value.

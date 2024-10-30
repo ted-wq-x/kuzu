@@ -56,9 +56,14 @@ void StringChunkData::setToInMemory() {
     dictionaryChunk->setToInMemory();
 }
 
-void StringChunkData::resize(uint64_t newCapacity, bool isInit) {
-    ColumnChunkData::resize(newCapacity, isInit);
-    indexColumnChunk->resize(newCapacity, isInit);
+void StringChunkData::resize(uint64_t newCapacity) {
+    ColumnChunkData::resize(newCapacity);
+    indexColumnChunk->resize(newCapacity);
+}
+
+void StringChunkData::resizeWithoutPreserve(uint64_t newCapacity) {
+    ColumnChunkData::resizeWithoutPreserve(newCapacity);
+    indexColumnChunk->resizeWithoutPreserve(newCapacity);
 }
 
 void StringChunkData::resetToEmpty() {
@@ -129,10 +134,10 @@ void StringChunkData::lookup(offset_t offsetInChunk, ValueVector& output,
     output.setValue<std::string_view>(posInOutputVector, str);
 }
 
-void StringChunkData::initializeScanState(ChunkState& state, Column* column) const {
+void StringChunkData::initializeScanState(ChunkState& state, const Column* column) const {
     ColumnChunkData::initializeScanState(state, column);
 
-    auto* stringColumn = ku_dynamic_cast<StringColumn*>(column);
+    auto* stringColumn = ku_dynamic_cast<const StringColumn*>(column);
     state.childrenStates.resize(CHILD_COLUMN_COUNT);
     indexColumnChunk->initializeScanState(state.childrenStates[INDEX_COLUMN_CHILD_READ_STATE_IDX],
         stringColumn->getIndexColumn());
@@ -198,19 +203,6 @@ void StringChunkData::write(ColumnChunkData* srcChunk, offset_t srcOffsetInChunk
         }
         setValueFromString(srcStringChunk.getValue<std::string_view>(srcPos), dstPos);
     }
-}
-
-void StringChunkData::copy(ColumnChunkData* srcChunk, offset_t srcOffsetInChunk,
-    offset_t dstOffsetInChunk, offset_t numValuesToCopy) {
-    KU_ASSERT(srcChunk->getDataType().getPhysicalType() == PhysicalTypeID::STRING);
-    KU_ASSERT(dstOffsetInChunk >= numValues);
-    while (numValues < dstOffsetInChunk) {
-        indexColumnChunk->setValue<DictionaryChunk::string_index_t>(0, numValues);
-        nullData->setNull(numValues, true);
-        updateNumValues(numValues + 1);
-    }
-    auto& srcStringChunk = srcChunk->cast<StringChunkData>();
-    append(&srcStringChunk, srcOffsetInChunk, numValuesToCopy);
 }
 
 void StringChunkData::appendStringColumnChunk(StringChunkData* other, offset_t startPosInOtherChunk,

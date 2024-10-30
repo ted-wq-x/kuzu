@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/cast.h"
+#include "planner/operator/operator_print_info.h"
 #include "planner/operator/schema.h"
 
 namespace kuzu {
@@ -51,6 +52,7 @@ enum class LogicalOperatorType : uint8_t {
     SEMI_MASKER,
     SET_PROPERTY,
     STANDALONE_CALL,
+    STANDALONE_CALL_FUNCTION,
     TABLE_FUNCTION_CALL,
     TRANSACTION,
     UNION_ALL,
@@ -69,7 +71,8 @@ struct LogicalOperatorUtils {
 
 class LogicalOperator {
 public:
-    explicit LogicalOperator(LogicalOperatorType operatorType) : operatorType{operatorType} {}
+    explicit LogicalOperator(LogicalOperatorType operatorType)
+        : operatorType{operatorType}, cardinality{0} {}
     explicit LogicalOperator(LogicalOperatorType operatorType,
         std::shared_ptr<LogicalOperator> child);
     explicit LogicalOperator(LogicalOperatorType operatorType,
@@ -98,6 +101,11 @@ public:
     virtual std::string getExpressionsForPrinting() const = 0;
     // Print the sub-plan rooted at this operator.
     virtual std::string toString(uint64_t depth = 0) const;
+
+    virtual std::unique_ptr<OPPrintInfo> getPrintInfo() const {
+        return std::make_unique<OPPrintInfo>();
+    }
+    common::cardinality_t getCardinality() const { return cardinality; }
 
     // TODO: remove this function once planner do not share operator across plans
     virtual std::unique_ptr<LogicalOperator> copy() = 0;
@@ -128,6 +136,7 @@ protected:
     LogicalOperatorType operatorType;
     std::unique_ptr<Schema> schema;
     logical_op_vector_t children;
+    common::cardinality_t cardinality;
 };
 
 } // namespace planner

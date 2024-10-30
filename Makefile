@@ -65,6 +65,10 @@ ifdef VECTOR_CAPACITY_LOG2
 	CMAKE_FLAGS += -DVECTOR_CAPACITY_LOG2=$(VECTOR_CAPACITY_LOG2)
 endif
 
+ifdef SINGLE_THREADED
+	CMAKE_FLAGS += -DSINGLE_THREADED=$(SINGLE_THREADED)
+endif
+
 # Must be first in the Makefile so that it is the default target.
 release:
 	$(call run-cmake-release,)
@@ -171,6 +175,13 @@ pytest-debug: python-debug
 
 rusttest: rust
 	cd tools/rust_api && cargo test --profile=relwithdebinfo --locked --all-features -- --test-threads=12
+
+
+wasmtest:
+	mkdir -p build/wasm && cd build/wasm &&\
+	emcmake cmake $(CMAKE_FLAGS) -DCMAKE_BUILD_TYPE=Release -DBUILD_WASM=TRUE -DBUILD_BENCHMARK=FALSE -DBUILD_TESTS=TRUE -DBUILD_SHELL=FALSE  ../.. && \
+	cmake --build . --config Release -j $(NUM_THREADS) &&\
+	cd ../.. && ctest --test-dir  build/wasm/test/ --output-on-failure -j ${TEST_JOBS} --timeout 600
 
 # Other misc build targets
 benchmark:

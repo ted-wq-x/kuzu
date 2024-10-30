@@ -6,7 +6,7 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalFilter : public LogicalOperator {
+class LogicalFilter final : public LogicalOperator {
 public:
     LogicalFilter(std::shared_ptr<binder::Expression> expression,
         std::shared_ptr<LogicalOperator> child)

@@ -6,6 +6,24 @@
 namespace kuzu {
 namespace planner {
 
+struct LogicalCreateSequencePrintInfo final : OPPrintInfo {
+    std::string sequenceName;
+
+    explicit LogicalCreateSequencePrintInfo(std::string sequenceName)
+        : sequenceName(std::move(sequenceName)) {}
+
+    std::string toString() const override { return "Sequence: " + sequenceName; };
+
+    std::unique_ptr<OPPrintInfo> copy() const override {
+        return std::unique_ptr<LogicalCreateSequencePrintInfo>(
+            new LogicalCreateSequencePrintInfo(*this));
+    }
+
+private:
+    LogicalCreateSequencePrintInfo(const LogicalCreateSequencePrintInfo& other)
+        : OPPrintInfo(other), sequenceName(other.sequenceName) {}
+};
+
 class LogicalCreateSequence : public LogicalDDL {
 public:
     LogicalCreateSequence(std::string sequenceName, binder::BoundCreateSequenceInfo info,
@@ -15,6 +33,10 @@ public:
           info{std::move(info)} {}
 
     binder::BoundCreateSequenceInfo getInfo() const { return info.copy(); }
+
+    std::unique_ptr<OPPrintInfo> getPrintInfo() const override {
+        return std::make_unique<LogicalCreateSequencePrintInfo>(tableName);
+    }
 
     inline std::unique_ptr<LogicalOperator> copy() final {
         return std::make_unique<LogicalCreateSequence>(tableName, info.copy(), outputExpression);

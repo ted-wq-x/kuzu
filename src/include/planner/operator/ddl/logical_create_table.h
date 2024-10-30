@@ -6,7 +6,23 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalCreateTable : public LogicalDDL {
+struct LogicalCreateTablePrintInfo final : OPPrintInfo {
+    binder::BoundCreateTableInfo info;
+
+    explicit LogicalCreateTablePrintInfo(binder::BoundCreateTableInfo info)
+        : info{std::move(info)} {}
+
+    std::string toString() const override { return info.toString(); }
+
+    std::unique_ptr<OPPrintInfo> copy() const override {
+        return std::make_unique<LogicalCreateTablePrintInfo>(*this);
+    }
+
+    LogicalCreateTablePrintInfo(const LogicalCreateTablePrintInfo& other)
+        : info{other.info.copy()} {}
+};
+
+class LogicalCreateTable final : public LogicalDDL {
 public:
     LogicalCreateTable(std::string tableName, binder::BoundCreateTableInfo info,
         std::shared_ptr<binder::Expression> outputExpression)
@@ -14,9 +30,13 @@ public:
               std::move(outputExpression)},
           info{std::move(info)} {}
 
-    inline const binder::BoundCreateTableInfo* getInfo() const { return &info; }
+    const binder::BoundCreateTableInfo* getInfo() const { return &info; }
 
-    inline std::unique_ptr<LogicalOperator> copy() final {
+    std::unique_ptr<OPPrintInfo> getPrintInfo() const override {
+        return std::make_unique<LogicalCreateTablePrintInfo>(info.copy());
+    }
+
+    std::unique_ptr<LogicalOperator> copy() override {
         return std::make_unique<LogicalCreateTable>(tableName, info.copy(), outputExpression);
     }
 

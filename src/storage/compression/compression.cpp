@@ -69,7 +69,7 @@ uint32_t getDataTypeSizeInChunk(const common::PhysicalTypeID& dataType) {
     }
     default: {
         auto size = PhysicalTypeUtils::getFixedTypeSize(dataType);
-        KU_ASSERT(size <= PAGE_SIZE);
+        KU_ASSERT(size <= KUZU_PAGE_SIZE);
         return size;
     }
     }
@@ -495,7 +495,6 @@ void ConstantCompression::decompressValues(uint8_t* dstBuffer, uint64_t dstOffse
         [&](auto) {
             throw NotImplementedException("CONSTANT compression is not implemented for type " +
                                           PhysicalTypeUtils::toString(physicalType));
-            ;
         });
 }
 

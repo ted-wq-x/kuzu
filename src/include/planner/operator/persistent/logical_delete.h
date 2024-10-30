@@ -6,7 +6,22 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalDelete : public LogicalOperator {
+struct LogicalDeletePrintInfo final : OPPrintInfo {
+    std::vector<binder::BoundDeleteInfo> infos;
+
+    explicit LogicalDeletePrintInfo(std::vector<binder::BoundDeleteInfo> infos)
+        : infos{std::move(infos)} {}
+
+    std::string toString() const override {
+        std::string result = "";
+        for (auto& info : infos) {
+            result += info.toString();
+        }
+        return result;
+    }
+};
+
+class LogicalDelete final : public LogicalOperator {
     static constexpr LogicalOperatorType type_ = LogicalOperatorType::DELETE;
 
 public:
@@ -26,6 +41,10 @@ public:
     std::string getExpressionsForPrinting() const override;
 
     f_group_pos_set getGroupsPosToFlatten() const;
+
+    std::unique_ptr<OPPrintInfo> getPrintInfo() const override {
+        return std::make_unique<LogicalDeletePrintInfo>(copyVector(infos));
+    }
 
     std::unique_ptr<LogicalOperator> copy() override {
         return std::make_unique<LogicalDelete>(copyVector(infos), children[0]->copy());

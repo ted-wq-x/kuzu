@@ -3,7 +3,6 @@
 #include <cstdint>
 
 #include "common/types/types.h"
-#include "storage/buffer_manager/memory_manager.h"
 #include "storage/index/hash_index.h"
 #include "storage/store/node_group_collection.h"
 #include "storage/store/table.h"
@@ -30,11 +29,11 @@ struct NodeTableScanState final : TableScanState {
     NodeTableScanState(common::table_id_t tableID, std::vector<common::column_id_t> columnIDs)
         : NodeTableScanState{tableID, std::move(columnIDs), {}} {}
     NodeTableScanState(common::table_id_t tableID, std::vector<common::column_id_t> columnIDs,
-        std::vector<Column*> columns)
+        std::vector<const Column*> columns)
         : NodeTableScanState{tableID, std::move(columnIDs), std::move(columns),
               std::vector<ColumnPredicateSet>{}} {}
     NodeTableScanState(common::table_id_t tableID, std::vector<common::column_id_t> columnIDs,
-        std::vector<Column*> columns, std::vector<ColumnPredicateSet> columnPredicateSets)
+        std::vector<const Column*> columns, std::vector<ColumnPredicateSet> columnPredicateSets)
         : TableScanState{tableID, std::move(columnIDs), std::move(columns),
               std::move(columnPredicateSets)} {
         nodeGroupScanState = std::make_unique<NodeGroupScanState>(this->columnIDs.size());
@@ -97,9 +96,10 @@ public:
         const catalog::NodeTableCatalogEntry* nodeTableEntry, bool readOnly,
         common::VirtualFileSystem* vfs, main::ClientContext* context);
 
-    common::row_idx_t getNumRows() override { return nodeGroups->getNumRows(); }
+    common::row_idx_t getNumTotalRows(const transaction::Transaction* transaction) override;
 
-    void initScanState(transaction::Transaction* transaction, TableScanState& scanState) override;
+    void initScanState(transaction::Transaction* transaction,
+        TableScanState& scanState) const override;
 
     bool scanInternal(transaction::Transaction* transaction, TableScanState& scanState) override;
     bool lookup(transaction::Transaction* transaction, const TableScanState& scanState) const;
@@ -130,10 +130,6 @@ public:
     common::column_id_t getPKColumnID() const { return pkColumnID; }
     PrimaryKeyIndex* getPKIndex() const { return pkIndex.get(); }
     common::column_id_t getNumColumns() const { return columns.size(); }
-    Column* getColumnPtr(common::column_id_t columnID) const {
-        KU_ASSERT(columnID < columns.size());
-        return columns[columnID].get();
-    }
     Column& getColumn(common::column_id_t columnID) {
         KU_ASSERT(columnID < columns.size());
         return *columns[columnID];
@@ -163,6 +159,8 @@ public:
     NodeGroup* getNodeGroupNoLock(common::node_group_idx_t nodeGroupIdx) const {
         return nodeGroups->getNodeGroupNoLock(nodeGroupIdx);
     }
+
+    TableStats getStats(const transaction::Transaction* transaction) const;
 
 private:
     void insertPK(const transaction::Transaction* transaction,

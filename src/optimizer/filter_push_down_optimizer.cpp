@@ -3,7 +3,6 @@
 #include "binder/expression/literal_expression.h"
 #include "binder/expression/property_expression.h"
 #include "binder/expression/scalar_function_expression.h"
-#include "main/client_context.h"
 #include "planner/operator/extend/logical_extend.h"
 #include "planner/operator/logical_empty_result.h"
 #include "planner/operator/logical_filter.h"
@@ -32,10 +31,9 @@ std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::visitOperator(
     case LogicalOperatorType::CROSS_PRODUCT: {
         return visitCrossProductReplace(op);
     }
-        // TODO(Xiyang/Ben): enable filter push down to EXTEND after fixing zonemap of rel table.
-        //    case LogicalOperatorType::EXTEND: {
-        //        return visitExtendReplace(op);
-        //    }
+    case LogicalOperatorType::EXTEND: {
+        return visitExtendReplace(op);
+    }
     case LogicalOperatorType::SCAN_NODE_TABLE: {
         return visitScanNodeTableReplace(op);
     }
@@ -237,7 +235,6 @@ std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::finishPushDown(
     return root;
 }
 
-
 std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::appendFilters(
     const expression_vector& predicates, std::shared_ptr<LogicalOperator> child) {
     if (predicates.empty()) {
@@ -252,6 +249,7 @@ std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::appendFilters(
 
 std::shared_ptr<LogicalOperator> FilterPushDownOptimizer::appendFilter(
     std::shared_ptr<Expression> predicate, std::shared_ptr<LogicalOperator> child) {
+    auto printInfo = std::make_unique<OPPrintInfo>();
     auto filter = std::make_shared<LogicalFilter>(std::move(predicate), std::move(child));
     filter->computeFlatSchema();
     return filter;

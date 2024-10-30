@@ -8,50 +8,49 @@ public class FlatTupleTest extends TestBase {
 
     @Test
     void FlatTupleGetValue() throws ObjectRefDestroyedException {
-        QueryResult result = conn.query("MATCH (a:person) RETURN a.fName, a.age, a.height ORDER BY a.fName LIMIT 1");
-        assertTrue(result.isSuccess());
-        assertTrue(result.hasNext());
-        FlatTuple flatTuple = result.getNext();
-        assertNotNull(flatTuple);
+        try (QueryResult result = conn.query("MATCH (a:person) RETURN a.fName, a.age, a.height ORDER BY a.fName LIMIT 1")) {
+            assertTrue(result.isSuccess());
+            assertTrue(result.hasNext());
 
-        Value value = flatTuple.getValue(0);
-        assertNotNull(value);
-        assertEquals(value.getDataType().getID(), DataTypeID.STRING);
-        assertTrue(value.getValue().equals("Alice"));
-        value.destroy();
+            FlatTuple flatTuple = result.getNext();
+            assertNotNull(flatTuple);
 
-        value = flatTuple.getValue(1);
-        assertNotNull(value);
-        assertEquals(value.getDataType().getID(), DataTypeID.INT64);
-        assertTrue(value.getValue().equals(35L));
-        value.destroy();
+            try (Value value = flatTuple.getValue(0)) {
+                assertNotNull(value);
+                assertEquals(value.getDataType().getID(), DataTypeID.STRING);
+                assertTrue(value.getValue().equals("Alice"));
+            }
 
-        value = flatTuple.getValue(2);
-        assertNotNull(value);
-        assertEquals(value.getDataType().getID(), DataTypeID.FLOAT);
-        assertTrue(value.getValue().equals((float) 1.731));
-        value.destroy();
+            try (Value value = flatTuple.getValue(1)) {
+                assertNotNull(value);
+                assertEquals(value.getDataType().getID(), DataTypeID.INT64);
+                assertTrue(value.getValue().equals(35L));
+            }
 
-        value = flatTuple.getValue(222);
-        assertNull(value);
+            try (Value value = flatTuple.getValue(2)) {
+                assertNotNull(value);
+                assertEquals(value.getDataType().getID(), DataTypeID.FLOAT);
+                assertTrue(value.getValue().equals((float) 1.731));
+            }
 
-        result.destroy();
+            Value value = flatTuple.getValue(222);
+            assertNull(value);
+        }
     }
 
     @Test
     void FlatTupleToString() throws ObjectRefDestroyedException {
-        QueryResult result = conn.query("MATCH (a:person) RETURN a.fName, a.age, a.height ORDER BY a.fName LIMIT 1");
-        assertTrue(result.isSuccess());
-        assertTrue(result.hasNext());
-        FlatTuple flatTuple = result.getNext();
-        assertNotNull(flatTuple);
+        try (QueryResult result = conn.query("MATCH (a:person) RETURN a.fName, a.age, a.height ORDER BY a.fName LIMIT 1")) {
+            assertTrue(result.isSuccess());
+            assertTrue(result.hasNext());
 
-        String str = flatTuple.toString();
-        assertTrue(str.equals("Alice|35|1.731000\n"));
+            try (FlatTuple flatTuple = result.getNext()) {
+                assertNotNull(flatTuple);
 
-        flatTuple.destroy();
-        result.destroy();
-
+                String str = flatTuple.toString();
+                assertTrue(str.equals("Alice|35|1.731000\n"));
+            }
+        }
     }
 
 }

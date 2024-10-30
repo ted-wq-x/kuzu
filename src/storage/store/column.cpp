@@ -10,7 +10,6 @@
 #include "storage/buffer_manager/memory_manager.h"
 #include "storage/compression/compression.h"
 #include "storage/file_handle.h"
-#include "storage/shadow_utils.h"
 #include "storage/storage_utils.h"
 #include "storage/store/column_chunk.h"
 #include "storage/store/column_chunk_data.h"
@@ -35,12 +34,14 @@ struct ReadInternalIDValuesToVector {
         uint32_t posInVector, uint32_t numValuesToRead, const CompressionMetadata& metadata) {
         KU_ASSERT(resultVector->dataType.getPhysicalType() == PhysicalTypeID::INTERNAL_ID);
 
-        auto buffer = std::make_unique<offset_t[]>(numValuesToRead);
-        compressedReader(frame, pageCursor, reinterpret_cast<uint8_t*>(buffer.get()), 0,
+        KU_ASSERT(numValuesToRead <= DEFAULT_VECTOR_CAPACITY);
+        offset_t offsetBuffer[DEFAULT_VECTOR_CAPACITY];
+
+        compressedReader(frame, pageCursor, reinterpret_cast<uint8_t*>(offsetBuffer), 0,
             numValuesToRead, metadata);
         auto resultData = reinterpret_cast<internalID_t*>(resultVector->getData());
         for (auto i = 0u; i < numValuesToRead; i++) {
-            resultData[posInVector + i].offset = buffer[i];
+            resultData[posInVector + i].offset = offsetBuffer[i];
         }
     }
 
@@ -129,7 +130,7 @@ Column* Column::getNullColumn() const {
     return nullColumn.get();
 }
 
-void Column::populateExtraChunkState(ChunkState& state) {
+void Column::populateExtraChunkState(ChunkState& state) const {
     if (state.metadata.compMeta.compression == CompressionType::ALP) {
         Transaction& transaction = DUMMY_CHECKPOINT_TRANSACTION;
         if (dataType.getPhysicalType() == common::PhysicalTypeID::DOUBLE) {
@@ -166,7 +167,7 @@ std::unique_ptr<ColumnChunkData> Column::flushNonNestedChunkData(const ColumnChu
     auto chunkMeta = flushData(chunkData, dataFH);
     auto flushedChunk = ColumnChunkFactory::createColumnChunkData(chunkData.getMemoryManager(),
         chunkData.getDataType().copy(), chunkData.isCompressionEnabled(), chunkMeta,
-        chunkData.hasNullData());
+        chunkData.hasNullData(), true);
     if (chunkData.hasNullData()) {
         auto nullChunkMeta = flushData(chunkData.getNullData(), dataFH);
         auto nullData = std::make_unique<NullChunkData>(chunkData.getMemoryManager(),
@@ -186,7 +187,7 @@ ColumnChunkMetadata Column::flushData(const ColumnChunkData& chunkData, FileHand
 }
 
 void Column::scan(Transaction* transaction, const ChunkState& state, offset_t startOffsetInChunk,
-    row_idx_t numValuesToScan, ValueVector* resultVector) {
+    row_idx_t numValuesToScan, ValueVector* resultVector) const {
     if (nullColumn) {
         KU_ASSERT(state.nullState);
         nullColumn->scan(transaction, *state.nullState, startOffsetInChunk, numValuesToScan,
@@ -196,7 +197,7 @@ void Column::scan(Transaction* transaction, const ChunkState& state, offset_t st
 }
 
 void Column::scan(Transaction* transaction, const ChunkState& state, offset_t startOffsetInGroup,
-    offset_t endOffsetInGroup, ValueVector* resultVector, uint64_t offsetInVector) {
+    offset_t endOffsetInGroup, ValueVector* resultVector, uint64_t offsetInVector) const {
     if (nullColumn) {
         KU_ASSERT(state.nullState);
         nullColumn->scan(transaction, *state.nullState, startOffsetInGroup, endOffsetInGroup,
@@ -207,7 +208,7 @@ void Column::scan(Transaction* transaction, const ChunkState& state, offset_t st
 }
 
 void Column::scan(Transaction* transaction, const ChunkState& state, ColumnChunkData* columnChunk,
-    offset_t startOffset, offset_t endOffset) {
+    offset_t startOffset, offset_t endOffset) const {
     if (nullColumn) {
         nullColumn->scan(transaction, *state.nullState, columnChunk->getNullData(), startOffset,
             endOffset);
@@ -218,18 +219,14 @@ void Column::scan(Transaction* transaction, const ChunkState& state, ColumnChunk
     KU_ASSERT(endOffset >= startOffset);
     const auto numValuesToScan = endOffset - startOffset;
     if (numValuesToScan > columnChunk->getCapacity()) {
-        columnChunk->resize(std::bit_ceil(numValuesToScan), false);
+        columnChunk->resizeWithoutPreserve(std::bit_ceil(numValuesToScan));
     }
     if (getDataTypeSizeInChunk(dataType) == 0) {
         columnChunk->setNumValues(numValuesToScan);
         return;
     }
 
-    const uint64_t numValuesPerPage = state.metadata.compMeta.numValues(PAGE_SIZE, dataType);
-    auto cursor = PageUtils::getPageCursorForPos(startOffset, numValuesPerPage);
-    cursor.pageIdx += state.metadata.pageIdx;
     KU_ASSERT((numValuesToScan + startOffset) <= state.metadata.numValues);
-
     const uint64_t numValuesScanned = columnReadWriter->readCompressedValuesToPage(transaction,
         state, columnChunk->getData(), 0, startOffset, endOffset, readToPageFunc);
 
@@ -243,7 +240,7 @@ void Column::scan(Transaction* transaction, const ChunkState& state, offset_t st
 }
 
 void Column::scanInternal(Transaction* transaction, const ChunkState& state,
-    offset_t startOffsetInChunk, row_idx_t numValuesToScan, ValueVector* resultVector) {
+    offset_t startOffsetInChunk, row_idx_t numValuesToScan, ValueVector* resultVector) const {
     if (resultVector->state->getSelVector().isUnfiltered()) {
         columnReadWriter->readCompressedValuesToVector(transaction, state, resultVector, 0,
             startOffsetInChunk, startOffsetInChunk + numValuesToScan, readToVectorFunc);
@@ -252,12 +249,12 @@ void Column::scanInternal(Transaction* transaction, const ChunkState& state,
             explicit Filterer(const SelectionVector& selVector)
                 : selVector(selVector), posInSelVector(0) {}
             bool operator()(offset_t startIdx, offset_t endIdx) {
-                bool ret = isInRange(selVector[posInSelVector], startIdx, endIdx);
-                while (
-                    posInSelVector < selVector.getSelSize() && selVector[posInSelVector] < endIdx) {
+                while (posInSelVector < selVector.getSelSize() &&
+                       selVector[posInSelVector] < startIdx) {
                     posInSelVector++;
                 }
-                return ret;
+                return (posInSelVector < selVector.getSelSize() &&
+                        isInRange(selVector[posInSelVector], startIdx, endIdx));
             }
 
             const SelectionVector& selVector;
@@ -271,7 +268,7 @@ void Column::scanInternal(Transaction* transaction, const ChunkState& state,
 }
 
 void Column::lookupValue(Transaction* transaction, const ChunkState& state, offset_t nodeOffset,
-    ValueVector* resultVector, uint32_t posInVector) {
+    ValueVector* resultVector, uint32_t posInVector) const {
     if (nullColumn) {
         nullColumn->lookupValue(transaction, *state.nullState, nodeOffset, resultVector,
             posInVector);
@@ -283,7 +280,7 @@ void Column::lookupValue(Transaction* transaction, const ChunkState& state, offs
 }
 
 void Column::lookupInternal(Transaction* transaction, const ChunkState& state, offset_t nodeOffset,
-    ValueVector* resultVector, uint32_t posInVector) {
+    ValueVector* resultVector, uint32_t posInVector) const {
     columnReadWriter->readCompressedValueToVector(transaction, state, nodeOffset, resultVector,
         posInVector, readToVectorFunc);
 }
@@ -296,7 +293,7 @@ void Column::lookupInternal(Transaction* transaction, const ChunkState& state, o
     if (metadata.compMeta.compression == CompressionType::CONSTANT) {
         return metadata.numPages == 0;
     }
-    const auto numValuesPerPage = metadata.compMeta.numValues(PAGE_SIZE, dataType);
+    const auto numValuesPerPage = metadata.compMeta.numValues(KUZU_PAGE_SIZE, dataType);
     if (numValuesPerPage == UINT64_MAX) {
         return metadata.numPages == 0;
     }
@@ -367,7 +364,8 @@ offset_t Column::appendValues(ColumnChunkData& persistentChunk, ChunkState& stat
 bool Column::isMaxOffsetOutOfPagesCapacity(const ColumnChunkMetadata& metadata,
     offset_t maxOffset) const {
     if (metadata.compMeta.compression != CompressionType::CONSTANT &&
-        (metadata.compMeta.numValues(PAGE_SIZE, dataType) * metadata.numPages) <= (maxOffset + 1)) {
+        (metadata.compMeta.numValues(KUZU_PAGE_SIZE, dataType) * metadata.numPages) <=
+            (maxOffset + 1)) {
         // Note that for constant compression, `metadata.numPages` will be equal to 0.
         // Thus, this function will always return true.
         return true;
@@ -452,7 +450,11 @@ void Column::checkpointColumnChunk(ColumnCheckpointState& checkpointState) {
                 chunkState.getExceptionChunk<double>()->finalizeAndFlushToDisk(chunkState);
             } else if (dataType.getPhysicalType() == common::PhysicalTypeID::FLOAT) {
                 chunkState.getExceptionChunk<float>()->finalizeAndFlushToDisk(chunkState);
+            } else {
+                KU_UNREACHABLE;
             }
+            checkpointState.persistentData.getMetadata().compMeta.floatMetadata()->exceptionCount =
+                chunkState.metadata.compMeta.floatMetadata()->exceptionCount;
         }
     } else {
         checkpointColumnChunkOutOfPlace(chunkState, checkpointState);

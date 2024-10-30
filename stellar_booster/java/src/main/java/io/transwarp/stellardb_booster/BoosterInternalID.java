@@ -9,8 +9,9 @@ public class BoosterInternalID {
 
     /**
      * Create a BoosterInternalID from the given table_id and offset.
+     *
      * @param tableId: The table_id of the node/rel.
-     * @param offset: The offset of the node/rel.
+     * @param offset:  The offset of the node/rel.
      */
     public BoosterInternalID(long tableId, long offset) {
         this.tableId = tableId;

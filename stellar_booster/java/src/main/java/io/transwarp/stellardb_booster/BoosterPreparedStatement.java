@@ -3,12 +3,13 @@ package io.transwarp.stellardb_booster;
 /**
  * BoosterPreparedStatement is a parameterized query which can avoid planning the same query for repeated execution.
  */
-public class BoosterPreparedStatement {
+public class BoosterPreparedStatement implements AutoCloseable {
     long ps_ref;
     boolean destroyed = false;
 
     /**
      * Check if the prepared statement has been destroyed.
+     *
      * @throws BoosterObjectRefDestroyedException If the prepared statement has been destroyed.
      */
     private void checkNotDestroyed() throws BoosterObjectRefDestroyedException {
@@ -17,19 +18,21 @@ public class BoosterPreparedStatement {
     }
 
     /**
-    * Finalize.
-    * @throws BoosterObjectRefDestroyedException If the prepared statement has been destroyed.
-    */
+     * Finalize.
+     *
+     * @throws BoosterObjectRefDestroyedException If the prepared statement has been destroyed.
+     */
     @Override
-    protected void finalize() throws BoosterObjectRefDestroyedException {
+    public void close() throws BoosterObjectRefDestroyedException {
         destroy();
     }
 
     /**
      * Destroy the prepared statement.
+     *
      * @throws BoosterObjectRefDestroyedException If the prepared statement has been destroyed.
      */
-    public void destroy() throws BoosterObjectRefDestroyedException {
+    private void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         BoosterNative.prepared_statement_destroy(this);
         destroyed = true;
@@ -37,6 +40,7 @@ public class BoosterPreparedStatement {
 
     /**
      * Check if the query is prepared successfully or not.
+     *
      * @return The query is prepared successfully or not.
      * @throws BoosterObjectRefDestroyedException If the prepared statement has been destroyed.
      */
@@ -47,6 +51,7 @@ public class BoosterPreparedStatement {
 
     /**
      * Get the error message if the query is not prepared successfully.
+     *
      * @return The error message if the query is not prepared successfully.
      * @throws BoosterObjectRefDestroyedException If the prepared statement has been destroyed.
      */

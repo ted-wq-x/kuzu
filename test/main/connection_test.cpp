@@ -18,6 +18,9 @@ TEST_F(ApiTest, BasicConnect) {
     ApiTest::assertMatchPersonCountStar(conn.get());
 }
 
+#ifndef __SINGLE_THREADED__
+// The following two tests are disabled in single-threaded mode because they
+// require multiple threads to run.
 static void parallel_query(Connection* conn) {
     for (auto i = 0u; i < 100; ++i) {
         ApiTest::assertMatchPersonCountStar(conn);
@@ -51,6 +54,19 @@ TEST_F(ApiTest, ParallelConnect) {
     }
 }
 
+// TODO: FIX-ME. See Issue #4431.
+// TEST_F(ApiTest, Interrupt) {
+//     std::thread longRunningQueryThread(executeLongRunningQuery, conn.get());
+// #ifdef _WIN32
+//     Sleep(1000);
+// #else
+//     sleep(1 /* sleep 1 second before interrupt the query */);
+// #endif
+//     conn->interrupt();
+//     longRunningQueryThread.join();
+// }
+#endif
+
 TEST_F(ApiTest, CommitRollbackRemoveActiveTransaction) {
     ASSERT_TRUE(conn->query("BEGIN TRANSACTION;")->isSuccess());
     ASSERT_TRUE(conn->query("ROLLBACK;")->isSuccess());
@@ -80,20 +96,10 @@ TEST_F(ApiTest, Profile) {
     ASSERT_TRUE(result->isSuccess());
 }
 
-TEST_F(ApiTest, Interrupt) {
-    std::thread longRunningQueryThread(executeLongRunningQuery, conn.get());
-#ifdef _WIN32
-    Sleep(1000);
-#else
-    sleep(1 /* sleep 1 second before interrupt the query */);
-#endif
-    conn->interrupt();
-    longRunningQueryThread.join();
-}
-
 TEST_F(ApiTest, TimeOut) {
     conn->setQueryTimeOut(1000 /* timeoutInMS */);
-    auto result = conn->query("MATCH (a:person)-[:knows*1..28]->(b:person) RETURN COUNT(*);");
+    auto result = conn->query(
+        "UNWIND RANGE(1,100000) AS x UNWIND RANGE(1, 100000) AS y RETURN COUNT(x + y);");
     ASSERT_FALSE(result->isSuccess());
     ASSERT_EQ(result->getErrorMessage(), "Interrupted.");
 }

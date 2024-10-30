@@ -7,6 +7,41 @@
 namespace kuzu {
 namespace planner {
 
+struct BaseLogicalExtendPrintInfo : OPPrintInfo {
+    // Start node of extension.
+    std::shared_ptr<binder::NodeExpression> boundNode;
+    // End node of extension.
+    std::shared_ptr<binder::NodeExpression> nbrNode;
+    std::shared_ptr<binder::RelExpression> rel;
+    common::ExtendDirection direction;
+
+    BaseLogicalExtendPrintInfo(std::shared_ptr<binder::NodeExpression> boundNode,
+        std::shared_ptr<binder::NodeExpression> nbrNode, std::shared_ptr<binder::RelExpression> rel,
+        common::ExtendDirection direction)
+        : boundNode{std::move(boundNode)}, nbrNode{std::move(nbrNode)}, rel{std::move(rel)},
+          direction{direction} {}
+
+    std::string toString() const override {
+        switch (direction) {
+        case common::ExtendDirection::FWD: {
+            return "(" + boundNode->toString() + ")-[" + rel->toString() + "]->(" +
+                   nbrNode->toString() + ")";
+        }
+        case common::ExtendDirection::BWD: {
+            return "(" + nbrNode->toString() + ")-[" + rel->toString() + "]->(" +
+                   boundNode->toString() + ")";
+        }
+        case common::ExtendDirection::BOTH: {
+            return "(" + boundNode->toString() + ")-[" + rel->toString() + "]-(" +
+                   nbrNode->toString() + ")";
+        }
+        default: {
+            KU_UNREACHABLE;
+        }
+        }
+    }
+};
+
 class BaseLogicalExtend : public LogicalOperator {
 public:
     BaseLogicalExtend(LogicalOperatorType operatorType,
@@ -29,6 +64,10 @@ public:
     virtual f_group_pos_set getGroupsPosToFlatten() = 0;
 
     std::string getExpressionsForPrinting() const override;
+
+    std::unique_ptr<OPPrintInfo> getPrintInfo() const override {
+        return std::make_unique<BaseLogicalExtendPrintInfo>(boundNode, nbrNode, rel, direction);
+    }
 
 protected:
     // Start node of extension.

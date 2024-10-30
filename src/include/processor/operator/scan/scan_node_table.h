@@ -16,7 +16,7 @@ struct ScanNodeTableProgressSharedState {
 
 class ScanNodeTableSharedState {
 public:
-    explicit ScanNodeTableSharedState(std::unique_ptr<common::NodeVectorLevelSemiMask> semiMask)
+    explicit ScanNodeTableSharedState(std::unique_ptr<common::RoaringBitmapSemiMask> semiMask)
         : table{nullptr}, currentCommittedGroupIdx{common::INVALID_NODE_GROUP_IDX},
           currentUnCommittedGroupIdx{common::INVALID_NODE_GROUP_IDX}, numCommittedNodeGroups{0},
           numUnCommittedNodeGroups{0}, semiMask{std::move(semiMask)} {};
@@ -27,7 +27,7 @@ public:
     void nextMorsel(storage::NodeTableScanState& scanState,
         ScanNodeTableProgressSharedState& progressSharedState);
 
-    common::NodeSemiMask* getSemiMask() const { return semiMask.get(); }
+    common::RoaringBitmapSemiMask* getSemiMask() const { return semiMask.get(); }
 
 private:
     std::mutex mtx;
@@ -36,7 +36,7 @@ private:
     common::node_group_idx_t currentUnCommittedGroupIdx;
     common::node_group_idx_t numCommittedNodeGroups;
     common::node_group_idx_t numUnCommittedNodeGroups;
-    std::unique_ptr<common::NodeVectorLevelSemiMask> semiMask;
+    std::unique_ptr<common::RoaringBitmapSemiMask> semiMask;
 };
 
 struct ScanNodeTableInfo {
@@ -46,17 +46,13 @@ struct ScanNodeTableInfo {
 
     std::unique_ptr<storage::NodeTableScanState> localScanState = nullptr;
 
-    ScanNodeTableInfo(storage::NodeTable* table, std::vector<common::column_id_t> columnIDs)
-        : table{table}, columnIDs{std::move(columnIDs)} {}
-
     ScanNodeTableInfo(storage::NodeTable* table, std::vector<common::column_id_t> columnIDs,
         std::vector<storage::ColumnPredicateSet> columnPredicates)
         : table{table}, columnIDs{std::move(columnIDs)},
           columnPredicates{std::move(columnPredicates)} {}
-
     EXPLICIT_COPY_DEFAULT_MOVE(ScanNodeTableInfo);
 
-    void initScanState(common::NodeSemiMask* semiMask);
+    void initScanState(common::RoaringBitmapSemiMask* semiMask);
 
 private:
     ScanNodeTableInfo(const ScanNodeTableInfo& other)
@@ -66,12 +62,13 @@ private:
 
 struct ScanNodeTablePrintInfo final : OPPrintInfo {
     std::vector<std::string> tableNames;
-    binder::expression_vector properties;
     std::string alias;
+    binder::expression_vector properties;
 
-    ScanNodeTablePrintInfo(std::vector<std::string> tableNames,
-        binder::expression_vector properties, std::string alias)
-        : tableNames{std::move(tableNames)}, properties{std::move(properties)}, alias{alias} {}
+    ScanNodeTablePrintInfo(std::vector<std::string> tableNames, std::string alias,
+        binder::expression_vector properties)
+        : tableNames{std::move(tableNames)}, alias{std::move(alias)},
+          properties{std::move(properties)} {}
 
     std::string toString() const override;
 
@@ -81,7 +78,8 @@ struct ScanNodeTablePrintInfo final : OPPrintInfo {
 
 private:
     ScanNodeTablePrintInfo(const ScanNodeTablePrintInfo& other)
-        : OPPrintInfo{other}, tableNames{other.tableNames}, properties{other.properties} {}
+        : OPPrintInfo{other}, tableNames{other.tableNames}, alias{other.alias},
+          properties{other.properties} {}
 };
 
 class ScanNodeTable final : public ScanTable {
@@ -98,7 +96,7 @@ public:
         KU_ASSERT(this->nodeInfos.size() == this->sharedStates.size());
     }
 
-    std::vector<common::NodeSemiMask*> getSemiMasks() const;
+    std::vector<common::RoaringBitmapSemiMask*> getSemiMasks() const;
 
     bool isSource() const override { return true; }
 

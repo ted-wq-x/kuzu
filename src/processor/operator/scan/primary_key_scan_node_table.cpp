@@ -18,6 +18,10 @@ std::string PrimaryKeyScanPrintInfo::toString() const {
         result += ", Key: ";
     }
     result += key;
+    if (!alias.empty()) {
+        result += ",Alias: ";
+        result += alias;
+    }
     result += ", Expressions: ";
     result += binder::ExpressionUtil::toString(expressions);
 
@@ -35,7 +39,7 @@ idx_t PrimaryKeyScanSharedState::getTableIdx() {
 void PrimaryKeyScanNodeTable::initLocalStateInternal(ResultSet* resultSet,
     ExecutionContext* context) {
     for (auto& nodeInfo : nodeInfos) {
-        std::vector<Column*> columns;
+        std::vector<const Column*> columns;
         columns.reserve(nodeInfo.columnIDs.size());
         for (const auto columnID : nodeInfo.columnIDs) {
             if (columnID == INVALID_COLUMN_ID) {
@@ -82,10 +86,10 @@ bool PrimaryKeyScanNodeTable::getNextTuplesInternal(ExecutionContext* context) {
     }
     auto nodeID = nodeID_t{nodeOffset, nodeInfo.table->getTableID()};
     nodeInfo.localScanState->nodeIDVector->setValue<nodeID_t>(pos, nodeID);
-    if (nodeOffset >= StorageConstants::MAX_NUM_ROWS_IN_TABLE) {
+    if (transaction->isUnCommitted(nodeID.tableID, nodeOffset)) {
         nodeInfo.localScanState->source = TableScanSource::UNCOMMITTED;
         nodeInfo.localScanState->nodeGroupIdx =
-            StorageUtils::getNodeGroupIdx(nodeOffset - StorageConstants::MAX_NUM_ROWS_IN_TABLE);
+            StorageUtils::getNodeGroupIdx(transaction->getLocalRowIdx(nodeID.tableID, nodeOffset));
     } else {
         nodeInfo.localScanState->source = TableScanSource::COMMITTED;
         nodeInfo.localScanState->nodeGroupIdx = StorageUtils::getNodeGroupIdx(nodeOffset);

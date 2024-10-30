@@ -59,9 +59,9 @@ CSRRegion CSRRegion::upgradeLevel(const std::vector<CSRRegion>& leafRegions,
 ChunkedCSRHeader::ChunkedCSRHeader(MemoryManager& memoryManager, bool enableCompression,
     uint64_t capacity, ResidencyState residencyState) {
     offset = std::make_unique<ColumnChunk>(memoryManager, LogicalType::UINT64(), capacity,
-        enableCompression, residencyState);
+        enableCompression, residencyState, false);
     length = std::make_unique<ColumnChunk>(memoryManager, LogicalType::UINT64(), capacity,
-        enableCompression, residencyState);
+        enableCompression, residencyState, false);
 }
 
 offset_t ChunkedCSRHeader::getStartCSROffset(offset_t nodeOffset) const {
@@ -240,8 +240,8 @@ std::unique_ptr<ChunkedNodeGroup> ChunkedCSRNodeGroup::flushAsNewChunkedNodeGrou
         flushedChunks[i] = std::make_unique<ColumnChunk>(getColumnChunk(i).isCompressionEnabled(),
             Column::flushChunkData(getColumnChunk(i).getData(), dataFH));
     }
-    ChunkedCSRHeader csrHeader{std::move(csrOffset), std::move(csrLength)};
-    auto flushedChunkedGroup = std::make_unique<ChunkedCSRNodeGroup>(std::move(csrHeader),
+    ChunkedCSRHeader newCSRHeader{std::move(csrOffset), std::move(csrLength)};
+    auto flushedChunkedGroup = std::make_unique<ChunkedCSRNodeGroup>(std::move(newCSRHeader),
         std::move(flushedChunks), 0 /*startRowIdx*/);
     flushedChunkedGroup->versionInfo = std::make_unique<VersionInfo>();
     KU_ASSERT(numRows == flushedChunkedGroup->getNumRows());

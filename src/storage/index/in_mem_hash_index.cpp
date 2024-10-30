@@ -10,7 +10,6 @@
 #include "storage/index/hash_index_utils.h"
 #include "storage/storage_structure/disk_array.h"
 #include "storage/storage_structure/overflow_file.h"
-#include <bit>
 
 using namespace kuzu::common;
 
@@ -23,7 +22,7 @@ InMemHashIndex<T>::InMemHashIndex(OverflowFileHandle* overflowFileHandle)
       oSlots{std::make_unique<BlockVector<Slot<T>>>()}, indexHeader{} {
     // Match HashIndex in allocating at least one page of slots so that we don't split within the
     // same page
-    allocateSlots(PAGE_SIZE / pSlots->getAlignedElementSize());
+    allocateSlots(KUZU_PAGE_SIZE / pSlots->getAlignedElementSize());
 }
 
 template<typename T>
@@ -31,7 +30,7 @@ void InMemHashIndex<T>::clear() {
     indexHeader = HashIndexHeader();
     pSlots = std::make_unique<BlockVector<Slot<T>>>();
     oSlots = std::make_unique<BlockVector<Slot<T>>>();
-    allocateSlots(PAGE_SIZE / pSlots->getAlignedElementSize());
+    allocateSlots(KUZU_PAGE_SIZE / pSlots->getAlignedElementSize());
 }
 
 template<typename T>

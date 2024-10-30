@@ -135,10 +135,10 @@ void StructChunkData::lookup(offset_t offsetInChunk, ValueVector& output,
     }
 }
 
-void StructChunkData::initializeScanState(ChunkState& state, Column* column) const {
+void StructChunkData::initializeScanState(ChunkState& state, const Column* column) const {
     ColumnChunkData::initializeScanState(state, column);
 
-    auto* structColumn = ku_dynamic_cast<StructColumn*>(column);
+    auto* structColumn = ku_dynamic_cast<const StructColumn*>(column);
     state.childrenStates.resize(childChunks.size());
     for (auto i = 0u; i < childChunks.size(); i++) {
         childChunks[i]->initializeScanState(state.childrenStates[i], structColumn->getChild(i));
@@ -152,11 +152,19 @@ void StructChunkData::setToInMemory() {
     }
 }
 
-void StructChunkData::resize(uint64_t newCapacity, bool isInit) {
-    ColumnChunkData::resize(newCapacity, isInit);
+void StructChunkData::resize(uint64_t newCapacity) {
+    ColumnChunkData::resize(newCapacity);
     capacity = newCapacity;
     for (const auto& child : childChunks) {
-        child->resize(newCapacity, isInit);
+        child->resize(newCapacity);
+    }
+}
+
+void StructChunkData::resizeWithoutPreserve(uint64_t newCapacity) {
+    ColumnChunkData::resizeWithoutPreserve(newCapacity);
+    capacity = newCapacity;
+    for (const auto& child : childChunks) {
+        child->resizeWithoutPreserve(newCapacity);
     }
 }
 
@@ -209,22 +217,6 @@ void StructChunkData::write(ColumnChunkData* srcChunk, offset_t srcOffsetInChunk
         childChunks[i]->write(srcStructChunk.childChunks[i].get(), srcOffsetInChunk,
             dstOffsetInChunk, numValuesToCopy);
     }
-}
-
-void StructChunkData::copy(ColumnChunkData* srcChunk, offset_t srcOffsetInChunk,
-    offset_t dstOffsetInChunk, offset_t numValuesToCopy) {
-    while (numValues < dstOffsetInChunk) {
-        nullData->setNull(numValues, true);
-        numValues++;
-    }
-    nullData->append(srcChunk->getNullData(), srcOffsetInChunk, numValuesToCopy);
-    auto& srcStructChunk = srcChunk->cast<StructChunkData>();
-    for (auto i = 0u; i < childChunks.size(); i++) {
-        childChunks[i]->copy(srcStructChunk.childChunks[i].get(), srcOffsetInChunk,
-            dstOffsetInChunk, numValuesToCopy);
-    }
-    numValues += numValuesToCopy;
-    KU_ASSERT(nullData->getNumValues() == numValues);
 }
 
 bool StructChunkData::numValuesSanityCheck() const {

@@ -8,7 +8,7 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalExplain : public LogicalOperator {
+class LogicalExplain final : public LogicalOperator {
 public:
     LogicalExplain(std::shared_ptr<LogicalOperator> child,
         std::shared_ptr<binder::Expression> outputExpression, common::ExplainType explainType,

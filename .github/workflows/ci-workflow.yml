@@ -48,7 +48,7 @@ env:
   CHECKPOINT_THRESHOLD: ${{ github.event.inputs.checkpoint_threshold }}
   WERROR: 1
   RUSTFLAGS: --deny warnings
-
+  PIP_BREAK_SYSTEM_PACKAGES: 1
 
 # Only allow one run in this group to run at a time, and cancel any runs in progress in this group.
 # We use the workflow name and then add the pull request number, or (if it's a push to master), we use the name of the branch.
@@ -145,8 +145,8 @@ jobs:
 
       - name: Ensure Python dependencies
         run: |
-          pip install torch~=2.2.0 --break-system-package --extra-index-url https://download.pytorch.org/whl/cpu
-          pip install --break-system-package --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
+          pip install torch~=2.2.0 --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
 
       - name: Ensure Node.js dependencies
         run: npm install --include=dev
@@ -220,8 +220,8 @@ jobs:
 
       - name: Ensure Python dependencies
         run: |
-          pip install torch~=2.2.0 --break-system-package --extra-index-url https://download.pytorch.org/whl/cpu
-          pip install --break-system-package --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
+          pip install torch~=2.2.0 --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
 
       - name: Ensure Node.js dependencies
         run: npm install --include=dev
@@ -271,12 +271,14 @@ jobs:
         with:
           file: cover.info
 
-  gcc-build-test-32bit:
-    name: gcc build & test 32-bit
+  webassembly-build-test:
+    name: webassembly build & test
     needs: [clang-format, sanity-checks, generate-binary-datasets]
-    runs-on: ubuntu-latest
+    runs-on: kuzu-self-hosted-testing
     env:
       WERROR: 0
+      TEST_JOBS: 8
+      NUM_THREADS: 32
 
     steps:
       - uses: actions/checkout@v4
@@ -286,25 +288,20 @@ jobs:
         with:
           name: binary-demo
           path: dataset/binary-demo
-
-      - name: Start Docker container
+        
+      - name: Build & test
         run: |
-          docker run -d --name kuzu-x86 \
-                     -v $PWD:/kuzu -w /kuzu \
-                     -e GEN=Ninja -e CC=gcc -e CXX=g++ \
-                     i386/debian:stable tail -f /dev/null
-
-      - name: Install dependencies
+          ln -s /home/runner/ldbc-1-csv dataset/ldbc-1/csv
+          source /home/runner/emsdk/emsdk_env.sh
+          make wasmtest
+      
+      - name: Build & test (single-thread mode)
+        env:
+          SINGLE_THREADED: true
         run: |
-          docker exec kuzu-x86 apt-get update
-          docker exec kuzu-x86 apt-get install -y git python3 ninja-build build-essential cmake libssl-dev
-
-      - name: Build & Test
-        run: |
-          docker exec --env USE_EXISTING_BINARY_DATASET=1 kuzu-x86 make test NUM_THREADS=$(nproc)
-
-      - name: Stop Docker container
-        run: docker stop kuzu-x86
+          make clean
+          source /home/runner/emsdk/emsdk_env.sh
+          make wasmtest
 
   rust-build-test:
     name: rust build & test
@@ -348,8 +345,8 @@ jobs:
 
       - name: Ensure Python dependencies
         run: |
-          pip install torch~=2.2.0 --break-system-package --extra-index-url https://download.pytorch.org/whl/cpu
-          pip install --break-system-package --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
+          pip install torch~=2.2.0 --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
 
       - name: Ensure Node.js dependencies
         run: npm install --include=dev
@@ -395,8 +392,8 @@ jobs:
 
       - name: Ensure Python dependencies
         run: |
-          pip install torch~=2.2.0 --break-system-package --extra-index-url https://download.pytorch.org/whl/cpu
-          pip install --break-system-package --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
+          pip install torch~=2.2.0 --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
 
       - name: Ensure Node.js dependencies
         run: npm install --include=dev
@@ -456,8 +453,8 @@ jobs:
 
       - name: Ensure Python dependencies
         run: |
-          pip install torch~=2.2.0 --break-system-package --extra-index-url https://download.pytorch.org/whl/cpu
-          pip install --break-system-package --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
+          pip install torch~=2.2.0 --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
 
       - name: Ensure Node.js dependencies
         run: npm install --include=dev
@@ -745,8 +742,8 @@ jobs:
 
       - name: Ensure Python dependencies
         run: |
-          pip3 install torch~=2.2.0 --break-system-package --extra-index-url https://download.pytorch.org/whl/cpu
-          pip3 install --break-system-package --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
+          pip3 install torch~=2.2.0 --extra-index-url https://download.pytorch.org/whl/cpu
+          pip3 install --user -r tools/python_api/requirements_dev.txt -f https://data.pyg.org/whl/torch-2.2.0+cpu.html
 
       - name: Ensure Node.js dependencies
         run: npm install --include=dev
@@ -859,7 +856,7 @@ jobs:
           cat postgres.test
 
       - name: Install dependencies
-        run: pip install --break-system-package rangehttpserver
+        run: pip install rangehttpserver
 
       # shell needs to be built first to generate the dataset provided by the server
       - name: Extension test build
@@ -913,7 +910,7 @@ jobs:
           cat postgres.test
 
       - name: Install dependencies
-        run: pip3 install --break-system-package rangehttpserver
+        run: pip3 install rangehttpserver
 
       # shell needs to be built first to generate the dataset provided by the server
       - name: Extension test build

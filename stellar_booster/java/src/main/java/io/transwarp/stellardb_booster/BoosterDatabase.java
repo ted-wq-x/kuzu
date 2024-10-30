@@ -3,11 +3,11 @@ package io.transwarp.stellardb_booster;
 /**
  * The BoosterDatabase class is the main class of BoosterDB. It manages all database components.
  */
-public class BoosterDatabase {
+public class BoosterDatabase implements AutoCloseable {
     long db_ref;
     String db_path;
-    long buffer_size = -1;
-    long max_db_size = -1;
+    long buffer_size = 0;
+    long max_db_size = 0;
     boolean enableCompression = true;
     boolean readOnly = false;
     boolean enableCpuAffinity = false;
@@ -65,7 +65,7 @@ public class BoosterDatabase {
      * @throws BoosterObjectRefDestroyedException If the database instance has been destroyed.
      */
     @Override
-    protected void finalize() throws BoosterObjectRefDestroyedException {
+    public void close() throws BoosterObjectRefDestroyedException {
         destroy();
     }
 
@@ -74,7 +74,7 @@ public class BoosterDatabase {
      *
      * @throws BoosterObjectRefDestroyedException If the database instance has been destroyed.
      */
-    public void destroy() throws BoosterObjectRefDestroyedException {
+    private void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         BoosterNative.database_destroy(this);
         destroyed = true;

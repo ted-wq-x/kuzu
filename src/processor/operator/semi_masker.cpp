@@ -17,19 +17,13 @@ std::string SemiMaskerPrintInfo::toString() const {
     return result;
 }
 
-void BaseSemiMasker::initGlobalStateInternal(ExecutionContext* /*context*/) {
-    for (auto& [table, masks] : info->masksPerTable) {
-        for (auto& maskWithIdx : masks) {
-            auto maskIdx = maskWithIdx.first->getNumMasks();
-            KU_ASSERT(maskIdx < UINT8_MAX);
-            maskWithIdx.first->incrementNumMasks();
-            maskWithIdx.second = maskIdx;
-        }
-    }
-}
-
 void BaseSemiMasker::initLocalStateInternal(ResultSet* resultSet, ExecutionContext*) {
     keyVector = resultSet->getValueVector(info->keyPos).get();
+    localInfo = info->appendLocalInfo();
+}
+
+void BaseSemiMasker::finalizeInternal(ExecutionContext* /*context*/) {
+    info->mergeToGlobalInfo();
 }
 
 bool SingleTableSemiMasker::getNextTuplesInternal(ExecutionContext* context) {
@@ -40,9 +34,7 @@ bool SingleTableSemiMasker::getNextTuplesInternal(ExecutionContext* context) {
     for (auto i = 0u; i < selVector.getSelSize(); i++) {
         auto pos = selVector[i];
         auto nodeID = keyVector->getValue<nodeID_t>(pos);
-        for (auto& [mask, maskerIdx] : info->getSingleTableMasks()) {
-            mask->incrementMaskValue(nodeID.offset, maskerIdx);
-        }
+        localInfo->singleTableRef->mask(nodeID.offset);
     }
     metrics->numOutputTuple.increase(selVector.getSelSize());
     return true;
@@ -56,9 +48,7 @@ bool MultiTableSemiMasker::getNextTuplesInternal(ExecutionContext* context) {
     for (auto i = 0u; i < selVector.getSelSize(); i++) {
         auto pos = selVector[i];
         auto nodeID = keyVector->getValue<nodeID_t>(pos);
-        for (auto& [mask, maskerIdx] : info->getTableMasks(nodeID.tableID)) {
-            mask->incrementMaskValue(nodeID.offset, maskerIdx);
-        }
+        localInfo->localMasksPerTable[nodeID.tableID]->mask(nodeID.offset);
     }
     metrics->numOutputTuple.increase(selVector.getSelSize());
     return true;
@@ -83,18 +73,23 @@ bool PathSingleTableSemiMasker::getNextTuplesInternal(ExecutionContext* context)
     if (!children[0]->getNextTuple(context)) {
         return false;
     }
-    auto size = ListVector::getDataVectorSize(pathRelsVector);
-    for (auto i = 0u; i < size; ++i) {
-        auto srcNodeID = pathRelsSrcIDDataVector->getValue<nodeID_t>(i);
-        for (auto& [mask, maskerIdx] : info->getSingleTableMasks()) {
-            mask->incrementMaskValue(srcNodeID.offset, maskerIdx);
+    auto& selVector = keyVector->state->getSelVector();
+    uint64_t num = 0;
+    // for both direction, we should deal with direction based on the actual direction of the edge
+    for (auto i = 0u; i < selVector.getSelSize(); i++) {
+        auto pos = selVector[i];
+        num++;
+        if (direction == ExtendDirection::FWD || direction == ExtendDirection::BOTH) {
+            auto srcNodeID = pathRelsSrcIDDataVector->getValue<nodeID_t>(pos);
+            localInfo->singleTableRef->mask(srcNodeID.offset);
         }
-        auto dstNodeID = pathRelsDstIDDataVector->getValue<nodeID_t>(i);
-        for (auto& [mask, maskerIdx] : info->getSingleTableMasks()) {
-            mask->incrementMaskValue(dstNodeID.offset, maskerIdx);
+
+        if (direction == ExtendDirection::BWD || direction == ExtendDirection::BOTH) {
+            auto dstNodeID = pathRelsDstIDDataVector->getValue<nodeID_t>(pos);
+            localInfo->singleTableRef->mask(dstNodeID.offset);
         }
     }
-    metrics->numOutputTuple.increase(size);
+    metrics->numOutputTuple.increase(num);
     return true;
 }
 
@@ -102,18 +97,24 @@ bool PathMultipleTableSemiMasker::getNextTuplesInternal(ExecutionContext* contex
     if (!children[0]->getNextTuple(context)) {
         return false;
     }
-    auto size = ListVector::getDataVectorSize(pathRelsVector);
-    for (auto i = 0u; i < size; ++i) {
-        auto srcNodeID = pathRelsSrcIDDataVector->getValue<nodeID_t>(i);
-        for (auto& [mask, maskerIdx] : info->getTableMasks(srcNodeID.tableID)) {
-            mask->incrementMaskValue(srcNodeID.offset, maskerIdx);
-        }
-        auto dstNodeID = pathRelsDstIDDataVector->getValue<nodeID_t>(i);
-        for (auto& [mask, maskerIdx] : info->getTableMasks(dstNodeID.tableID)) {
-            mask->incrementMaskValue(dstNodeID.offset, maskerIdx);
+    auto& selVector = pathRelsVector->state->getSelVector();
+    uint64_t num = 0;
+    for (auto i = 0u; i < selVector.getSelSize(); i++) {
+        auto [offset, size] = pathRelsVector->getValue<list_entry_t>(selVector[i]);
+        for (auto j = 0u; j < size; ++j) {
+            auto pos = offset + j;
+            num++;
+            if (direction == ExtendDirection::FWD || direction == ExtendDirection::BOTH) {
+                auto srcNodeID = pathRelsSrcIDDataVector->getValue<nodeID_t>(pos);
+                localInfo->localMasksPerTable.at(srcNodeID.tableID)->mask(srcNodeID.offset);
+            }
+            if (direction == ExtendDirection::BWD || direction == ExtendDirection::BOTH) {
+                auto dstNodeID = pathRelsDstIDDataVector->getValue<nodeID_t>(pos);
+                localInfo->localMasksPerTable.at(dstNodeID.tableID)->mask(dstNodeID.offset);
+            }
         }
     }
-    metrics->numOutputTuple.increase(size);
+    metrics->numOutputTuple.increase(num);
     return true;
 }
 

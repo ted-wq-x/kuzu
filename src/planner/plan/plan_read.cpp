@@ -4,7 +4,6 @@
 #include "binder/query/reading_clause/bound_match_clause.h"
 #include "binder/query/reading_clause/bound_table_function_call.h"
 #include "common/enums/join_type.h"
-#include "function/gds_function.h"
 #include "planner/planner.h"
 
 using namespace kuzu::binder;
@@ -137,7 +136,7 @@ void Planner::planGDSCall(const BoundReadingClause& readingClause,
         joinConditions.push_back(node.getInternalID());
         for (auto& plan : plans) {
             auto probePlan = LogicalPlan();
-            auto gdsCall = getGDSCall(readingClause);
+            auto gdsCall = getGDSCall(call.getInfo());
             gdsCall->computeFactorizedSchema();
             probePlan.setLastOperator(gdsCall);
             if (!predicatesToPush.empty()) {
@@ -147,7 +146,7 @@ void Planner::planGDSCall(const BoundReadingClause& readingClause,
         }
     } else {
         for (auto& plan : plans) {
-            planReadOp(getGDSCall(readingClause), predicatesToPush, *plan);
+            planReadOp(getGDSCall(call.getInfo()), predicatesToPush, *plan);
         }
     }
 
@@ -157,8 +156,9 @@ void Planner::planGDSCall(const BoundReadingClause& readingClause,
     if (!properties.empty()) {
         auto& node = bindData->getNodeOutput()->constCast<NodeExpression>();
         auto scanPlan = LogicalPlan();
-        cardinalityEstimator.addNodeIDDom(*node.getInternalID(), node.getTableIDs());
-        appendScanNodeTable(node.getInternalID(), node.getTableIDs(), properties, node.getVariableName(), scanPlan);
+        cardinalityEstimator.addNodeIDDom(clientContext->getTx(), *node.getInternalID(),
+            node.getTableIDs());
+        appendScanNodeTable(node.getInternalID(), node.getTableIDs(), properties, scanPlan);
         expression_vector joinConditions;
         joinConditions.push_back(node.getInternalID());
         for (auto& plan : plans) {

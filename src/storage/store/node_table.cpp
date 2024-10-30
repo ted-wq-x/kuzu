@@ -32,7 +32,7 @@ bool NodeTableScanState::scanNext(Transaction* transaction) {
     }
     auto nodeGroupStartOffset = StorageUtils::getStartOffsetOfNodeGroup(nodeGroupIdx);
     if (source == TableScanSource::UNCOMMITTED) {
-        nodeGroupStartOffset += StorageConstants::MAX_NUM_ROWS_IN_TABLE;
+        nodeGroupStartOffset = transaction->getUncommittedOffset(tableID, nodeGroupStartOffset);
     }
     for (auto i = 0u; i < scanResult.numRows; i++) {
         nodeIDVector->setValue(i,
@@ -88,7 +88,16 @@ void NodeTable::initializePKIndex(const std::string& databasePath,
         *memoryManager->getBufferManager(), shadowFile, vfs, context);
 }
 
-void NodeTable::initScanState(Transaction* transaction, TableScanState& scanState) {
+row_idx_t NodeTable::getNumTotalRows(const Transaction* transaction) {
+    auto numLocalRows = 0u;
+    if (auto localTable = transaction->getLocalStorage()->getLocalTable(tableID,
+            LocalStorage::NotExistAction::RETURN_NULL)) {
+        numLocalRows = localTable->getNumTotalRows();
+    }
+    return numLocalRows + nodeGroups->getNumTotalRows();
+}
+
+void NodeTable::initScanState(Transaction* transaction, TableScanState& scanState) const {
     auto& nodeScanState = scanState.cast<NodeTableScanState>();
     NodeGroup* nodeGroup = nullptr;
     switch (nodeScanState.source) {
@@ -125,14 +134,11 @@ bool NodeTable::lookup(Transaction* transaction, const TableScanState& scanState
         return false;
     }
     const auto nodeOffset = scanState.nodeIDVector->readNodeOffset(nodeIDPos);
-    offset_t rowIdxInGroup = INVALID_OFFSET;
-    if (nodeOffset >= StorageConstants::MAX_NUM_ROWS_IN_TABLE) {
-        rowIdxInGroup = nodeOffset - StorageConstants::MAX_NUM_ROWS_IN_TABLE -
-                        StorageUtils::getStartOffsetOfNodeGroup(scanState.nodeGroupIdx);
-    } else {
-        rowIdxInGroup =
+    offset_t rowIdxInGroup =
+        transaction->isUnCommitted(tableID, nodeOffset) ?
+            transaction->getLocalRowIdx(tableID, nodeOffset) -
+                StorageUtils::getStartOffsetOfNodeGroup(scanState.nodeGroupIdx) :
             nodeOffset - StorageUtils::getStartOffsetOfNodeGroup(scanState.nodeGroupIdx);
-    }
     scanState.rowIdxVector->setValue<row_idx_t>(nodeIDPos, rowIdxInGroup);
     return scanState.nodeGroup->lookup(transaction, scanState);
 }
@@ -206,11 +212,12 @@ void NodeTable::update(Transaction* transaction, TableUpdateState& updateState) 
         validatePkNotExists(transaction, &nodeUpdateState.propertyVector);
     }
     const auto nodeOffset = nodeUpdateState.nodeIDVector.readNodeOffset(pos);
-    if (nodeOffset >= StorageConstants::MAX_NUM_ROWS_IN_TABLE) {
+    if (transaction->isUnCommitted(tableID, nodeOffset)) {
         const auto localTable = transaction->getLocalStorage()->getLocalTable(tableID,
             LocalStorage::NotExistAction::RETURN_NULL);
         KU_ASSERT(localTable);
-        localTable->update(&DUMMY_TRANSACTION, updateState);
+        auto dummyTrx = Transaction::getDummyTransactionFromExistingOne(*transaction);
+        localTable->update(&dummyTrx, updateState);
     } else {
         if (nodeUpdateState.columnID == pkColumnID && pkIndex) {
             insertPK(transaction, nodeUpdateState.nodeIDVector, nodeUpdateState.propertyVector);
@@ -241,11 +248,11 @@ bool NodeTable::delete_(Transaction* transaction, TableDeleteState& deleteState)
     }
     bool isDeleted = false;
     const auto nodeOffset = nodeDeleteState.nodeIDVector.readNodeOffset(pos);
-    if (nodeOffset >= StorageConstants::MAX_NUM_ROWS_IN_TABLE) {
-        const auto localTable = transaction->getLocalStorage()->getLocalTable(tableID,
-            LocalStorage::NotExistAction::RETURN_NULL);
-        KU_ASSERT(localTable);
-        isDeleted = localTable->delete_(&DUMMY_TRANSACTION, deleteState);
+    const auto localTable = transaction->getLocalStorage()->getLocalTable(tableID,
+        LocalStorage::NotExistAction::RETURN_NULL);
+    if (localTable && transaction->isUnCommitted(tableID, nodeOffset)) {
+        auto dummyTrx = Transaction::getDummyTransactionFromExistingOne(*transaction);
+        isDeleted = localTable->delete_(&dummyTrx, deleteState);
     } else {
         const auto nodeGroupIdx = StorageUtils::getNodeGroupIdx(nodeOffset);
         const auto rowIdxInGroup =
@@ -287,7 +294,7 @@ std::pair<offset_t, offset_t> NodeTable::appendToLastNodeGroup(Transaction* tran
 }
 
 void NodeTable::commit(Transaction* transaction, LocalTable* localTable) {
-    auto startNodeOffset = nodeGroups->getNumRows();
+    auto startNodeOffset = nodeGroups->getNumTotalRows();
     transaction->setMaxCommittedNodeOffset(tableID, startNodeOffset);
     auto& localNodeTable = localTable->cast<LocalNodeTable>();
     // 1. Append all tuples from local storage to nodeGroups regardless deleted or not.
@@ -387,9 +394,20 @@ void NodeTable::checkpoint(Serializer& ser, TableCatalogEntry* tableEntry) {
         pkIndex->checkpoint();
         hasChanges = false;
         columns = std::move(state.columns);
-        tableEntry->vacuumColumnIDs(0);
+        tableEntry->vacuumColumnIDs(0 /*nextColumnID*/);
     }
     serialize(ser);
+}
+
+TableStats NodeTable::getStats(const Transaction* transaction) const {
+    auto stats = nodeGroups->getStats();
+    const auto localTable = transaction->getLocalStorage()->getLocalTable(tableID,
+        LocalStorage::NotExistAction::RETURN_NULL);
+    if (localTable) {
+        const auto localStats = localTable->cast<LocalNodeTable>().getStats();
+        stats.merge(localStats);
+    }
+    return stats;
 }
 
 void NodeTable::serialize(Serializer& serializer) const {
@@ -406,7 +424,7 @@ bool NodeTable::isVisible(const Transaction* transaction, offset_t offset) const
 bool NodeTable::isVisibleNoLock(const Transaction* transaction, offset_t offset) const {
     auto [nodeGroupIdx, offsetInGroup] = StorageUtils::getNodeGroupIdxAndOffsetInChunk(offset);
     auto* nodeGroup = getNodeGroupNoLock(nodeGroupIdx);
-    return nodeGroup->isVisible(transaction, offsetInGroup);
+    return nodeGroup->isVisibleNoLock(transaction, offsetInGroup);
 }
 
 bool NodeTable::lookupPK(const Transaction* transaction, ValueVector* keyVector, uint64_t vectorPos,

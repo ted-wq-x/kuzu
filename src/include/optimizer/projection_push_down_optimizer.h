@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common/enums/path_semantic.h"
 #include "logical_operator_visitor.h"
 #include "planner/operator/logical_plan.h"
 
@@ -24,6 +25,7 @@ namespace optimizer {
 class ProjectionPushDownOptimizer : public LogicalOperatorVisitor {
 public:
     void rewrite(planner::LogicalPlan* plan);
+    explicit ProjectionPushDownOptimizer(common::PathSemantic semantic) : semantic(semantic){};
 
 private:
     void visitOperator(planner::LogicalOperator* op);
@@ -32,6 +34,7 @@ private:
     void visitExtend(planner::LogicalOperator* op) override;
     void visitAccumulate(planner::LogicalOperator* op) override;
     void visitFilter(planner::LogicalOperator* op) override;
+    void visitNodeLabelFilter(planner::LogicalOperator* op) override;
     void visitHashJoin(planner::LogicalOperator* op) override;
     void visitIntersect(planner::LogicalOperator* op) override;
     void visitProjection(planner::LogicalOperator* op) override;
@@ -58,6 +61,7 @@ private:
     binder::expression_set propertiesInUse;
     binder::expression_set variablesInUse;
     binder::expression_set nodeOrRelInUse;
+    common::PathSemantic semantic;
 };
 
 } // namespace optimizer

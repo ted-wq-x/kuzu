@@ -42,7 +42,6 @@
 
 -LOG KnowsLongPathTest
 -STATEMENT MATCH (a:person)-[:knows*8..11]->(b:person) RETURN COUNT(*)
--PARALLELISM 1
 ---- 1
 1049760
 

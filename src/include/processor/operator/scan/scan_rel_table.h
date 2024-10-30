@@ -50,7 +50,7 @@ struct ScanRelTablePrintInfo final : OPPrintInfo {
         common::ExtendDirection direction, std::string alias)
         : tableNames{std::move(tableNames)}, properties{std::move(properties)},
           boundNode{std::move(boundNode)}, rel{std::move(rel)}, nbrNode{std::move(nbrNode)},
-          direction{std::move(direction)}, alias(std::move(alias)) {}
+          direction{std::move(direction)}, alias{std::move(alias)} {}
 
     std::string toString() const override;
 
@@ -62,7 +62,7 @@ private:
     ScanRelTablePrintInfo(const ScanRelTablePrintInfo& other)
         : OPPrintInfo{other}, tableNames{other.tableNames}, properties{other.properties},
           boundNode{other.boundNode}, rel{other.rel}, nbrNode{other.nbrNode},
-          direction{other.direction}, alias(other.alias) {}
+          direction{other.direction}, alias{other.alias} {}
 };
 
 class ScanRelTable final : public ScanTable {

@@ -5,7 +5,25 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalAggregate : public LogicalOperator {
+struct LogicalAggregatePrintInfo final : OPPrintInfo {
+    binder::expression_vector keys;
+    binder::expression_vector aggregates;
+
+    LogicalAggregatePrintInfo(binder::expression_vector keys, binder::expression_vector aggregates)
+        : keys(std::move(keys)), aggregates(std::move(aggregates)) {}
+
+    std::string toString() const override;
+
+    std::unique_ptr<OPPrintInfo> copy() const override {
+        return std::unique_ptr<LogicalAggregatePrintInfo>(new LogicalAggregatePrintInfo(*this));
+    }
+
+private:
+    LogicalAggregatePrintInfo(const LogicalAggregatePrintInfo& other)
+        : OPPrintInfo(other), keys(other.keys), aggregates(other.aggregates) {}
+};
+
+class LogicalAggregate final : public LogicalOperator {
     static constexpr LogicalOperatorType operatorType_ = LogicalOperatorType::AGGREGATE;
 
 public:

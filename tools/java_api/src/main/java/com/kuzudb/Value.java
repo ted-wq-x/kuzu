@@ -3,13 +3,14 @@ package com.kuzudb;
 /**
  * Value can hold data of different types.
  */
-public class Value {
+public class Value implements AutoCloseable {
     public long v_ref;
     boolean destroyed = false;
     boolean isOwnedByCPP = false;
 
     /**
      * Construct a Value from a val.
+     *
      * @throws ObjectRefDestroyedException If the Value has been destroyed.
      */
     public <T> Value(T val) throws ObjectRefDestroyedException {
@@ -19,6 +20,7 @@ public class Value {
 
     /**
      * Create a null Value.
+     *
      * @return The null Value.
      */
     public static Value createNull() {
@@ -27,6 +29,7 @@ public class Value {
 
     /**
      * Create a null Value with the given data type.
+     *
      * @param data_type: The data type of the null Value.
      */
     public static Value createNullWithDataType(DataType data_type) {
@@ -35,6 +38,7 @@ public class Value {
 
     /**
      * Create a default Value with the given data type.
+     *
      * @param data_type: The data type of the default Value.
      * @return The default Value.
      */
@@ -44,6 +48,7 @@ public class Value {
 
     /**
      * Check if the Value has been destroyed.
+     *
      * @throws ObjectRefDestroyedException If the Value has been destroyed.
      */
     public void checkNotDestroyed() throws ObjectRefDestroyedException {
@@ -52,11 +57,12 @@ public class Value {
     }
 
     /**
-     * Finalize.
+     * Close the value and release the underlying resources. This method is invoked automatically on objects managed by the try-with-resources statement.
+     *
      * @throws ObjectRefDestroyedException If the Value has been destroyed.
      */
     @Override
-    protected void finalize() throws ObjectRefDestroyedException {
+    public void close() throws ObjectRefDestroyedException {
         destroy();
     }
 
@@ -66,9 +72,10 @@ public class Value {
 
     /**
      * Destroy the Value.
+     *
      * @throws ObjectRefDestroyedException If the Value has been destroyed.
      */
-    public void destroy() throws ObjectRefDestroyedException {
+    private void destroy() throws ObjectRefDestroyedException {
         checkNotDestroyed();
         if (!isOwnedByCPP) {
             Native.kuzu_value_destroy(this);
@@ -78,6 +85,7 @@ public class Value {
 
     /**
      * Check if the Value is null.
+     *
      * @return True if the Value is null, false otherwise.
      * @throws ObjectRefDestroyedException If the Value has been destroyed.
      */
@@ -88,6 +96,7 @@ public class Value {
 
     /**
      * Set the Value to null.
+     *
      * @param flag: True if the Value is set to null, false otherwise.
      * @throws ObjectRefDestroyedException If the Value has been destroyed.
      */
@@ -98,6 +107,7 @@ public class Value {
 
     /**
      * Copy the Value from another Value.
+     *
      * @param other: The Value to copy from.
      * @throws ObjectRefDestroyedException If the Value has been destroyed.
      */
@@ -108,6 +118,7 @@ public class Value {
 
     /**
      * Clone the Value.
+     *
      * @return The cloned Value.
      */
     public Value clone() {
@@ -119,6 +130,7 @@ public class Value {
 
     /**
      * Get the actual value from the Value.
+     *
      * @return The value of the given type.
      * @throws ObjectRefDestroyedException If the Value has been destroyed.
      */
@@ -129,6 +141,7 @@ public class Value {
 
     /**
      * Get the data type of the Value.
+     *
      * @return The data type of the Value.
      * @throws ObjectRefDestroyedException If the Value has been destroyed.
      */
@@ -139,6 +152,7 @@ public class Value {
 
     /**
      * Convert the Value to string.
+     *
      * @return The current value in string format.
      */
     public String toString() {

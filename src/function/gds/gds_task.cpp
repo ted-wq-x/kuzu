@@ -1,24 +1,20 @@
 #include "function/gds/gds_task.h"
 
+#include "common/data_chunk/sel_vector.h"
+#include "graph/graph.h"
+
 using namespace kuzu::common;
 
 namespace kuzu {
 namespace function {
 
-static uint64_t computeScanResult(nodeID_t sourceNodeID,
-    const std::span<const nodeID_t>& nbrNodeIDs, const std::span<const relID_t>& edgeIDs,
-    EdgeCompute& ec, FrontierPair& frontierPair, bool isFwd) {
+static uint64_t computeScanResult(nodeID_t sourceNodeID, std::span<const nodeID_t> nbrNodeIDs,
+    std::span<const relID_t> edgeIDs, SelectionVector& mask, EdgeCompute& ec,
+    FrontierPair& frontierPair, bool isFwd) {
     KU_ASSERT(nbrNodeIDs.size() == edgeIDs.size());
-    uint64_t numComputedResult = 0;
-    for (size_t i = 0; i < nbrNodeIDs.size(); i++) {
-        const auto& nbrNodeID = nbrNodeIDs[i];
-        const auto& edgeID = edgeIDs[i];
-        if (ec.edgeCompute(sourceNodeID, nbrNodeID, edgeID, isFwd)) {
-            frontierPair.getNextFrontierUnsafe().setActive(nbrNodeID);
-            numComputedResult++;
-        }
-    }
-    return numComputedResult;
+    ec.edgeCompute(sourceNodeID, nbrNodeIDs, edgeIDs, mask, isFwd);
+    frontierPair.getNextFrontierUnsafe().setActive(mask, nbrNodeIDs);
+    return mask.getSelSize();
 }
 
 void FrontierTask::run() {
@@ -33,25 +29,15 @@ void FrontierTask::run() {
             if (sharedState->frontierPair.curFrontier->isActive(nodeID)) {
                 switch (info.direction) {
                 case ExtendDirection::FWD: {
-                    for (const auto [nodes, edges] : graph->scanFwd(nodeID, *scanState)) {
+                    for (auto [nodes, edges, mask] : graph->scanFwd(nodeID, *scanState)) {
                         numApproxActiveNodesForNextIter += computeScanResult(nodeID, nodes, edges,
-                            *localEc, sharedState->frontierPair, true);
+                            mask, *localEc, sharedState->frontierPair, true);
                     }
                 } break;
                 case ExtendDirection::BWD: {
-                    for (const auto [nodes, edges] : graph->scanBwd(nodeID, *scanState)) {
+                    for (auto [nodes, edges, mask] : graph->scanBwd(nodeID, *scanState)) {
                         numApproxActiveNodesForNextIter += computeScanResult(nodeID, nodes, edges,
-                            *localEc, sharedState->frontierPair, false);
-                    }
-                } break;
-                case ExtendDirection::BOTH: {
-                    for (const auto [nodes, edges] : graph->scanFwd(nodeID, *scanState)) {
-                        numApproxActiveNodesForNextIter += computeScanResult(nodeID, nodes, edges,
-                            *localEc, sharedState->frontierPair, true);
-                    }
-                    for (const auto [nodes, edges] : graph->scanBwd(nodeID, *scanState)) {
-                        numApproxActiveNodesForNextIter += computeScanResult(nodeID, nodes, edges,
-                            *localEc, sharedState->frontierPair, false);
+                            mask, *localEc, sharedState->frontierPair, false);
                     }
                 } break;
                 default:
@@ -64,16 +50,10 @@ void FrontierTask::run() {
         numApproxActiveNodesForNextIter);
 }
 
-VertexComputeTaskSharedState::VertexComputeTaskSharedState(graph::Graph* graph, VertexCompute& vc,
-    uint64_t maxThreadsForExecution)
-    : graph{graph}, vc{vc} {
-    morselDispatcher = std::make_unique<FrontierMorselDispatcher>(maxThreadsForExecution);
-}
-
 void VertexComputeTask::run() {
     FrontierMorsel frontierMorsel;
-    auto localVc = sharedState->vc.copy();
-    while (sharedState->morselDispatcher->getNextRangeMorsel(frontierMorsel)) {
+    auto localVc = info.vc.copy();
+    while (sharedState->morselDispatcher.getNextRangeMorsel(frontierMorsel)) {
         while (frontierMorsel.hasNextOffset()) {
             common::nodeID_t nodeID = frontierMorsel.getNextNodeID();
             localVc->vertexCompute(nodeID);

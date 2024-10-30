@@ -1,5 +1,6 @@
 #pragma once
 
+#include "planner/operator/operator_print_info.h"
 #include "processor/execution_context.h"
 #include "processor/result/result_set.h"
 
@@ -24,6 +25,7 @@ enum class PhysicalOperatorType : uint8_t {
     DETACH_DATABASE,
     DELETE_,
     DROP,
+    DUMMY_SINK,
     EMPTY_RESULT,
     EXPORT_DATABASE,
     FILTER,
@@ -69,6 +71,9 @@ enum class PhysicalOperatorType : uint8_t {
 
 class PhysicalOperatorUtils {
 public:
+    static std::string operatorToString(const PhysicalOperator* physicalOp);
+
+private:
     static std::string operatorTypeToString(PhysicalOperatorType operatorType);
 };
 
@@ -78,21 +83,6 @@ struct OperatorMetrics {
 
     OperatorMetrics(common::TimeMetric& executionTime, common::NumericMetric& numOutputTuple)
         : executionTime{executionTime}, numOutputTuple{numOutputTuple} {}
-};
-
-struct OPPrintInfo {
-    // TODO(Xiyang): get rid of string based info gradually and let operator print on its own.
-    std::string info;
-
-    OPPrintInfo() = default;
-    explicit OPPrintInfo(std::string info) : info{std::move(info)} {}
-    virtual ~OPPrintInfo() = default;
-
-    virtual std::string toString() const { return info; }
-
-    virtual std::unique_ptr<OPPrintInfo> copy() const {
-        return std::make_unique<OPPrintInfo>(info);
-    }
 };
 
 class PhysicalOperator;

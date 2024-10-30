@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common/exception/not_implemented.h"
+#include "common/task_system/progress_bar.h"
 #include "common/types/value/value.h"
 #include "main/client_context.h"
 #include "main/db_config.h"
@@ -57,19 +57,6 @@ struct ProgressBarSetting {
     }
 };
 
-struct ProgressBarTimerSetting {
-    static constexpr auto name = "progress_bar_time";
-    static constexpr auto inputType = common::LogicalTypeID::INT64;
-    static void setContext(ClientContext* context, const common::Value& parameter) {
-        parameter.validateType(inputType);
-        context->getClientConfigUnsafe()->showProgressAfter = parameter.getValue<int64_t>();
-        context->getProgressBar()->setShowProgressAfter(parameter.getValue<int64_t>());
-    }
-    static common::Value getSetting(const ClientContext* context) {
-        return common::Value(context->getClientConfig()->showProgressAfter);
-    }
-};
-
 struct VarLengthExtendMaxDepthSetting {
     static constexpr auto name = "var_length_extend_max_depth";
     static constexpr auto inputType = common::LogicalTypeID::INT64;
@@ -109,14 +96,24 @@ struct DisableMapKeyCheck {
 struct EnableZoneMapSetting {
     static constexpr auto name = "enable_zone_map";
     static constexpr auto inputType = common::LogicalTypeID::BOOL;
-    static void setContext(ClientContext* /*context*/, const common::Value& parameter) {
+    static void setContext(ClientContext* context, const common::Value& parameter) {
         parameter.validateType(inputType);
-        // TODO(Guodong/Xiyang/Ben): Turn me on when zone map is ready.
-        throw common::NotImplementedException("Zone map is not yet ready to be turned on.");
-        // context->getClientConfigUnsafe()->enableZoneMap = parameter.getValue<bool>();
+        context->getClientConfigUnsafe()->enableZoneMap = parameter.getValue<bool>();
     }
     static common::Value getSetting(const ClientContext* context) {
         return common::Value(context->getClientConfig()->enableZoneMap);
+    }
+};
+
+struct EnableGDSSetting {
+    static constexpr auto name = "enable_gds";
+    static constexpr auto inputType = common::LogicalTypeID::BOOL;
+    static void setContext(ClientContext* context, const common::Value& parameter) {
+        parameter.validateType(inputType);
+        context->getClientConfigUnsafe()->enableGDS = parameter.getValue<bool>();
+    }
+    static common::Value getSetting(const ClientContext* context) {
+        return common::Value(context->getClientConfig()->enableGDS);
     }
 };
 

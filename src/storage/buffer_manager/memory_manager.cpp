@@ -9,7 +9,6 @@
 #include "common/file_system/virtual_file_system.h"
 #include "storage/buffer_manager/buffer_manager.h"
 #include "storage/file_handle.h"
-#include "storage/store/chunked_node_group.h"
 
 using namespace kuzu::common;
 
@@ -17,7 +16,7 @@ namespace kuzu {
 namespace storage {
 
 MemoryBuffer::MemoryBuffer(MemoryManager* mm, page_idx_t pageIdx, uint8_t* buffer, uint64_t size)
-    : buffer{buffer, size}, mm{mm}, pageIdx{pageIdx}, evicted{false} {}
+    : buffer{buffer, (size_t)size}, mm{mm}, pageIdx{pageIdx}, evicted{false} {}
 
 MemoryBuffer::~MemoryBuffer() {
     if (buffer.data() != nullptr && !evicted) {

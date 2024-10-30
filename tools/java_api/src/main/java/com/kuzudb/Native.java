@@ -56,7 +56,7 @@ public class Native {
             new File(lib_file.toString()).deleteOnExit();
             String lib_path = lib_file.toAbsolutePath().toString();
             System.load(lib_path);
-            if(os_name.equals("linux")) {
+            if (os_name.equals("linux")) {
                 kuzu_native_reload_library(lib_path);
             }
         } catch (IOException e) {
@@ -128,6 +128,10 @@ public class Native {
     protected static native boolean kuzu_query_result_has_next(QueryResult query_result);
 
     protected static native FlatTuple kuzu_query_result_get_next(QueryResult query_result);
+
+    protected static native boolean kuzu_query_result_has_next_query_result(QueryResult query_result);
+
+    protected static native QueryResult kuzu_query_result_get_next_query_result(QueryResult query_result);
 
     protected static native String kuzu_query_result_to_string(QueryResult query_result);
 

@@ -1,13 +1,6 @@
-#include "binder/expression/expression_util.h"
-#include "function/gds/bfs_graph.h"
-#include "function/gds/gds_frontier.h"
 #include "function/gds/gds_function_collection.h"
-#include "function/gds/gds_object_manager.h"
 #include "function/gds/rec_joins.h"
-#include "function/gds_function.h"
-#include "main/client_context.h"
 #include "processor/execution_context.h"
-#include "processor/result/factorized_table.h"
 
 using namespace kuzu::processor;
 using namespace kuzu::common;
@@ -91,9 +84,9 @@ private:
     std::atomic<multiplicity_entry_t*> curBoundMultiplicities;
 };
 
-struct AllSPMultiplicitiesOutputs : public SPOutputs {
+struct AllSPDestinationsOutputs : public SPOutputs {
 public:
-    AllSPMultiplicitiesOutputs(std::unordered_map<table_id_t, uint64_t> nodeTableIDAndNumNodes,
+    AllSPDestinationsOutputs(std::unordered_map<table_id_t, uint64_t> nodeTableIDAndNumNodes,
         nodeID_t sourceNodeID, MemoryManager* mm = nullptr)
         : SPOutputs(nodeTableIDAndNumNodes, sourceNodeID, mm),
           multiplicities{nodeTableIDAndNumNodes, mm} {}
@@ -121,18 +114,19 @@ public:
 
 class AllSPDestinationsOutputWriter : public DestinationsOutputWriter {
 public:
-    AllSPDestinationsOutputWriter(main::ClientContext* context, RJOutputs* rjOutputs)
-        : DestinationsOutputWriter(context, rjOutputs) {}
+    AllSPDestinationsOutputWriter(main::ClientContext* context, RJOutputs* rjOutputs,
+        processor::NodeOffsetMaskMap* outputNodeMask)
+        : DestinationsOutputWriter{context, rjOutputs, outputNodeMask} {}
 
     std::unique_ptr<RJOutputWriter> copy() override {
-        return std::make_unique<AllSPDestinationsOutputWriter>(context, rjOutputs);
+        return std::make_unique<AllSPDestinationsOutputWriter>(context, rjOutputs, outputNodeMask);
     }
 
 protected:
     void writeMoreAndAppend(processor::FactorizedTable& fTable, common::nodeID_t dstNodeID,
         uint16_t) const override {
         auto multiplicity =
-            rjOutputs->ptrCast<AllSPMultiplicitiesOutputs>()->multiplicities.getTargetMultiplicity(
+            rjOutputs->ptrCast<AllSPDestinationsOutputs>()->multiplicities.getTargetMultiplicity(
                 dstNodeID.offset);
         for (uint64_t i = 0; i < multiplicity; ++i) {
             fTable.append(vectors);
@@ -140,91 +134,39 @@ protected:
     }
 };
 
-class AllSPLengthsOutputWriter : public DestinationsOutputWriter {
+class AllSPDestinationsEdgeCompute : public EdgeCompute {
 public:
-    AllSPLengthsOutputWriter(main::ClientContext* context, RJOutputs* rjOutputs)
-        : DestinationsOutputWriter(context, rjOutputs) {
-        lengthVector =
-            std::make_unique<ValueVector>(LogicalType::INT64(), context->getMemoryManager());
-        lengthVector->state = DataChunkState::getSingleValueDataChunkState();
-        vectors.push_back(lengthVector.get());
-    }
-
-    std::unique_ptr<RJOutputWriter> copy() override {
-        return std::make_unique<AllSPLengthsOutputWriter>(context, rjOutputs);
-    }
-
-protected:
-    void writeMoreAndAppend(processor::FactorizedTable& fTable, common::nodeID_t dstNodeID,
-        uint16_t length) const override {
-        lengthVector->setValue<int64_t>(0, length);
-        auto multiplicity =
-            rjOutputs->ptrCast<AllSPMultiplicitiesOutputs>()->multiplicities.getTargetMultiplicity(
-                dstNodeID.offset);
-        for (uint64_t i = 0; i < multiplicity; ++i) {
-            fTable.append(vectors);
-        }
-    }
-
-private:
-    std::unique_ptr<common::ValueVector> lengthVector;
-};
-
-class VarLenPathsOutputWriter : public PathsOutputWriter {
-public:
-    VarLenPathsOutputWriter(main::ClientContext* context, RJOutputs* rjOutputs, uint16_t lowerBound,
-        uint16_t upperBound, bool writeEdgeDirection)
-        : PathsOutputWriter(context, rjOutputs, lowerBound, upperBound, writeEdgeDirection) {}
-
-    bool skipWriting(common::nodeID_t dstNodeID) const override {
-        auto pathsOutputs = rjOutputs->ptrCast<PathsOutputs>();
-        auto firstIterParentAndNextPtr =
-            pathsOutputs->bfsGraph.getCurFixedParentPtrs()[dstNodeID.offset].load(
-                std::memory_order_relaxed);
-        // For variable lengths joins, we skip a destination node d in the following conditions:
-        //    (i) if no path has reached d from the source, except when the lower bound is 0.
-        //    (ii) the longest path that has reached d, which is stored in the iter value of the
-        //    firstIterParentAndNextPtr is smaller than the lower bound.
-        // We also do not output any results if a destination node has not been reached.
-        if (nullptr == firstIterParentAndNextPtr) {
-            return lowerBound > 0;
-        } else {
-            return firstIterParentAndNextPtr->getIter() < lowerBound;
-        }
-    }
-
-    std::unique_ptr<RJOutputWriter> copy() override {
-        return std::make_unique<VarLenPathsOutputWriter>(context, rjOutputs, lowerBound, upperBound,
-            writeEdgeDirection);
-    }
-};
-
-class AllSPLengthsEdgeCompute : public EdgeCompute {
-public:
-    AllSPLengthsEdgeCompute(SinglePathLengthsFrontierPair* frontierPair,
+    AllSPDestinationsEdgeCompute(SinglePathLengthsFrontierPair* frontierPair,
         PathMultiplicities* multiplicities)
         : frontierPair{frontierPair}, multiplicities{multiplicities} {};
 
-    bool edgeCompute(nodeID_t boundNodeID, nodeID_t nbrID, relID_t, bool) override {
-        auto nbrVal =
-            frontierPair->pathLengths->getMaskValueFromNextFrontierFixedMask(nbrID.offset);
-        // We should update the nbrID's multiplicity in 2 cases: 1) if nbrID is being visited for
-        // the first time, i.e., when its value in the pathLengths frontier is
-        // PathLengths::UNVISITED. Or 2) if nbrID has already been visited but in this iteration,
-        // so it's value is curIter + 1.
-        auto shouldUpdate =
-            nbrVal == PathLengths::UNVISITED || nbrVal == frontierPair->pathLengths->getCurIter();
-        if (shouldUpdate) {
-            // Note: This is safe because curNodeID is in the current frontier, so its
-            // shortest paths multiplicity is guaranteed to not change in the current iteration.
-            multiplicities->incrementTargetMultiplicity(nbrID.offset,
-                multiplicities->getBoundMultiplicity(boundNodeID.offset));
-        }
-        return nbrVal == PathLengths::UNVISITED;
+    void edgeCompute(nodeID_t boundNodeID, std::span<const nodeID_t> nbrIDs,
+        std::span<const relID_t>, SelectionVector& mask, bool) override {
+        size_t activeCount = 0;
+        mask.forEach([&](auto i) {
+            auto nbrVal =
+                frontierPair->pathLengths->getMaskValueFromNextFrontierFixedMask(nbrIDs[i].offset);
+            // We should update the nbrID's multiplicity in 2 cases: 1) if nbrID is being visited
+            // for the first time, i.e., when its value in the pathLengths frontier is
+            // PathLengths::UNVISITED. Or 2) if nbrID has already been visited but in this
+            // iteration, so it's value is curIter + 1.
+            auto shouldUpdate = nbrVal == PathLengths::UNVISITED ||
+                                nbrVal == frontierPair->pathLengths->getCurIter();
+            if (shouldUpdate) {
+                // Note: This is safe because curNodeID is in the current frontier, so its
+                // shortest paths multiplicity is guaranteed to not change in the current iteration.
+                multiplicities->incrementTargetMultiplicity(nbrIDs[i].offset,
+                    multiplicities->getBoundMultiplicity(boundNodeID.offset));
+            }
+            if (nbrVal == PathLengths::UNVISITED) {
+                mask.getMutableBuffer()[activeCount++] = i;
+            }
+        });
+        mask.setToFiltered(activeCount);
     }
 
     std::unique_ptr<EdgeCompute> copy() override {
-        return std::make_unique<AllSPLengthsEdgeCompute>(frontierPair, multiplicities);
+        return std::make_unique<AllSPDestinationsEdgeCompute>(frontierPair, multiplicities);
     }
 
 private:
@@ -239,24 +181,31 @@ public:
         parentListBlock = bfsGraph->addNewBlock();
     }
 
-    bool edgeCompute(nodeID_t boundNodeID, nodeID_t nbrNodeID, relID_t edgeID,
-        bool fwdEdge) override {
-        auto nbrLen =
-            frontiersPair->pathLengths->getMaskValueFromNextFrontierFixedMask(nbrNodeID.offset);
-        // We should update the nbrID's multiplicity in 2 cases: 1) if nbrID is being visited for
-        // the first time, i.e., when its value in the pathLengths frontier is
-        // PathLengths::UNVISITED. Or 2) if nbrID has already been visited but in this iteration,
-        // so it's value is curIter + 1.
-        auto shouldUpdate =
-            nbrLen == PathLengths::UNVISITED || nbrLen == frontiersPair->pathLengths->getCurIter();
-        if (shouldUpdate) {
-            if (!parentListBlock->hasSpace()) {
-                parentListBlock = bfsGraph->addNewBlock();
+    void edgeCompute(nodeID_t boundNodeID, std::span<const nodeID_t> nbrNodeIDs,
+        std::span<const relID_t> edgeIDs, SelectionVector& mask, bool fwdEdge) override {
+        size_t activeCount = 0;
+        mask.forEach([&](auto i) {
+            auto nbrLen = frontiersPair->pathLengths->getMaskValueFromNextFrontierFixedMask(
+                nbrNodeIDs[i].offset);
+            // We should update the nbrID's multiplicity in 2 cases: 1) if nbrID is being visited
+            // for the first time, i.e., when its value in the pathLengths frontier is
+            // PathLengths::UNVISITED. Or 2) if nbrID has already been visited but in this
+            // iteration, so it's value is curIter + 1.
+            auto shouldUpdate = nbrLen == PathLengths::UNVISITED ||
+                                nbrLen == frontiersPair->pathLengths->getCurIter();
+            if (shouldUpdate) {
+                if (!parentListBlock->hasSpace()) {
+                    parentListBlock = bfsGraph->addNewBlock();
+                }
+                bfsGraph->addParent(frontiersPair->curIter.load(std::memory_order_relaxed),
+                    parentListBlock, nbrNodeIDs[i] /* child */, boundNodeID /* parent */,
+                    edgeIDs[i], fwdEdge);
             }
-            bfsGraph->addParent(frontiersPair->curIter.load(std::memory_order_relaxed),
-                parentListBlock, nbrNodeID /* child */, boundNodeID /* parent */, edgeID, fwdEdge);
-        }
-        return nbrLen == PathLengths::UNVISITED;
+            if (nbrLen == PathLengths::UNVISITED) {
+                mask.getMutableBuffer()[activeCount++] = i;
+            }
+        });
+        mask.setToFiltered(activeCount);
     }
 
     std::unique_ptr<EdgeCompute> copy() override {
@@ -271,8 +220,8 @@ private:
 
 /**
  * Algorithm for parallel all shortest paths computation, so all shortest paths from a source to
- * is returned for each destination. If paths are not returned, multiplicities indicate the number
- * of paths to each destination.
+ * is returned for each destination. If paths are not returned, multiplicities indicate the
+ * number of paths to each destination.
  */
 
 class AllSPDestinationsAlgorithm final : public SPAlgorithm {
@@ -280,9 +229,7 @@ public:
     AllSPDestinationsAlgorithm() = default;
     AllSPDestinationsAlgorithm(const AllSPDestinationsAlgorithm& other) : SPAlgorithm{other} {}
 
-    expression_vector getResultColumns(Binder* binder) const override {
-        return getBaseResultColumns(binder);
-    }
+    expression_vector getResultColumns(Binder*) const override { return getBaseResultColumns(); }
 
     std::unique_ptr<GDSAlgorithm> copy() const override {
         return std::make_unique<AllSPDestinationsAlgorithm>(*this);
@@ -291,46 +238,15 @@ public:
 private:
     RJCompState getRJCompState(ExecutionContext* context, nodeID_t sourceNodeID) override {
         auto clientContext = context->clientContext;
-        auto output = std::make_unique<AllSPMultiplicitiesOutputs>(
-            sharedState->graph->getNodeTableIDAndNumNodes(), sourceNodeID,
+        auto output = std::make_unique<AllSPDestinationsOutputs>(
+            sharedState->graph->getNumNodesMap(clientContext->getTx()), sourceNodeID,
             clientContext->getMemoryManager());
-        auto outputWriter =
-            std::make_unique<AllSPDestinationsOutputWriter>(clientContext, output.get());
+        auto outputWriter = std::make_unique<AllSPDestinationsOutputWriter>(clientContext,
+            output.get(), sharedState->getOutputNodeMaskMap());
         auto frontierPair = std::make_unique<SinglePathLengthsFrontierPair>(output->pathLengths,
             clientContext->getMaxNumThreadForExec());
-        auto edgeCompute =
-            std::make_unique<AllSPLengthsEdgeCompute>(frontierPair.get(), &output->multiplicities);
-        return RJCompState(std::move(frontierPair), std::move(edgeCompute), std::move(output),
-            std::move(outputWriter));
-    }
-};
-
-class AllSPLengthsAlgorithm final : public SPAlgorithm {
-public:
-    AllSPLengthsAlgorithm() = default;
-    AllSPLengthsAlgorithm(const AllSPLengthsAlgorithm& other) : SPAlgorithm{other} {}
-
-    expression_vector getResultColumns(Binder* binder) const override {
-        auto columns = getBaseResultColumns(binder);
-        columns.push_back(getLengthColumn(binder));
-        return columns;
-    }
-
-    std::unique_ptr<GDSAlgorithm> copy() const override {
-        return std::make_unique<AllSPLengthsAlgorithm>(*this);
-    }
-
-private:
-    RJCompState getRJCompState(ExecutionContext* context, nodeID_t sourceNodeID) override {
-        auto clientContext = context->clientContext;
-        auto output = std::make_unique<AllSPMultiplicitiesOutputs>(
-            sharedState->graph->getNodeTableIDAndNumNodes(), sourceNodeID,
-            clientContext->getMemoryManager());
-        auto outputWriter = std::make_unique<AllSPLengthsOutputWriter>(clientContext, output.get());
-        auto frontierPair = std::make_unique<SinglePathLengthsFrontierPair>(output->pathLengths,
-            clientContext->getMaxNumThreadForExec());
-        auto edgeCompute =
-            std::make_unique<AllSPLengthsEdgeCompute>(frontierPair.get(), &output->multiplicities);
+        auto edgeCompute = std::make_unique<AllSPDestinationsEdgeCompute>(frontierPair.get(),
+            &output->multiplicities);
         return RJCompState(std::move(frontierPair), std::move(edgeCompute), std::move(output),
             std::move(outputWriter));
     }
@@ -341,11 +257,11 @@ public:
     AllSPPathsAlgorithm() = default;
     AllSPPathsAlgorithm(const AllSPPathsAlgorithm& other) : SPAlgorithm{other} {}
 
-    expression_vector getResultColumns(Binder* binder) const override {
-        auto columns = getBaseResultColumns(binder);
-        columns.push_back(getLengthColumn(binder));
-        columns.push_back(getPathNodeIDsColumn(binder));
-        columns.push_back(getPathEdgeIDsColumn(binder));
+    expression_vector getResultColumns(Binder*) const override {
+        auto columns = getBaseResultColumns();
+        auto rjBindData = bindData->ptrCast<RJBindData>();
+        columns.push_back(rjBindData->pathNodeIDsExpr);
+        columns.push_back(rjBindData->pathEdgeIDsExpr);
         return columns;
     }
 
@@ -356,13 +272,14 @@ public:
 private:
     RJCompState getRJCompState(ExecutionContext* context, nodeID_t sourceNodeID) override {
         auto clientContext = context->clientContext;
-        auto output =
-            std::make_unique<PathsOutputs>(sharedState->graph->getNodeTableIDAndNumNodes(),
-                sourceNodeID, clientContext->getMemoryManager());
+        auto output = std::make_unique<PathsOutputs>(
+            sharedState->graph->getNumNodesMap(clientContext->getTx()), sourceNodeID,
+            clientContext->getMemoryManager());
         auto rjBindData = bindData->ptrCast<RJBindData>();
-        bool writeDirection = rjBindData->extendDirection == ExtendDirection::BOTH;
+        auto writerInfo = rjBindData->getPathWriterInfo();
+        writerInfo.pathNodeMask = sharedState->getPathNodeMaskMap();
         auto outputWriter = std::make_unique<SPPathsOutputWriter>(clientContext, output.get(),
-            rjBindData->upperBound, writeDirection);
+            sharedState->getOutputNodeMaskMap(), std::move(writerInfo));
         auto frontierPair = std::make_unique<SinglePathLengthsFrontierPair>(output->pathLengths,
             clientContext->getMaxNumThreadForExec());
         auto edgeCompute =
@@ -372,130 +289,28 @@ private:
     }
 };
 
-struct VarLenJoinsEdgeCompute : public EdgeCompute {
-    DoublePathLengthsFrontierPair* frontierPair;
-    BFSGraph* bfsGraph;
-    ObjectBlock<ParentList>* parentPtrsBlock = nullptr;
-
-    VarLenJoinsEdgeCompute(DoublePathLengthsFrontierPair* frontierPair, BFSGraph* bfsGraph)
-        : frontierPair{frontierPair}, bfsGraph{bfsGraph} {
-        parentPtrsBlock = bfsGraph->addNewBlock();
-    };
-
-    bool edgeCompute(nodeID_t boundNodeID, nodeID_t nbrNodeID, relID_t edgeID,
-        bool isFwd) override {
-        // We should always update the nbrID in variable length joins
-        if (!parentPtrsBlock->hasSpace()) {
-            parentPtrsBlock = bfsGraph->addNewBlock();
-        }
-        bfsGraph->addParent(frontierPair->getCurrentIter(), parentPtrsBlock, nbrNodeID /* child */,
-            boundNodeID /* parent */, edgeID, isFwd);
-        return true;
-    }
-
-    std::unique_ptr<EdgeCompute> copy() override {
-        return std::make_unique<VarLenJoinsEdgeCompute>(frontierPair, bfsGraph);
-    }
-};
-
-/**
- * Algorithm for parallel all shortest paths computation, so all shortest paths from a source to
- * is returned for each destination. If paths are not returned, multiplicities indicate the number
- * of paths to each destination.
- */
-class VarLenJoinsAlgorithm final : public RJAlgorithm {
-public:
-    VarLenJoinsAlgorithm() = default;
-    VarLenJoinsAlgorithm(const VarLenJoinsAlgorithm& other) : RJAlgorithm(other) {}
-
-    /*
-     * Inputs include the following:
-     *
-     * graph::ANY
-     * srcNode::NODE
-     * lowerBound::INT64
-     * upperBound::INT64
-     * direction::STRING
-     */
-    std::vector<LogicalTypeID> getParameterTypeIDs() const override {
-        return {LogicalTypeID::ANY, LogicalTypeID::NODE, LogicalTypeID::INT64, LogicalTypeID::INT64,
-            LogicalTypeID::STRING};
-    }
-
-    void bind(const expression_vector& params, Binder* binder,
-        graph::GraphEntry& graphEntry) override {
-        auto nodeInput = params[1];
-        auto nodeOutput = bindNodeOutput(binder, graphEntry);
-        auto lowerBound = ExpressionUtil::getLiteralValue<int64_t>(*params[2]);
-        auto upperBound = ExpressionUtil::getLiteralValue<int64_t>(*params[3]);
-        validateLowerUpperBound(lowerBound, upperBound);
-        auto extendDirection = ExtendDirectionUtil::fromString(
-            ExpressionUtil::getLiteralValue<std::string>(*params[4]));
-        bindData = std::make_unique<RJBindData>(nodeInput, nodeOutput, lowerBound, upperBound,
-            extendDirection);
-    }
-
-    binder::expression_vector getResultColumns(Binder* binder) const override {
-        auto columns = getBaseResultColumns(binder);
-        columns.push_back(getLengthColumn(binder));
-        columns.push_back(getPathNodeIDsColumn(binder));
-        columns.push_back(getPathEdgeIDsColumn(binder));
-        return columns;
-    }
-
-    std::unique_ptr<GDSAlgorithm> copy() const override {
-        return std::make_unique<VarLenJoinsAlgorithm>(*this);
-    }
-
-private:
-    RJCompState getRJCompState(ExecutionContext* context, nodeID_t sourceNodeID) override {
-        auto clientContext = context->clientContext;
-        auto mm = clientContext->getMemoryManager();
-        auto nodeTableToNumNodes = sharedState->graph->getNodeTableIDAndNumNodes();
-        auto output = std::make_unique<PathsOutputs>(nodeTableToNumNodes, sourceNodeID, mm);
-        auto rjBindData = bindData->ptrCast<RJBindData>();
-        bool writeDirection = rjBindData->extendDirection == ExtendDirection::BOTH;
-        auto outputWriter = std::make_unique<VarLenPathsOutputWriter>(clientContext, output.get(),
-            rjBindData->lowerBound, rjBindData->upperBound, writeDirection);
-        auto frontierPair = std::make_unique<DoublePathLengthsFrontierPair>(nodeTableToNumNodes,
-            clientContext->getMaxNumThreadForExec(), mm);
-        auto edgeCompute =
-            std::make_unique<VarLenJoinsEdgeCompute>(frontierPair.get(), &output->bfsGraph);
-        return RJCompState(std::move(frontierPair), std::move(edgeCompute), std::move(output),
-            std::move(outputWriter));
-    }
-};
-
-function_set VarLenJoinsFunction::getFunctionSet() {
-    function_set result;
-    auto algo = std::make_unique<VarLenJoinsAlgorithm>();
-    result.push_back(
-        std::make_unique<GDSFunction>(name, algo->getParameterTypeIDs(), std::move(algo)));
-    return result;
-}
-
 function_set AllSPDestinationsFunction::getFunctionSet() {
     function_set result;
-    auto algo = std::make_unique<AllSPDestinationsAlgorithm>();
-    result.push_back(
-        std::make_unique<GDSFunction>(name, algo->getParameterTypeIDs(), std::move(algo)));
+    result.push_back(std::make_unique<GDSFunction>(getFunction()));
     return result;
 }
 
-function_set AllSPLengthsFunction::getFunctionSet() {
-    function_set result;
-    auto algo = std::make_unique<AllSPLengthsAlgorithm>();
-    result.push_back(
-        std::make_unique<GDSFunction>(name, algo->getParameterTypeIDs(), std::move(algo)));
-    return result;
+GDSFunction AllSPDestinationsFunction::getFunction() {
+    auto algo = std::make_unique<AllSPDestinationsAlgorithm>();
+    auto params = algo->getParameterTypeIDs();
+    return GDSFunction(name, std::move(params), std::move(algo));
 }
 
 function_set AllSPPathsFunction::getFunctionSet() {
     function_set result;
-    auto algo = std::make_unique<AllSPPathsAlgorithm>();
-    result.push_back(
-        std::make_unique<GDSFunction>(name, algo->getParameterTypeIDs(), std::move(algo)));
+    result.push_back(std::make_unique<GDSFunction>(getFunction()));
     return result;
+}
+
+GDSFunction AllSPPathsFunction::getFunction() {
+    auto algo = std::make_unique<AllSPPathsAlgorithm>();
+    auto params = algo->getParameterTypeIDs();
+    return GDSFunction(name, std::move(params), std::move(algo));
 }
 
 } // namespace function

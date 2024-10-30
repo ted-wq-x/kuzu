@@ -218,10 +218,10 @@ void ListChunkData::lookup(offset_t offsetInChunk, ValueVector& output,
     output.setValue<list_entry_t>(posInOutputVector, list_entry_t{currentListDataSize, listSize});
 }
 
-void ListChunkData::initializeScanState(ChunkState& state, Column* column) const {
+void ListChunkData::initializeScanState(ChunkState& state, const Column* column) const {
     ColumnChunkData::initializeScanState(state, column);
 
-    auto* listColumn = ku_dynamic_cast<ListColumn*>(column);
+    auto* listColumn = ku_dynamic_cast<const ListColumn*>(column);
     state.childrenStates.resize(CHILD_COLUMN_COUNT);
     sizeColumnChunk->initializeScanState(state.childrenStates[SIZE_COLUMN_CHILD_READ_STATE_IDX],
         listColumn->getSizeColumn());
@@ -312,17 +312,6 @@ void ListChunkData::write(ColumnChunkData* srcChunk, offset_t srcOffsetInChunk,
             appendSize);
     }
     KU_ASSERT(sanityCheck());
-}
-
-void ListChunkData::copy(ColumnChunkData* srcChunk, offset_t srcOffsetInChunk,
-    offset_t dstOffsetInChunk, offset_t numValuesToCopy) {
-    KU_ASSERT(srcChunk->getDataType().getPhysicalType() == PhysicalTypeID::LIST ||
-              srcChunk->getDataType().getPhysicalType() == PhysicalTypeID::ARRAY);
-    KU_ASSERT(dstOffsetInChunk >= numValues);
-    while (numValues < dstOffsetInChunk) {
-        appendNullList();
-    }
-    append(srcChunk, srcOffsetInChunk, numValuesToCopy);
 }
 
 void ListChunkData::copyListValues(const list_entry_t& entry, ValueVector* dataVector) {

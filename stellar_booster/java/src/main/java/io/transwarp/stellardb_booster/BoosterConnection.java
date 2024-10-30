@@ -6,7 +6,7 @@ import java.util.Map;
  * BoosterConnection is used to interact with a BoosterDatabase instance. Each BoosterConnection is thread-safe. Multiple
  * connections can connect to the same BoosterDatabase instance in a multi-threaded environment.
  */
-public class BoosterConnection {
+public class BoosterConnection implements AutoCloseable {
 
     long conn_ref;
     boolean destroyed = false;
@@ -33,12 +33,12 @@ public class BoosterConnection {
     }
 
     /**
-     * Finalize.
+     * Close the connection and release the underlying resources. This method is invoked automatically on objects managed by the try-with-resources statement.
      *
      * @throws BoosterObjectRefDestroyedException If the connection has been destroyed.
      */
     @Override
-    protected void finalize() throws BoosterObjectRefDestroyedException {
+    public void close() throws BoosterObjectRefDestroyedException {
         destroy();
     }
 
@@ -47,7 +47,7 @@ public class BoosterConnection {
      *
      * @throws BoosterObjectRefDestroyedException If the connection has been destroyed.
      */
-    public void destroy() throws BoosterObjectRefDestroyedException {
+    private void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         BoosterNative.connection_destroy(this);
         destroyed = true;

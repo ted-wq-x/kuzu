@@ -7,6 +7,7 @@ using namespace kuzu::common;
 namespace kuzu {
 namespace common {
 
+#ifndef __SINGLE_THREADED__
 TaskScheduler::TaskScheduler(uint64_t numWorkerThreads)
     : stopWorkerThreads{false}, nextScheduledTaskID{0} {
     unsigned int numCores = std::thread::hardware_concurrency();
@@ -98,49 +99,6 @@ void TaskScheduler::scheduleTaskAndWaitOrError(const std::shared_ptr<Task>& task
     }
 }
 
-std::shared_ptr<ScheduledTask> TaskScheduler::pushTaskIntoQueue(const std::shared_ptr<Task>& task) {
-    lock_t lck{taskSchedulerMtx};
-    auto scheduledTask = std::make_shared<ScheduledTask>(task, nextScheduledTaskID++);
-    taskQueue.push_back(scheduledTask);
-    return scheduledTask;
-}
-
-std::shared_ptr<ScheduledTask> TaskScheduler::getTaskAndRegister() {
-    if (taskQueue.empty()) {
-        return nullptr;
-    }
-    auto it = taskQueue.begin();
-    while (it != taskQueue.end()) {
-        auto task = (*it)->task;
-        if (!task->registerThread()) {
-            // If we cannot register for a thread it is because of three possibilities:
-            // (i) maximum number of threads have registered for task and the task is completed
-            // without an exception; or (ii) same as (i) but the task has not yet successfully
-            // completed; or (iii) task has an exception; Only in (i) we remove the task from the
-            // queue. For (ii) and (iii) we keep the task in queue. Recall erroring tasks need to be
-            // manually removed.
-            if (task->isCompletedSuccessfully()) { // option (i)
-                it = taskQueue.erase(it);
-            } else { // option (ii) or (iii): keep the task in the queue.
-                ++it;
-            }
-        } else {
-            return *it;
-        }
-    }
-    return nullptr;
-}
-
-void TaskScheduler::removeErroringTask(uint64_t scheduledTaskID) {
-    lock_t lck{taskSchedulerMtx};
-    for (auto it = taskQueue.begin(); it != taskQueue.end(); ++it) {
-        if (scheduledTaskID == (*it)->ID) {
-            taskQueue.erase(it);
-            return;
-        }
-    }
-}
-
 #ifdef _WIN32
 #include <windows.h>
 
@@ -206,6 +164,71 @@ void TaskScheduler::runWorkerThread() {
             scheduledTask->task->run();
         } catch (std::exception& e) {
             exceptionPtr = std::current_exception();
+        }
+    }
+}
+#else
+// Single-threaded version of TaskScheduler
+TaskScheduler::TaskScheduler(uint64_t) : stopWorkerThreads{false}, nextScheduledTaskID{0} {}
+
+TaskScheduler::~TaskScheduler() {
+    stopWorkerThreads = true;
+}
+
+void TaskScheduler::scheduleTaskAndWaitOrError(const std::shared_ptr<Task>& task,
+    processor::ExecutionContext* context, bool) {
+    for (auto& dependency : task->children) {
+        scheduleTaskAndWaitOrError(dependency, context);
+    }
+    task->registerThread();
+    // runTask deregisters, so we don't need to deregister explicitly here
+    runTask(task.get());
+    if (task->hasException()) {
+        removeErroringTask(task->ID);
+        std::rethrow_exception(task->getExceptionPtr());
+    }
+}
+#endif
+
+std::shared_ptr<ScheduledTask> TaskScheduler::pushTaskIntoQueue(const std::shared_ptr<Task>& task) {
+    lock_t lck{taskSchedulerMtx};
+    auto scheduledTask = std::make_shared<ScheduledTask>(task, nextScheduledTaskID++);
+    taskQueue.push_back(scheduledTask);
+    return scheduledTask;
+}
+
+std::shared_ptr<ScheduledTask> TaskScheduler::getTaskAndRegister() {
+    if (taskQueue.empty()) {
+        return nullptr;
+    }
+    auto it = taskQueue.begin();
+    while (it != taskQueue.end()) {
+        auto task = (*it)->task;
+        if (!task->registerThread()) {
+            // If we cannot register for a thread it is because of three possibilities:
+            // (i) maximum number of threads have registered for task and the task is completed
+            // without an exception; or (ii) same as (i) but the task has not yet successfully
+            // completed; or (iii) task has an exception; Only in (i) we remove the task from the
+            // queue. For (ii) and (iii) we keep the task in queue. Recall erroring tasks need to be
+            // manually removed.
+            if (task->isCompletedSuccessfully()) { // option (i)
+                it = taskQueue.erase(it);
+            } else { // option (ii) or (iii): keep the task in the queue.
+                ++it;
+            }
+        } else {
+            return *it;
+        }
+    }
+    return nullptr;
+}
+
+void TaskScheduler::removeErroringTask(uint64_t scheduledTaskID) {
+    lock_t lck{taskSchedulerMtx};
+    for (auto it = taskQueue.begin(); it != taskQueue.end(); ++it) {
+        if (scheduledTaskID == (*it)->ID) {
+            taskQueue.erase(it);
+            return;
         }
     }
 }

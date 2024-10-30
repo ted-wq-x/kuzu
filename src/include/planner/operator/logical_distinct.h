@@ -5,7 +5,7 @@
 namespace kuzu {
 namespace planner {
 
-class LogicalDistinct : public LogicalOperator {
+class LogicalDistinct final : public LogicalOperator {
 public:
     LogicalDistinct(binder::expression_vector keys, std::shared_ptr<LogicalOperator> child)
         : LogicalDistinct{LogicalOperatorType::DISTINCT, keys, binder::expression_vector{},
