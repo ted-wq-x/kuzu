@@ -8,11 +8,13 @@ namespace processor {
 template<bool TRACK_PATH>
 class AllShortestPathState : public BaseBFSState {
 public:
-    AllShortestPathState(uint8_t upperBound, TargetDstNodes* targetDstNodes)
-        : BaseBFSState{upperBound, targetDstNodes}, minDistance{0}, numVisitedDstNodes{0} {}
+    AllShortestPathState(uint8_t upperBound, TargetDstNodes* targetDstNodes,
+        main::ClientContext* clientContext)
+        : BaseBFSState{upperBound, targetDstNodes, clientContext}, minDistance{0},
+          numVisitedDstNodes{0} {}
 
     inline bool isComplete() final {
-        return isCurrentFrontierEmpty() || isUpperBoundReached() ||
+        return isCurrentFrontierEmpty() || this->isUpperBoundReached() ||
                isAllDstReachedWithMinDistance();
     }
 
@@ -28,7 +30,7 @@ public:
         if (targetDstNodes->contains(nodeID)) {
             numVisitedDstNodes++;
         }
-        currentFrontier->addNodeWithMultiplicity(nodeID, 1);
+        currentFrontier->addSrcNode(nodeID);
     }
 
     void markVisited(common::nodeID_t boundNodeID, common::nodeID_t nbrNodeID,
@@ -40,16 +42,37 @@ public:
                 numVisitedDstNodes++;
             }
             if constexpr (TRACK_PATH) {
-                nextFrontier->addEdge(boundNodeID, nbrNodeID, relID);
+                static_cast<TrackPathFrontier*>(nextFrontier)
+                    ->addEdge(boundNodeID, nbrNodeID, relID);
             } else {
-                nextFrontier->addNodeWithMultiplicity(nbrNodeID, multiplicity);
+                static_cast<UnTrackPathFrontier*>(nextFrontier)
+                    ->addNodeWithMultiplicity(nbrNodeID, multiplicity);
             }
         } else if (currentLevel <= visitedNodeToDistance.at(nbrNodeID)) {
             if constexpr (TRACK_PATH) {
-                nextFrontier->addEdge(boundNodeID, nbrNodeID, relID);
+                static_cast<TrackPathFrontier*>(nextFrontier)
+                    ->addEdge(boundNodeID, nbrNodeID, relID);
             } else {
-                nextFrontier->addNodeWithMultiplicity(nbrNodeID, multiplicity);
+                static_cast<UnTrackPathFrontier*>(nextFrontier)
+                    ->addNodeWithMultiplicity(nbrNodeID, multiplicity);
             }
+        }
+    }
+
+    inline std::unique_ptr<Frontier> createFrontier() override {
+        if constexpr (TRACK_PATH) {
+            return std::make_unique<TrackPathFrontier>();
+        } else {
+            //            if (clientContext->getTransactionContext()->isAutoTransaction()) {
+            //                // 手动事物的单次插入点,由于其offset太大,故使用map存储
+            //                return
+            //                std::make_unique<UnTrackPath1Frontier>(clientContext->getCatalog(),
+            //                    clientContext->getStorageManager(), clientContext->getTx());
+            //            } else {
+            //                return std::make_unique<UnTrackPath2Frontier>();
+            //            }
+            return std::make_unique<UnTrackPath1Frontier>(clientContext->getCatalog(),
+                clientContext->getStorageManager(), clientContext->getTx());
         }
     }
 

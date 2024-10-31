@@ -1,6 +1,5 @@
 add_library(kuzu_processor_operator_ver_length_extend
         OBJECT
-        frontier.cpp
         frontier_scanner.cpp
         recursive_join.cpp
         path_property_probe.cpp)

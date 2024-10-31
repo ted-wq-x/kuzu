@@ -8,8 +8,9 @@ namespace processor {
 template<bool TRACK_PATH>
 class ShortestPathState : public BaseBFSState {
 public:
-    ShortestPathState(uint8_t upperBound, TargetDstNodes* targetDstNodes)
-        : BaseBFSState{upperBound, targetDstNodes}, numVisitedDstNodes{0} {}
+    ShortestPathState(uint8_t upperBound, TargetDstNodes* targetDstNodes,
+        main::ClientContext* clientContext)
+        : BaseBFSState{upperBound, targetDstNodes, clientContext}, numVisitedDstNodes{0} {}
     ~ShortestPathState() override = default;
 
     inline bool isComplete() final {
@@ -26,7 +27,7 @@ public:
         if (targetDstNodes->contains(nodeID)) {
             numVisitedDstNodes++;
         }
-        currentFrontier->addNodeWithMultiplicity(nodeID, 1);
+        currentFrontier->addSrcNode(nodeID);
     }
 
     inline void markVisited(common::nodeID_t boundNodeID, common::nodeID_t nbrNodeID,
@@ -39,9 +40,25 @@ public:
             numVisitedDstNodes++;
         }
         if constexpr (TRACK_PATH) {
-            nextFrontier->addEdge(boundNodeID, nbrNodeID, relID);
+            static_cast<TrackPathFrontier*>(nextFrontier)->addEdge(boundNodeID, nbrNodeID, relID);
         } else {
-            nextFrontier->addNodeWithMultiplicity(nbrNodeID, 1);
+            static_cast<UnTrackPathFrontier*>(nextFrontier)->addNodeWithMultiplicity(nbrNodeID, 1);
+        }
+    }
+
+    inline std::unique_ptr<Frontier> createFrontier() override {
+        if constexpr (TRACK_PATH) {
+            return std::make_unique<TrackPathFrontier>();
+        } else {
+//            if (clientContext->getTransactionContext()->isAutoTransaction()) {
+//                 手动事物的单次插入点,由于其offset太大,故使用map存储
+//                return std::make_unique<UnTrackPath1Frontier>(clientContext->getCatalog(),
+//                    clientContext->getStorageManager(), clientContext->getTx());
+//            } else {
+//                return std::make_unique<UnTrackPath2Frontier>();
+//            }
+return std::make_unique<UnTrackPath1Frontier>(clientContext->getCatalog(),
+    clientContext->getStorageManager(), clientContext->getTx());
         }
     }
 

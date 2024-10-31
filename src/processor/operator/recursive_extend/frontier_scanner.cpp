@@ -6,7 +6,7 @@ using namespace kuzu::common;
 
 namespace kuzu {
 namespace processor {
-
+// template<FrontierValueType T>
 size_t BaseFrontierScanner::scan(RecursiveJoinVectors& vectors, sel_t& vectorPos,
     sel_t& nodeIDDataVectorPos, sel_t& relIDDataVectorPos) {
     if (k >= frontiers.size()) {
@@ -15,6 +15,8 @@ size_t BaseFrontierScanner::scan(RecursiveJoinVectors& vectors, sel_t& vectorPos
     }
     auto vectorPosBeforeScanning = vectorPos;
     auto lastFrontier = frontiers[k];
+    auto& begin = *lastFrontier->beginIter.get();
+    auto& end = *lastFrontier->endIter.get();
     while (true) {
         if (currentDstNodeID.offset != INVALID_OFFSET) {
             scanFromDstOffset(vectors, vectorPos, nodeIDDataVectorPos, relIDDataVectorPos);
@@ -22,12 +24,13 @@ size_t BaseFrontierScanner::scan(RecursiveJoinVectors& vectors, sel_t& vectorPos
         if (vectorPos == DEFAULT_VECTOR_CAPACITY) {
             break;
         }
-        if (lastFrontierCursor == lastFrontier->nodeIDs.size()) {
+        if (begin == end) {
             // All nodes from last frontier have been scanned.
             currentDstNodeID = {INVALID_OFFSET, INVALID_TABLE_ID};
             break;
         }
-        currentDstNodeID = lastFrontier->nodeIDs[lastFrontierCursor++];
+        currentDstNodeID = *begin;
+        begin++;
         // Skip nodes that is not in semi mask.
         if (!targetDstNodes->contains(currentDstNodeID)) {
             currentDstNodeID.offset = INVALID_OFFSET;
@@ -37,7 +40,7 @@ size_t BaseFrontierScanner::scan(RecursiveJoinVectors& vectors, sel_t& vectorPos
     }
     return vectorPos - vectorPosBeforeScanning;
 }
-
+// template<FrontierValueType T>
 void BaseFrontierScanner::resetState(const BaseBFSState& bfsState) {
     lastFrontierCursor = 0;
     currentDstNodeID = {INVALID_OFFSET, INVALID_TABLE_ID};
@@ -100,7 +103,8 @@ void PathScanner::scanFromDstOffset(RecursiveJoinVectors& vectors, sel_t& vector
             }
             // Push new stack.
             cursorStack.push(-1);
-            nbrsStack.push(&frontiers[level]->bwdEdges.at(nbr.first));
+            nbrsStack.push(
+                &static_cast<TrackPathFrontier*>(frontiers[level])->bwdEdges.at(nbr.first));
             level--;
         } else { // Failed to find a nbr. Pop stack.
             cursorStack.pop();
@@ -120,7 +124,8 @@ void PathScanner::initDfs(const node_rel_id_t& nodeAndRelID, size_t currentDepth
         cursorStack.top() = -1;
         return;
     }
-    auto nbrs = &frontiers[currentDepth]->bwdEdges.at(nodeAndRelID.first);
+    auto nbrs =
+        &static_cast<TrackPathFrontier*>(frontiers[currentDepth])->bwdEdges.at(nodeAndRelID.first);
     nbrsStack.push(nbrs);
     cursorStack.push(0);
     initDfs(nbrs->at(0), currentDepth - 1);
@@ -239,11 +244,13 @@ void PathScanner::writePathToVector(RecursiveJoinVectors& vectors, sel_t& vector
 
 void DstNodeWithMultiplicityScanner::scanFromDstOffset(RecursiveJoinVectors& vectors,
     sel_t& vectorPos, sel_t&, sel_t&) {
-    auto& multiplicity = frontiers[k]->nodeIDToMultiplicity.at(currentDstNodeID);
-    while (multiplicity > 0 && vectorPos < DEFAULT_VECTOR_CAPACITY) {
+    auto decrementValue =
+        static_cast<UnTrackPathFrontier*>(frontiers[k])
+            ->decrementMultiplicity(currentDstNodeID, DEFAULT_VECTOR_CAPACITY - vectorPos);
+    while (decrementValue > 0) {
         writeDstNodeOffsetAndLength(vectors.dstNodeIDVector, vectors.pathLengthVector, vectorPos);
         vectorPos++;
-        multiplicity--;
+        decrementValue--;
     }
 }
 

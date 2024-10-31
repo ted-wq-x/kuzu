@@ -48,7 +48,7 @@ void RecursiveJoin::initLocalStateInternal(ResultSet*, ExecutionContext* context
             }
             vectors->pathVector = resultSet->getValueVector(dataInfo.pathPos).get();
             bfsState = std::make_unique<VariableLengthState<true /* TRACK_PATH */>>(upperBound,
-                targetDstNodes.get());
+                targetDstNodes.get(), context->clientContext);
             for (auto i = lowerBound; i <= upperBound; ++i) {
                 scanners.push_back(std::make_unique<PathScanner>(targetDstNodes.get(), i,
                     dataInfo.tableIDToName, semanticCheck, info.direction, info.extendFromSource));
@@ -60,7 +60,7 @@ void RecursiveJoin::initLocalStateInternal(ResultSet*, ExecutionContext* context
                                        "implemented. Try WALK semantic.");
             }
             bfsState = std::make_unique<VariableLengthState<false /* TRACK_PATH */>>(upperBound,
-                targetDstNodes.get());
+                targetDstNodes.get(), context->clientContext);
             for (auto i = lowerBound; i <= upperBound; ++i) {
                 scanners.push_back(
                     std::make_unique<DstNodeWithMultiplicityScanner>(targetDstNodes.get(), i));
@@ -79,7 +79,7 @@ void RecursiveJoin::initLocalStateInternal(ResultSet*, ExecutionContext* context
         case planner::RecursiveJoinType::TRACK_PATH: {
             vectors->pathVector = resultSet->getValueVector(dataInfo.pathPos).get();
             bfsState = std::make_unique<ShortestPathState<true /* TRACK_PATH */>>(upperBound,
-                targetDstNodes.get());
+                targetDstNodes.get(), context->clientContext);
             for (auto i = lowerBound; i <= upperBound; ++i) {
                 scanners.push_back(std::make_unique<PathScanner>(targetDstNodes.get(), i,
                     dataInfo.tableIDToName, nullptr, info.direction, info.extendFromSource));
@@ -87,7 +87,7 @@ void RecursiveJoin::initLocalStateInternal(ResultSet*, ExecutionContext* context
         } break;
         case planner::RecursiveJoinType::TRACK_NONE: {
             bfsState = std::make_unique<ShortestPathState<false /* TRACK_PATH */>>(upperBound,
-                targetDstNodes.get());
+                targetDstNodes.get(), context->clientContext);
             for (auto i = lowerBound; i <= upperBound; ++i) {
                 scanners.push_back(
                     std::make_unique<DstNodeWithMultiplicityScanner>(targetDstNodes.get(), i));
@@ -106,7 +106,7 @@ void RecursiveJoin::initLocalStateInternal(ResultSet*, ExecutionContext* context
         case planner::RecursiveJoinType::TRACK_PATH: {
             vectors->pathVector = resultSet->getValueVector(dataInfo.pathPos).get();
             bfsState = std::make_unique<AllShortestPathState<true /* TRACK_PATH */>>(upperBound,
-                targetDstNodes.get());
+                targetDstNodes.get(), context->clientContext);
             for (auto i = lowerBound; i <= upperBound; ++i) {
                 scanners.push_back(std::make_unique<PathScanner>(targetDstNodes.get(), i,
                     dataInfo.tableIDToName, nullptr, info.direction, info.extendFromSource));
@@ -114,7 +114,7 @@ void RecursiveJoin::initLocalStateInternal(ResultSet*, ExecutionContext* context
         } break;
         case planner::RecursiveJoinType::TRACK_NONE: {
             bfsState = std::make_unique<AllShortestPathState<false /* TRACK_PATH */>>(upperBound,
-                targetDstNodes.get());
+                targetDstNodes.get(), context->clientContext);
             for (auto i = lowerBound; i <= upperBound; ++i) {
                 scanners.push_back(
                     std::make_unique<DstNodeWithMultiplicityScanner>(targetDstNodes.get(), i));
@@ -240,6 +240,7 @@ void RecursiveJoin::computeBFS(ExecutionContext* context) {
             setActivationRelInfo();
         }
     }
+    bfsState->resetFrontiersIter();
 }
 
 void RecursiveJoin::updateVisitedNodes(nodeID_t boundNodeID) {

@@ -5,7 +5,7 @@
 #include "bfs_state.h"
 #include "common/enums/extend_direction.h"
 #include "common/vector/value_vector.h"
-
+#include <concepts>
 namespace kuzu {
 namespace processor {
 
@@ -15,6 +15,11 @@ struct RecursiveJoinVectors;
  * destination nodes in the k'th frontier, we use a semi mask that marks the destination nodes (or
  * targetDstOffsets.empty() which indicates that every node is a possible destination).
  */
+template<class T>
+concept FrontierValueType =
+    (std::same_as<TrackPathFrontier, T> || std::same_as<UnTrackPathFrontier, T>);
+
+//template<FrontierValueType T>
 class BaseFrontierScanner {
 public:
     BaseFrontierScanner(TargetDstNodes* targetDstNodes, size_t k)

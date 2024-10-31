@@ -1,5 +1,7 @@
 #include <sys/mman.h>
 
+#include <iterator>
+
 #include "binder/binder.h"
 #include "binder/expression/expression_util.h"
 #include "binder/expression/property_expression.h"
@@ -318,6 +320,11 @@ struct Count {
 
     // 因为是两侧访问,所以会被重复访问,故不能直接设置null
     void reset() { std::memset(count, 0, MemoryPoolUint32::UINT32_BLOCK_SIZE); }
+    void resetUnSafe() {
+        if (count != nullptr) {
+            reset();
+        }
+    }
 };
 
 class InternalIDCountBitSet {
@@ -341,6 +348,7 @@ public:
             blockFlags[tableID].resize(size);
         }
         pool.init(numBlocks, tableBlockNum);
+        hasValue = false;
     }
 
     bool isVisited(internalID_t& nodeID) {
@@ -354,10 +362,9 @@ public:
         auto& value = nodeIDMark[nodeID.tableID][block];
         if (value.count == nullptr) {
             value.count = pool.allocateAtomic(nodeID.tableID);
+            markFlag(nodeID.tableID, block);
         }
         value.count[pos] += count;
-
-        markFlag(nodeID.tableID, block);
     }
 
     uint32_t getNodeValueCount(internalID_t& nodeID) const {
@@ -367,6 +374,24 @@ public:
             return 0;
         }
         return value.count[pos];
+    }
+
+    // return the actual decrement value
+    uint32_t decrement(internalID_t& nodeID, uint32_t decrementValue) {
+        uint64_t block = (nodeID.offset >> 6), pos = (nodeID.offset & 63);
+        auto& value = nodeIDMark[nodeID.tableID][block];
+        if (value.count == nullptr) {
+            return 0;
+        }
+        auto& num = value.count[pos];
+        if (num < decrementValue) {
+            uint32_t ans = num;
+            num = 0;
+            return ans;
+        } else {
+            num -= decrementValue;
+            return decrementValue;
+        }
     }
 
     Count& getNodeValue(uint32_t tableID, uint32_t pos) { return nodeIDMark[tableID][pos]; }
@@ -384,19 +409,94 @@ public:
         markFlag(tableID, pos);
     }
 
-    void markFlag(table_id_t tableID, uint32_t blockID) { blockFlags[tableID].set(blockID); }
+private:
+    inline void markFlag(table_id_t tableID, uint32_t blockID) {
+        hasValue = true;
+        blockFlags[tableID].set(blockID);
+    }
 
+public:
+    // optimize method instead of resetState()
     void resetFlag() {
         for (auto& item : blockFlags) {
             item.resetMark();
         }
+        hasValue = false;
     }
+
+    void clear() {
+        for (auto& item : nodeIDMark) {
+            for (auto& item2 : item) {
+                item2.resetUnSafe();
+            }
+        }
+        resetFlag();
+    }
+
+    inline bool empty() const { return !hasValue; }
+
+    class Iterator {
+    public:
+        explicit Iterator() : Iterator((size_t)0) {}
+        explicit Iterator(InternalIDCountBitSet* bitSet)
+            : bitSet{bitSet}, tableID{0}, blockID{0}, index{-1} {
+
+            operator++();
+        }
+        explicit Iterator(size_t lastTableID)
+            : bitSet{nullptr}, tableID{lastTableID}, blockID{0}, index{0} {}
+        DEFAULT_BOTH_MOVE(Iterator);
+        Iterator(const Iterator& other) = default;
+
+        using iterator_category = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = common::nodeID_t;
+
+        value_type operator*() const { return {(blockID << 6) + index, tableID}; }
+        Iterator& operator++() {
+            size_t _tableID = tableID, _blockID = blockID, i = ++index;
+            for (; _tableID < bitSet->nodeIDMark.size(); ++_tableID, _blockID = 0, i = 0) {
+                auto& item = bitSet->nodeIDMark.at(_tableID);
+                for (; _blockID < item.size(); ++_blockID, i = 0) {
+                    auto& item2 = item.at(_blockID);
+                    auto data = item2.count;
+                    if (data != nullptr) {
+                        for (; i < 64u; ++i) {
+                            if (data[i] != 0) {
+                                goto flag;
+                            }
+                        }
+                    }
+                }
+            }
+        flag:
+            tableID = _tableID;
+            blockID = _blockID;
+            index = i;
+            return *this;
+        }
+
+        void operator++(int) { ++*this; }
+        bool operator==(const Iterator& other) const { return tableID == other.tableID; }
+
+    private:
+        InternalIDCountBitSet* bitSet;
+        size_t tableID;
+        size_t blockID;
+        int8_t index;
+    };
+
+    static_assert(std::input_iterator<Iterator>);
+
+    Iterator begin() noexcept { return Iterator(this); }
+    Iterator end() noexcept { return Iterator(nodeIDMark.size()); }
 
 private:
     MemoryPoolUint32 pool;
     //  tableID==>blockID==>mark
-    //    std::unique_ptr<Count*>
     std::vector<std::vector<Count>> nodeIDMark;
+
+    bool hasValue;
 
 public:
     //  tableID==>block bitset
