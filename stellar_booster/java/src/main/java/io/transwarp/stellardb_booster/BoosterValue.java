@@ -75,7 +75,7 @@ public class BoosterValue implements AutoCloseable {
      *
      * @throws BoosterObjectRefDestroyedException If the BoosterValue has been destroyed.
      */
-    private void destroy() throws BoosterObjectRefDestroyedException {
+    public void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         if (!isOwnedByCPP) {
             BoosterNative.value_destroy(this);

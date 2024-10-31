@@ -32,7 +32,7 @@ public class BoosterFlatTuple implements AutoCloseable {
      *
      * @throws BoosterObjectRefDestroyedException If the flat tuple has been destroyed.
      */
-    private void destroy() throws BoosterObjectRefDestroyedException {
+    public void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         BoosterNative.flat_tuple_destroy(this);
         destroyed = true;

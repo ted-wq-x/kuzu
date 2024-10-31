@@ -47,7 +47,7 @@ public class BoosterConnection implements AutoCloseable {
      *
      * @throws BoosterObjectRefDestroyedException If the connection has been destroyed.
      */
-    private void destroy() throws BoosterObjectRefDestroyedException {
+    public void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         BoosterNative.connection_destroy(this);
         destroyed = true;

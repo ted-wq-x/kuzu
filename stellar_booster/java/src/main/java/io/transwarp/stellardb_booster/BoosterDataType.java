@@ -46,7 +46,7 @@ public class BoosterDataType implements AutoCloseable {
      *
      * @throws BoosterObjectRefDestroyedException If the data type instance has been destroyed.
      */
-    private void destroy() throws BoosterObjectRefDestroyedException {
+    public void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         BoosterNative.data_type_destroy(this);
         destroyed = true;

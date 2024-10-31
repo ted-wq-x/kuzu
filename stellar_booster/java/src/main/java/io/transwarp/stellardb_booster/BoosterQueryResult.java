@@ -37,7 +37,7 @@ public class BoosterQueryResult implements AutoCloseable {
      *
      * @throws BoosterObjectRefDestroyedException If the query result has been destroyed.
      */
-    private void destroy() throws BoosterObjectRefDestroyedException {
+    public void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         if (!isOwnedByCPP) {
             BoosterNative.query_result_destroy(this);

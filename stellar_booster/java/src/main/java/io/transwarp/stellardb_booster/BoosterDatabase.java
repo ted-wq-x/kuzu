@@ -74,7 +74,7 @@ public class BoosterDatabase implements AutoCloseable {
      *
      * @throws BoosterObjectRefDestroyedException If the database instance has been destroyed.
      */
-    private void destroy() throws BoosterObjectRefDestroyedException {
+    public void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         BoosterNative.database_destroy(this);
         destroyed = true;

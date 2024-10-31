@@ -32,7 +32,7 @@ public class BoosterPreparedStatement implements AutoCloseable {
      *
      * @throws BoosterObjectRefDestroyedException If the prepared statement has been destroyed.
      */
-    private void destroy() throws BoosterObjectRefDestroyedException {
+    public void destroy() throws BoosterObjectRefDestroyedException {
         checkNotDestroyed();
         BoosterNative.prepared_statement_destroy(this);
         destroyed = true;
