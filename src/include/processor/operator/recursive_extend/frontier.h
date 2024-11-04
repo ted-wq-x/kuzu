@@ -103,11 +103,7 @@ public:
 
     void addEdge(common::nodeID_t boundNodeID, common::nodeID_t nbrNodeID, common::nodeID_t relID) {
         bwdEdges[nbrNodeID].emplace_back(boundNodeID, relID);
-        //        nodeIDToMultiplicity->markVisited(nbrNodeID, 1);
     }
-
-    //     void addNodeWithMultiplicity(common::nodeID_t /*nodeID*/,
-    //        uint64_t /*multiplicity*/) override {}
 
     uint64_t getMultiplicity(common::nodeID_t /*nodeID*/) const override { return 1; }
     void resetState() override {
@@ -123,7 +119,7 @@ public:
             nodeIDs.clear();
             nodeIDs.reserve(bwdEdges.size());
             for (const auto& item : bwdEdges) {
-                nodeIDs.push_back(item.first);
+                nodeIDs.emplace_back(item.first);
             }
             std::sort(nodeIDs.begin(), nodeIDs.end());
         }
