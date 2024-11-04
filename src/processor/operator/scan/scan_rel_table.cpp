@@ -12,13 +12,7 @@ namespace processor {
 
 std::string ScanRelTablePrintInfo::toString() const {
     std::string result;
-    if (alias != "") {
-        result += "Alias: ";
-        result += alias;
-        result += ",Tables: ";
-    } else {
-        result += "Tables: ";
-    }
+    result += "Tables: ";
     for (auto& tableName : tableNames) {
         result += tableName;
         if (tableName != tableNames.back()) {

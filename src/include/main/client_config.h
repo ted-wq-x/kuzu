@@ -12,7 +12,7 @@ struct ClientConfigDefault {
     // 0 means timeout is disabled by default.
     static constexpr uint64_t TIMEOUT_IN_MS = 0;
     static constexpr uint32_t VAR_LENGTH_MAX_DEPTH = 30;
-    static constexpr bool ENABLE_SEMI_MASK = false;
+    static constexpr bool ENABLE_SEMI_MASK = true;
     static constexpr bool ENABLE_ZONE_MAP = true;
     static constexpr bool ENABLE_GDS = true;
     static constexpr bool ENABLE_PROGRESS_BAR = false;
