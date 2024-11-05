@@ -1,10 +1,12 @@
 #include "storage/store/csr_node_group.h"
 
+#include "main/client_context.h"
+#include "main/database.h"
+#include "common/object_cache.h"
 #include "storage/buffer_manager/memory_manager.h"
 #include "storage/storage_utils.h"
 #include "storage/store/rel_table.h"
 #include "transaction/transaction.h"
-
 using namespace kuzu::common;
 using namespace kuzu::transaction;
 
@@ -76,14 +78,7 @@ void CSRNodeGroup::initializeScanState(Transaction* transaction, TableScanState&
 
 void CSRNodeGroup::initScanForCommittedPersistent(Transaction* transaction,
     RelTableScanState& relScanState, CSRNodeGroupScanState& nodeGroupScanState) const {
-    // Scan the csr header chunks from disk.
-    ChunkState offsetState, lengthState;
-    auto& csrChunkGroup = persistentChunkGroup->cast<ChunkedCSRNodeGroup>();
-    const auto& csrHeader = csrChunkGroup.getCSRHeader();
-    // We are switching to a new node group.
-    // Initialize the scan states of a new node group for the csr header.
-    csrHeader.offset->initializeScanState(offsetState, relScanState.csrOffsetColumn);
-    csrHeader.length->initializeScanState(lengthState, relScanState.csrLengthColumn);
+
     // Initialize the scan states of a new node group for data columns.
     for (auto i = 0u; i < relScanState.columnIDs.size(); i++) {
         if (relScanState.columnIDs[i] == INVALID_COLUMN_ID ||
@@ -93,12 +88,52 @@ void CSRNodeGroup::initScanForCommittedPersistent(Transaction* transaction,
         auto& chunk = persistentChunkGroup->getColumnChunk(relScanState.columnIDs[i]);
         chunk.initializeScanState(nodeGroupScanState.chunkStates[i], relScanState.columns[i]);
     }
-    KU_ASSERT(csrHeader.offset->getNumValues() == csrHeader.length->getNumValues());
+    auto& csrChunkGroup = persistentChunkGroup->cast<ChunkedCSRNodeGroup>();
+    const auto& csrHeader = csrChunkGroup.getCSRHeader();
+
+    // TODO lru cache,本质是通过csrheader的share降低内存带宽
+    auto clientContext = transaction->getClientContext();
+    auto& cache = clientContext->getStorageManager()->objectCache;
+    if (cache->enable()) {
+        auto key = const_cast<CSRNodeGroup*>(this);
+        auto value = cache->get(key);
+        if (value) {
+            nodeGroupScanState.header = value;
+        } else {
+            // Scan the csr header chunks from disk.
+            ChunkState offsetState, lengthState;
+            // We are switching to a new node group.
+            // Initialize the scan states of a new node group for the csr header.
+            csrHeader.offset->initializeScanState(offsetState, relScanState.csrOffsetColumn);
+            csrHeader.length->initializeScanState(lengthState, relScanState.csrLengthColumn);
+            KU_ASSERT(csrHeader.offset->getNumValues() == csrHeader.length->getNumValues());
+            auto ff = std::make_shared<ChunkedCSRHeader>(
+                *transaction->getClientContext()->getMemoryManager(), false,
+                common::StorageConstants::NODE_GROUP_SIZE, ResidencyState::IN_MEMORY);
+
+            csrHeader.offset->scanCommitted<ResidencyState::ON_DISK>(transaction, offsetState,
+                *ff->offset);
+            csrHeader.length->scanCommitted<ResidencyState::ON_DISK>(transaction, lengthState,
+                *ff->length);
+            cache->put(key, ff);
+            nodeGroupScanState.header = ff;
+        }
+    } else {
+        // Scan the csr header chunks from disk.
+        ChunkState offsetState, lengthState;
+
+        // We are switching to a new node group.
+        // Initialize the scan states of a new node group for the csr header.
+        csrHeader.offset->initializeScanState(offsetState, relScanState.csrOffsetColumn);
+        csrHeader.length->initializeScanState(lengthState, relScanState.csrLengthColumn);
+        KU_ASSERT(csrHeader.offset->getNumValues() == csrHeader.length->getNumValues());
+        csrHeader.offset->scanCommitted<ResidencyState::ON_DISK>(transaction, offsetState,
+            *nodeGroupScanState.header->offset);
+        csrHeader.length->scanCommitted<ResidencyState::ON_DISK>(transaction, lengthState,
+            *nodeGroupScanState.header->length);
+    }
+
     auto numBoundNodes = csrHeader.offset->getNumValues();
-    csrHeader.offset->scanCommitted<ResidencyState::ON_DISK>(transaction, offsetState,
-        *nodeGroupScanState.header->offset);
-    csrHeader.length->scanCommitted<ResidencyState::ON_DISK>(transaction, lengthState,
-        *nodeGroupScanState.header->length);
     nodeGroupScanState.numTotalRows = nodeGroupScanState.header->getStartCSROffset(numBoundNodes);
 }
 
@@ -566,7 +601,7 @@ ChunkCheckpointState CSRNodeGroup::checkpointColumnInRegion(const UniqLock& lock
     dummyChunkForNulls->getData().resetToAllNull();
     // Copy per csr list from old chunk and merge with new insertions into the newChunkData.
     for (auto nodeOffset = region.leftNodeOffset; nodeOffset <= region.rightNodeOffset;
-         nodeOffset++) {
+        nodeOffset++) {
         const auto oldCSRLength = csrState.oldHeader->getCSRLength(nodeOffset);
         KU_ASSERT(csrState.oldHeader->getStartCSROffset(nodeOffset) >= leftCSROffset);
         const auto oldStartRow = csrState.oldHeader->getStartCSROffset(nodeOffset) - leftCSROffset;
@@ -651,7 +686,7 @@ void CSRNodeGroup::collectInMemRegionChangesAndUpdateHeaderLength(const UniqLock
     row_idx_t numInsertionsInRegion = 0u;
     if (csrIndex) {
         for (auto nodeOffset = region.leftNodeOffset; nodeOffset <= region.rightNodeOffset;
-             nodeOffset++) {
+            nodeOffset++) {
             auto rows = csrIndex->indices[nodeOffset].getRows();
             row_idx_t numInsertedRows = rows.size();
             row_idx_t numInMemDeletionsInCSR = 0;
@@ -686,7 +721,7 @@ void CSRNodeGroup::collectOnDiskRegionChangesAndUpdateHeaderLength(const UniqLoc
     int64_t numDeletionsInRegion = 0u;
     if (persistentChunkGroup) {
         for (auto nodeOffset = region.leftNodeOffset; nodeOffset <= region.rightNodeOffset;
-             nodeOffset++) {
+            nodeOffset++) {
             const auto numDeletedRows =
                 getNumDeletionsForNodeInPersistentData(nodeOffset, csrState);
             if (numDeletedRows == 0) {

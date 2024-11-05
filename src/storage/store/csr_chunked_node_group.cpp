@@ -1,6 +1,7 @@
 #include "storage/store/csr_chunked_node_group.h"
 
 #include "common/serializer/deserializer.h"
+#include "main/database.h"
 #include "storage/buffer_manager/memory_manager.h"
 #include "storage/storage_utils.h"
 #include "storage/store/column.h"
@@ -58,9 +59,9 @@ CSRRegion CSRRegion::upgradeLevel(const std::vector<CSRRegion>& leafRegions,
 
 ChunkedCSRHeader::ChunkedCSRHeader(MemoryManager& memoryManager, bool enableCompression,
     uint64_t capacity, ResidencyState residencyState) {
-    offset = std::make_unique<ColumnChunk>(memoryManager, LogicalType::UINT64(), capacity,
+    offset = std::make_shared<ColumnChunk>(memoryManager, LogicalType::UINT64(), capacity,
         enableCompression, residencyState, false);
-    length = std::make_unique<ColumnChunk>(memoryManager, LogicalType::UINT64(), capacity,
+    length = std::make_shared<ColumnChunk>(memoryManager, LogicalType::UINT64(), capacity,
         enableCompression, residencyState, false);
 }
 

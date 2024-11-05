@@ -54,8 +54,8 @@ struct CSRRegion {
 };
 
 struct ChunkedCSRHeader {
-    std::unique_ptr<ColumnChunk> offset;
-    std::unique_ptr<ColumnChunk> length;
+    std::shared_ptr<ColumnChunk> offset;
+    std::shared_ptr<ColumnChunk> length;
 
     ChunkedCSRHeader(MemoryManager& memoryManager, bool enableCompression, uint64_t capacity,
         ResidencyState residencyState);

@@ -3,6 +3,7 @@
 #include <mutex>
 
 #include "catalog/catalog.h"
+#include "common/object_cache.h"
 #include "storage/index/hash_index.h"
 #include "storage/wal/shadow_file.h"
 #include "storage/wal/wal.h"
@@ -73,6 +74,9 @@ private:
     std::unique_ptr<WAL> wal;
     std::unique_ptr<ShadowFile> shadowFile;
     bool enableCompression;
+
+public:
+    std::unique_ptr<common::ObjectCache> objectCache;
 };
 
 } // namespace storage

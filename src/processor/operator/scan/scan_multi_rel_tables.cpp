@@ -37,8 +37,8 @@ bool RelTableCollectionScanner::scan(Transaction* transaction) {
             currentTableIdx = nextTableIdx;
             if (currentTableIdx == 0) {
                 for (auto tableIdx = 0u; tableIdx < activationRelInfos.size(); ++tableIdx) {
-                    activationRelInfos[tableIdx]->table->initScanState(transaction,
-                        *activationRelInfos[tableIdx]->scanState);
+                    auto infos = activationRelInfos[tableIdx];
+                    infos->table->initScanState(transaction, *infos->scanState);
                 }
             }
             if (currentTableIdx == activationRelInfos.size()) {

@@ -117,7 +117,7 @@ struct RelTableScanState;
 struct CSRNodeGroupScanState final : NodeGroupScanState {
     // Cached offsets and lengths for a sequence of CSR lists within the current vector of
     // boundNodes.
-    std::unique_ptr<ChunkedCSRHeader> header;
+    std::shared_ptr<ChunkedCSRHeader> header;
 
     std::bitset<common::DEFAULT_VECTOR_CAPACITY> cachedScannedVectorsSelBitset;
     // The total number of rows (i.e., rels) in the current node group.
@@ -139,7 +139,7 @@ struct CSRNodeGroupScanState final : NodeGroupScanState {
     CSRNodeGroupScanState(MemoryManager& mm, common::idx_t numChunks)
         : NodeGroupScanState{numChunks}, numTotalRows{0}, numCachedRows{0}, nextCachedRowToScan{0},
           nextRowToScan{0}, source{CSRNodeGroupScanSource::COMMITTED_PERSISTENT} {
-        header = std::make_unique<ChunkedCSRHeader>(mm, false,
+        header = std::make_shared<ChunkedCSRHeader>(mm, false,
             common::StorageConstants::NODE_GROUP_SIZE, ResidencyState::IN_MEMORY);
         cachedScannedVectorsSelBitset.set();
     }

@@ -32,6 +32,7 @@ StorageManager::StorageManager(const std::string& databasePath, bool readOnly,
     metadataFH = initFileHandle(
         StorageUtils::getMetadataFName(vfs, databasePath, FileVersionType::ORIGINAL), vfs, context);
     loadTables(catalog, vfs, context);
+    objectCache = std::make_unique<ObjectCache>(readOnly ? main::SystemConfig::lruCacheSize : 0);
 }
 
 FileHandle* StorageManager::initFileHandle(const std::string& fileName, VirtualFileSystem* vfs,
