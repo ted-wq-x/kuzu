@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common/uniq_lock.h"
 #include "storage/enums/residency_state.h"
 #include "storage/store/chunked_node_group.h"
 #include "storage/store/group_collection.h"
@@ -100,7 +99,7 @@ public:
         for (auto i = 0u; i < chunkedNodeGroup->getNumColumns(); i++) {
             dataTypes.push_back(chunkedNodeGroup->getColumnChunk(i).getDataType().copy());
         }
-        const auto lock = chunkedGroups.lock();
+        const auto lock = chunkedGroups.writeLock();
         chunkedGroups.appendGroup(lock, std::move(chunkedNodeGroup));
     }
     NodeGroup(const common::node_group_idx_t nodeGroupIdx, const bool enableCompression,
@@ -133,12 +132,12 @@ public:
 
     virtual void initializeScanState(transaction::Transaction* transaction,
         TableScanState& state) const;
-    void initializeScanState(transaction::Transaction* transaction, const common::UniqLock& lock,
+    void initializeScanState(transaction::Transaction* transaction, const common::ReadWriteLock& lock,
         TableScanState& state) const;
     virtual NodeGroupScanResult scan(transaction::Transaction* transaction,
         TableScanState& state) const;
 
-    bool lookup(const common::UniqLock& lock, transaction::Transaction* transaction,
+    bool lookup(const common::ReadWriteLock& lock, transaction::Transaction* transaction,
         const TableScanState& state);
     bool lookup(transaction::Transaction* transaction, const TableScanState& state);
 
@@ -161,11 +160,11 @@ public:
         common::Deserializer& deSer);
 
     common::node_group_idx_t getNumChunkedGroups() {
-        const auto lock = chunkedGroups.lock();
+        const auto lock = chunkedGroups.readLock();
         return chunkedGroups.getNumGroups(lock);
     }
     ChunkedNodeGroup* getChunkedNodeGroup(common::node_group_idx_t groupIdx) {
-        const auto lock = chunkedGroups.lock();
+        const auto lock = chunkedGroups.readLock();
         return chunkedGroups.getGroup(lock, groupIdx);
     }
 
@@ -185,22 +184,22 @@ public:
     bool isInserted(const transaction::Transaction* transaction, common::offset_t offsetInGroup);
 
 private:
-    ChunkedNodeGroup* findChunkedGroupFromRowIdx(const common::UniqLock& lock,
+    ChunkedNodeGroup* findChunkedGroupFromRowIdx(const common::ReadWriteLock& lock,
         common::row_idx_t rowIdx);
     ChunkedNodeGroup* findChunkedGroupFromRowIdxNoLock(common::row_idx_t rowIdx);
 
     std::unique_ptr<ChunkedNodeGroup> checkpointInMemOnly(MemoryManager& memoryManager,
-        const common::UniqLock& lock, NodeGroupCheckpointState& state);
+        const common::ReadWriteLock& lock, NodeGroupCheckpointState& state);
     std::unique_ptr<ChunkedNodeGroup> checkpointInMemAndOnDisk(MemoryManager& memoryManager,
-        const common::UniqLock& lock, NodeGroupCheckpointState& state);
-    std::unique_ptr<VersionInfo> checkpointVersionInfo(const common::UniqLock& lock,
+        const common::ReadWriteLock& lock, NodeGroupCheckpointState& state);
+    std::unique_ptr<VersionInfo> checkpointVersionInfo(const common::ReadWriteLock& lock,
         const transaction::Transaction* transaction);
 
     template<ResidencyState SCAN_RESIDENCY_STATE>
-    common::row_idx_t getNumResidentRows(const common::UniqLock& lock) const;
+    common::row_idx_t getNumResidentRows(const common::ReadWriteLock& lock) const;
     template<ResidencyState SCAN_RESIDENCY_STATE>
     std::unique_ptr<ChunkedNodeGroup> scanAllInsertedAndVersions(MemoryManager& memoryManager,
-        const common::UniqLock& lock, const std::vector<common::column_id_t>& columnIDs,
+        const common::ReadWriteLock& lock, const std::vector<common::column_id_t>& columnIDs,
         const std::vector<const Column*>& columns) const;
 
 protected:

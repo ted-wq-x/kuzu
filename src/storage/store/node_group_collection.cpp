@@ -20,7 +20,7 @@ NodeGroupCollection::NodeGroupCollection(MemoryManager& memoryManager,
     if (deSer) {
         deserialize(*deSer, memoryManager);
     }
-    const auto lock = nodeGroups.lock();
+    const auto lock = nodeGroups.readLock();
     for (auto& nodeGroup : nodeGroups.getAllGroups(lock)) {
         numTotalRows += nodeGroup->getNumRows();
     }
@@ -35,7 +35,7 @@ void NodeGroupCollection::append(const Transaction* transaction,
     }
     // TODO(Guodong): Optimize the lock contention here. We should first lock to reserve a set of
     // rows to append, then append in parallel without locking.
-    const auto lock = nodeGroups.lock();
+    const auto lock = nodeGroups.writeLock();
     if (nodeGroups.isEmpty(lock)) {
         auto newGroup = std::make_unique<NodeGroup>(0, enableCompression, LogicalType::copy(types));
         nodeGroups.appendGroup(lock, std::move(newGroup));
@@ -60,16 +60,16 @@ void NodeGroupCollection::append(const Transaction* transaction,
 }
 
 void NodeGroupCollection::append(const Transaction* transaction, NodeGroupCollection& other) {
-    const auto otherLock = other.nodeGroups.lock();
+    const auto otherLock = other.nodeGroups.writeLock();
     for (auto& nodeGroup : other.nodeGroups.getAllGroups(otherLock)) {
-        appned(transaction, *nodeGroup);
+        append(transaction, *nodeGroup);
     }
 }
 
-void NodeGroupCollection::appned(const Transaction* transaction, NodeGroup& nodeGroup) {
+void NodeGroupCollection::append(const Transaction* transaction, NodeGroup& nodeGroup) {
     const auto numRowsToAppend = nodeGroup.getNumRows();
     KU_ASSERT(nodeGroup.getDataTypes().size() == types.size());
-    const auto lock = nodeGroups.lock();
+    const auto lock = nodeGroups.writeLock();
     if (nodeGroups.isEmpty(lock)) {
         auto newGroup = std::make_unique<NodeGroup>(0, enableCompression, LogicalType::copy(types));
         nodeGroups.appendGroup(lock, std::move(newGroup));
@@ -109,7 +109,7 @@ std::pair<offset_t, offset_t> NodeGroupCollection::appendToLastNodeGroupAndFlush
     offset_t numToAppend = 0;
     bool directFlushWhenAppend = false;
     {
-        const auto lock = nodeGroups.lock();
+        const auto lock = nodeGroups.writeLock();
         startOffset = numTotalRows;
         if (nodeGroups.isEmpty(lock)) {
             nodeGroups.appendGroup(lock, std::make_unique<NodeGroup>(nodeGroups.getNumGroups(lock),
@@ -146,13 +146,13 @@ std::pair<offset_t, offset_t> NodeGroupCollection::appendToLastNodeGroupAndFlush
 }
 
 row_idx_t NodeGroupCollection::getNumTotalRows() {
-    const auto lock = nodeGroups.lock();
+    const auto lock = nodeGroups.readLock();
     return numTotalRows;
 }
 
 NodeGroup* NodeGroupCollection::getOrCreateNodeGroup(node_group_idx_t groupIdx,
     NodeGroupDataFormat format) {
-    const auto lock = nodeGroups.lock();
+    const auto lock = nodeGroups.writeLock();
     while (groupIdx >= nodeGroups.getNumGroups(lock)) {
         const auto currentGroupIdx = nodeGroups.getNumGroups(lock);
         nodeGroups.appendGroup(lock, format == NodeGroupDataFormat::REGULAR ?
@@ -166,7 +166,7 @@ NodeGroup* NodeGroupCollection::getOrCreateNodeGroup(node_group_idx_t groupIdx,
 }
 
 void NodeGroupCollection::addColumn(Transaction* transaction, TableAddColumnState& addColumnState) {
-    const auto lock = nodeGroups.lock();
+    const auto lock = nodeGroups.writeLock();
     for (const auto& nodeGroup : nodeGroups.getAllGroups(lock)) {
         nodeGroup->addColumn(transaction, addColumnState, dataFH);
     }
@@ -175,7 +175,7 @@ void NodeGroupCollection::addColumn(Transaction* transaction, TableAddColumnStat
 
 uint64_t NodeGroupCollection::getEstimatedMemoryUsage() {
     auto estimatedMemUsage = 0u;
-    const auto lock = nodeGroups.lock();
+    const auto lock = nodeGroups.readLock();
     for (const auto& nodeGroup : nodeGroups.getAllGroups(lock)) {
         estimatedMemUsage += nodeGroup->getEstimatedMemoryUsage();
     }
@@ -185,7 +185,7 @@ uint64_t NodeGroupCollection::getEstimatedMemoryUsage() {
 void NodeGroupCollection::checkpoint(MemoryManager& memoryManager,
     NodeGroupCheckpointState& state) {
     KU_ASSERT(dataFH);
-    const auto lock = nodeGroups.lock();
+    const auto lock = nodeGroups.readLock();
     for (const auto& nodeGroup : nodeGroups.getAllGroups(lock)) {
         nodeGroup->checkpoint(memoryManager, state);
     }

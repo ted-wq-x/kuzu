@@ -2,9 +2,9 @@
 
 #include <numeric>
 
+#include "common/uniq_lock.h"
 #include "processor/operator/sink.h"
 #include "storage/store/table.h"
-
 namespace kuzu {
 namespace storage {
 class MemoryManager;

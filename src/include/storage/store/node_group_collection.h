@@ -20,7 +20,7 @@ public:
     void append(const transaction::Transaction* transaction,
         const std::vector<common::ValueVector*>& vectors);
     void append(const transaction::Transaction* transaction, NodeGroupCollection& other);
-    void appned(const transaction::Transaction* transaction, NodeGroup& nodeGroup);
+    void append(const transaction::Transaction* transaction, NodeGroup& nodeGroup);
 
     // This function only tries to append data into the last node group, and if the last node group
     // is not enough to hold all the data, it will append partially and return the number of rows
@@ -32,7 +32,7 @@ public:
 
     common::row_idx_t getNumTotalRows();
     common::node_group_idx_t getNumNodeGroups() {
-        const auto lock = nodeGroups.lock();
+        const auto lock = nodeGroups.readLock();
         return nodeGroups.getNumGroups(lock);
     }
     NodeGroup* getNodeGroupNoLock(const common::node_group_idx_t groupIdx) {
@@ -40,7 +40,7 @@ public:
     }
     NodeGroup* getNodeGroup(const common::node_group_idx_t groupIdx,
         bool mayOutOfBound = false) const {
-        const auto lock = nodeGroups.lock();
+        const auto lock = nodeGroups.readLock();
         if (mayOutOfBound && groupIdx >= nodeGroups.getNumGroups(lock)) {
             return nullptr;
         }
@@ -50,12 +50,12 @@ public:
 
     void setNodeGroup(const common::node_group_idx_t nodeGroupIdx,
         std::unique_ptr<NodeGroup> group) {
-        const auto lock = nodeGroups.lock();
+        const auto lock = nodeGroups.writeLock();
         nodeGroups.replaceGroup(lock, nodeGroupIdx, std::move(group));
     }
 
     void clear() {
-        const auto lock = nodeGroups.lock();
+        const auto lock = nodeGroups.writeLock();
         nodeGroups.clear(lock);
     }
 

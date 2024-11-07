@@ -31,7 +31,7 @@ row_idx_t NodeGroup::append(const Transaction* transaction, ChunkedNodeGroup& ch
 row_idx_t NodeGroup::append(const Transaction* transaction,
     const std::vector<ColumnChunk*>& chunkedGroup, row_idx_t startRowIdx,
     row_idx_t numRowsToAppend) {
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.writeLock();
     const auto numRowsBeforeAppend = getNumRows();
     auto& mm = *transaction->getClientContext()->getMemoryManager();
     if (chunkedGroups.isEmpty(lock)) {
@@ -63,7 +63,7 @@ row_idx_t NodeGroup::append(const Transaction* transaction,
 
 void NodeGroup::append(const Transaction* transaction, const std::vector<ValueVector*>& vectors,
     const row_idx_t startRowIdx, const row_idx_t numRowsToAppend) {
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.writeLock();
     const auto numRowsBeforeAppend = getNumRows();
     auto& mm = *transaction->getClientContext()->getMemoryManager();
     if (chunkedGroups.isEmpty(lock)) {
@@ -96,13 +96,13 @@ void NodeGroup::merge(Transaction*, std::unique_ptr<ChunkedNodeGroup> chunkedGro
         KU_ASSERT(chunkedGroup->getColumnChunk(i).getDataType().getPhysicalType() ==
                   dataTypes[i].getPhysicalType());
     }
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.writeLock();
     numRows += chunkedGroup->getNumRows();
     chunkedGroups.appendGroup(lock, std::move(chunkedGroup));
 }
 
 void NodeGroup::initializeScanState(Transaction* transaction, TableScanState& state) const {
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.readLock();
     initializeScanState(transaction, lock, state);
 }
 
@@ -126,7 +126,7 @@ static void initializeScanStateForChunkedGroup(const TableScanState& state,
     }
 }
 
-void NodeGroup::initializeScanState(Transaction*, const UniqLock& lock,
+void NodeGroup::initializeScanState(Transaction*, const ReadWriteLock& lock,
     TableScanState& state) const {
     auto& nodeGroupScanState = *state.nodeGroupScanState;
     nodeGroupScanState.chunkedGroupIdx = 0;
@@ -137,22 +137,25 @@ void NodeGroup::initializeScanState(Transaction*, const UniqLock& lock,
 
 NodeGroupScanResult NodeGroup::scan(Transaction* transaction, TableScanState& state) const {
     // TODO(Guodong): Move the locked part of figuring out the chunked group to initScan.
-    const auto lock = chunkedGroups.lock();
     auto& nodeGroupScanState = *state.nodeGroupScanState;
-    KU_ASSERT(nodeGroupScanState.chunkedGroupIdx < chunkedGroups.getNumGroups(lock));
-    const auto chunkedGroup = chunkedGroups.getGroup(lock, nodeGroupScanState.chunkedGroupIdx);
-    if (chunkedGroup && nodeGroupScanState.numScannedRows >=
-                            chunkedGroup->getNumRows() + chunkedGroup->getStartRowIdx()) {
-        nodeGroupScanState.chunkedGroupIdx++;
-        if (nodeGroupScanState.chunkedGroupIdx >= chunkedGroups.getNumGroups(lock)) {
-            return NODE_GROUP_SCAN_EMMPTY_RESULT;
+    ChunkedNodeGroup* chunkedGroupToScanPtr = nullptr;
+    {
+        const auto lock = chunkedGroups.readLock();
+        KU_ASSERT(nodeGroupScanState.chunkedGroupIdx < chunkedGroups.getNumGroups(lock));
+        const auto chunkedGroup = chunkedGroups.getGroup(lock, nodeGroupScanState.chunkedGroupIdx);
+        if (chunkedGroup && nodeGroupScanState.numScannedRows >=
+                                chunkedGroup->getNumRows() + chunkedGroup->getStartRowIdx()) {
+            nodeGroupScanState.chunkedGroupIdx++;
+            if (nodeGroupScanState.chunkedGroupIdx >= chunkedGroups.getNumGroups(lock)) {
+                return NODE_GROUP_SCAN_EMMPTY_RESULT;
+            }
+            ChunkedNodeGroup* currentChunkedGroup =
+                chunkedGroups.getGroup(lock, nodeGroupScanState.chunkedGroupIdx);
+            initializeScanStateForChunkedGroup(state, currentChunkedGroup);
         }
-        ChunkedNodeGroup* currentChunkedGroup =
-            chunkedGroups.getGroup(lock, nodeGroupScanState.chunkedGroupIdx);
-        initializeScanStateForChunkedGroup(state, currentChunkedGroup);
+        chunkedGroupToScanPtr = chunkedGroups.getGroup(lock, nodeGroupScanState.chunkedGroupIdx);
     }
-    const auto& chunkedGroupToScan =
-        *chunkedGroups.getGroup(lock, nodeGroupScanState.chunkedGroupIdx);
+    const auto& chunkedGroupToScan = *chunkedGroupToScanPtr;
     const auto rowIdxInChunkToScan =
         nodeGroupScanState.numScannedRows - chunkedGroupToScan.getStartRowIdx();
     const auto numRowsToScan =
@@ -198,7 +201,7 @@ NodeGroupScanResult NodeGroup::scan(Transaction* transaction, TableScanState& st
     return NodeGroupScanResult{startRow, numRowsToScan};
 }
 
-bool NodeGroup::lookup(const UniqLock& lock, Transaction* transaction,
+bool NodeGroup::lookup(const ReadWriteLock& lock, Transaction* transaction,
     const TableScanState& state) {
     idx_t numTuplesFound = 0;
     for (auto i = 0u; i < state.rowIdxVector->state->getSelVector().getSelSize(); i++) {
@@ -215,7 +218,7 @@ bool NodeGroup::lookup(const UniqLock& lock, Transaction* transaction,
 }
 
 bool NodeGroup::lookup(Transaction* transaction, const TableScanState& state) {
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.readLock();
     return lookup(lock, transaction, state);
 }
 
@@ -224,7 +227,7 @@ void NodeGroup::update(Transaction* transaction, row_idx_t rowIdxInGroup, column
     KU_ASSERT(propertyVector.state->getSelVector().getSelSize() == 1);
     ChunkedNodeGroup* chunkedGroupToUpdate = nullptr;
     {
-        const auto lock = chunkedGroups.lock();
+        const auto lock = chunkedGroups.readLock();
         chunkedGroupToUpdate = findChunkedGroupFromRowIdx(lock, rowIdxInGroup);
     }
     KU_ASSERT(chunkedGroupToUpdate);
@@ -235,7 +238,7 @@ void NodeGroup::update(Transaction* transaction, row_idx_t rowIdxInGroup, column
 bool NodeGroup::delete_(const Transaction* transaction, row_idx_t rowIdxInGroup) {
     ChunkedNodeGroup* groupToDelete = nullptr;
     {
-        const auto lock = chunkedGroups.lock();
+        const auto lock = chunkedGroups.readLock();
         groupToDelete = findChunkedGroupFromRowIdx(lock, rowIdxInGroup);
     }
     const auto rowIdxInChunkedGroup = rowIdxInGroup - groupToDelete->getStartRowIdx();
@@ -243,7 +246,7 @@ bool NodeGroup::delete_(const Transaction* transaction, row_idx_t rowIdxInGroup)
 }
 
 bool NodeGroup::hasDeletions(const Transaction* transaction) {
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.readLock();
     for (auto i = 0u; i < chunkedGroups.getNumGroups(lock); i++) {
         const auto chunkedGroup = chunkedGroups.getGroup(lock, i);
         if (chunkedGroup->hasDeletions(transaction)) {
@@ -256,14 +259,14 @@ bool NodeGroup::hasDeletions(const Transaction* transaction) {
 void NodeGroup::addColumn(Transaction* transaction, TableAddColumnState& addColumnState,
     FileHandle* dataFH) {
     dataTypes.push_back(addColumnState.propertyDefinition.getType().copy());
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.readLock();
     for (auto& chunkedGroup : chunkedGroups.getAllGroups(lock)) {
         chunkedGroup->addColumn(transaction, addColumnState, enableCompression, dataFH);
     }
 }
 
 void NodeGroup::flush(Transaction* transaction, FileHandle& dataFH) {
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.writeLock();
     if (chunkedGroups.getNumGroups(lock) == 1) {
         const auto chunkedGroupToFlush = chunkedGroups.getFirstGroup(lock);
         chunkedGroupToFlush->flush(dataFH);
@@ -286,7 +289,7 @@ void NodeGroup::checkpoint(MemoryManager& memoryManager, NodeGroupCheckpointStat
     // We don't need to consider deletions here, as they are flushed separately as metadata.
     // TODO(Guodong): A special case can be all rows are deleted or rollbacked, then we can skip
     // flushing the data.
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.writeLock();
     KU_ASSERT(chunkedGroups.getNumGroups(lock) >= 1);
     const auto firstGroup = chunkedGroups.getFirstGroup(lock);
     const auto hasPersistentData = firstGroup->getResidencyState() == ResidencyState::ON_DISK;
@@ -304,7 +307,7 @@ void NodeGroup::checkpoint(MemoryManager& memoryManager, NodeGroupCheckpointStat
 }
 
 std::unique_ptr<ChunkedNodeGroup> NodeGroup::checkpointInMemAndOnDisk(MemoryManager& memoryManager,
-    const UniqLock& lock, NodeGroupCheckpointState& state) {
+    const ReadWriteLock& lock, NodeGroupCheckpointState& state) {
     const auto firstGroup = chunkedGroups.getFirstGroup(lock);
     const auto numPersistentRows = firstGroup->getNumRows();
     std::vector<const Column*> columnPtrs;
@@ -351,7 +354,7 @@ std::unique_ptr<ChunkedNodeGroup> NodeGroup::checkpointInMemAndOnDisk(MemoryMana
 }
 
 std::unique_ptr<ChunkedNodeGroup> NodeGroup::checkpointInMemOnly(MemoryManager& memoryManager,
-    const UniqLock& lock, NodeGroupCheckpointState& state) {
+    const ReadWriteLock& lock, NodeGroupCheckpointState& state) {
     // Flush insertChunkedGroup to persistent one.
     std::vector<const Column*> columnPtrs;
     columnPtrs.reserve(state.columns.size());
@@ -364,7 +367,7 @@ std::unique_ptr<ChunkedNodeGroup> NodeGroup::checkpointInMemOnly(MemoryManager& 
     return insertChunkedGroup;
 }
 
-std::unique_ptr<VersionInfo> NodeGroup::checkpointVersionInfo(const UniqLock& lock,
+std::unique_ptr<VersionInfo> NodeGroup::checkpointVersionInfo(const ReadWriteLock& lock,
     const Transaction* transaction) {
     auto checkpointVersionInfo = std::make_unique<VersionInfo>();
     row_idx_t currRow = 0;
@@ -384,7 +387,7 @@ std::unique_ptr<VersionInfo> NodeGroup::checkpointVersionInfo(const UniqLock& lo
 
 uint64_t NodeGroup::getEstimatedMemoryUsage() {
     uint64_t memUsage = 0;
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.readLock();
     for (const auto& chunkedGroup : chunkedGroups.getAllGroups(lock)) {
         memUsage += chunkedGroup->getEstimatedMemoryUsage();
     }
@@ -399,7 +402,7 @@ void NodeGroup::serialize(Serializer& serializer) {
     serializer.write<bool>(enableCompression);
     serializer.writeDebuggingInfo("format");
     serializer.write<NodeGroupDataFormat>(format);
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.readLock();
     KU_ASSERT(chunkedGroups.getNumGroups(lock) == 1);
     const auto chunkedGroup = chunkedGroups.getFirstGroup(lock);
     serializer.writeDebuggingInfo("has_checkpointed_data");
@@ -455,7 +458,8 @@ std::unique_ptr<NodeGroup> NodeGroup::deserialize(MemoryManager& memoryManager,
     }
 }
 
-ChunkedNodeGroup* NodeGroup::findChunkedGroupFromRowIdx(const UniqLock& lock, row_idx_t rowIdx) {
+ChunkedNodeGroup* NodeGroup::findChunkedGroupFromRowIdx(const ReadWriteLock& lock,
+    row_idx_t rowIdx) {
     KU_ASSERT(!chunkedGroups.isEmpty(lock));
     const auto numRowsInFirstGroup = chunkedGroups.getFirstGroup(lock)->getNumRows();
     if (rowIdx < numRowsInFirstGroup) {
@@ -483,7 +487,7 @@ ChunkedNodeGroup* NodeGroup::findChunkedGroupFromRowIdxNoLock(row_idx_t rowIdx) 
 }
 
 template<ResidencyState RESIDENCY_STATE>
-row_idx_t NodeGroup::getNumResidentRows(const UniqLock& lock) const {
+row_idx_t NodeGroup::getNumResidentRows(const ReadWriteLock& lock) const {
     row_idx_t numResidentRows = 0u;
     for (auto& chunkedGroup : chunkedGroups.getAllGroups(lock)) {
         if (chunkedGroup->getResidencyState() == RESIDENCY_STATE) {
@@ -495,8 +499,8 @@ row_idx_t NodeGroup::getNumResidentRows(const UniqLock& lock) const {
 
 template<ResidencyState RESIDENCY_STATE>
 std::unique_ptr<ChunkedNodeGroup> NodeGroup::scanAllInsertedAndVersions(
-    MemoryManager& memoryManager, const UniqLock& lock, const std::vector<column_id_t>& columnIDs,
-    const std::vector<const Column*>& columns) const {
+    MemoryManager& memoryManager, const ReadWriteLock& lock,
+    const std::vector<column_id_t>& columnIDs, const std::vector<const Column*>& columns) const {
     auto numResidentRows = getNumResidentRows<RESIDENCY_STATE>(lock);
     std::vector<LogicalType> columnTypes;
     for (const auto* column : columns) {
@@ -522,17 +526,17 @@ std::unique_ptr<ChunkedNodeGroup> NodeGroup::scanAllInsertedAndVersions(
 
 template std::unique_ptr<ChunkedNodeGroup>
 NodeGroup::scanAllInsertedAndVersions<ResidencyState::ON_DISK>(MemoryManager& memoryManager,
-    const UniqLock& lock, const std::vector<column_id_t>& columnIDs,
+    const ReadWriteLock& lock, const std::vector<column_id_t>& columnIDs,
     const std::vector<const Column*>& columns) const;
 template std::unique_ptr<ChunkedNodeGroup>
 NodeGroup::scanAllInsertedAndVersions<ResidencyState::IN_MEMORY>(MemoryManager& memoryManager,
-    const UniqLock& lock, const std::vector<column_id_t>& columnIDs,
+    const ReadWriteLock& lock, const std::vector<column_id_t>& columnIDs,
     const std::vector<const Column*>& columns) const;
 
 bool NodeGroup::isVisible(const Transaction* transaction, row_idx_t rowIdxInGroup) {
     ChunkedNodeGroup* chunkedGroup = nullptr;
     {
-        const auto lock = chunkedGroups.lock();
+        const auto lock = chunkedGroups.readLock();
         chunkedGroup = findChunkedGroupFromRowIdx(lock, rowIdxInGroup);
     }
     if (!chunkedGroup) {
@@ -554,13 +558,13 @@ bool NodeGroup::isVisibleNoLock(const Transaction* transaction, row_idx_t rowIdx
 }
 
 bool NodeGroup::isDeleted(const Transaction* transaction, offset_t offsetInGroup) {
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.readLock();
     const auto* chunkedGroup = findChunkedGroupFromRowIdx(lock, offsetInGroup);
     return chunkedGroup->isDeleted(transaction, offsetInGroup - chunkedGroup->getStartRowIdx());
 }
 
 bool NodeGroup::isInserted(const Transaction* transaction, offset_t offsetInGroup) {
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.readLock();
     const auto* chunkedGroup = findChunkedGroupFromRowIdx(lock, offsetInGroup);
     return chunkedGroup->isInserted(transaction, offsetInGroup - chunkedGroup->getStartRowIdx());
 }

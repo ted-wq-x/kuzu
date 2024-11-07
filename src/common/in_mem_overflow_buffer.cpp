@@ -30,14 +30,12 @@ uint8_t* InMemOverflowBuffer::allocateSpace(uint64_t size) {
 }
 
 void InMemOverflowBuffer::resetBuffer() {
-    if (!blocks.empty()) {
+    if (currentBlock != nullptr) {
         auto firstBlock = std::move(blocks[0]);
         blocks.clear();
         firstBlock->resetCurrentOffset();
+        currentBlock = firstBlock.get();
         blocks.push_back(std::move(firstBlock));
-    }
-    if (!blocks.empty()) {
-        currentBlock = blocks[0].get();
     }
 }
 

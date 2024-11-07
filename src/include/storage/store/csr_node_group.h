@@ -257,20 +257,20 @@ private:
     NodeGroupScanResult scanCommittedInMemRandom(transaction::Transaction* transaction,
         const RelTableScanState& tableState, CSRNodeGroupScanState& nodeGroupScanState) const;
 
-    void checkpointInMemOnly(const common::UniqLock& lock, NodeGroupCheckpointState& state);
-    void checkpointInMemAndOnDisk(const common::UniqLock& lock, NodeGroupCheckpointState& state);
+    void checkpointInMemOnly(const common::WriteLock& lock, NodeGroupCheckpointState& state);
+    void checkpointInMemAndOnDisk(const common::WriteLock& lock, NodeGroupCheckpointState& state);
 
-    void populateCSRLengthInMemOnly(const common::UniqLock& lock, common::offset_t numNodes,
+    void populateCSRLengthInMemOnly(const common::ReadWriteLock& lock, common::offset_t numNodes,
         const CSRNodeGroupCheckpointState& csrState);
 
-    void collectRegionChangesAndUpdateHeaderLength(const common::UniqLock& lock, CSRRegion& region,
+    void collectRegionChangesAndUpdateHeaderLength(const common::ReadWriteLock& lock, CSRRegion& region,
         const CSRNodeGroupCheckpointState& csrState);
-    void collectInMemRegionChangesAndUpdateHeaderLength(const common::UniqLock& lock,
+    void collectInMemRegionChangesAndUpdateHeaderLength(const common::ReadWriteLock& lock,
         CSRRegion& region, const CSRNodeGroupCheckpointState& csrState);
-    void collectOnDiskRegionChangesAndUpdateHeaderLength(const common::UniqLock& lock,
+    void collectOnDiskRegionChangesAndUpdateHeaderLength(const common::ReadWriteLock& lock,
         CSRRegion& region, const CSRNodeGroupCheckpointState& csrState) const;
 
-    std::vector<CSRRegion> collectLeafRegionsAndCSRLength(const common::UniqLock& lock,
+    std::vector<CSRRegion> collectLeafRegionsAndCSRLength(const common::ReadWriteLock& lock,
         const CSRNodeGroupCheckpointState& csrState);
     void collectPersistentUpdatesInRegion(CSRRegion& region, common::offset_t leftCSROffset,
         common::offset_t rightCSROffset) const;
@@ -287,13 +287,13 @@ private:
     static bool isWithinDensityBound(const ChunkedCSRHeader& header,
         const std::vector<CSRRegion>& leafRegions, const CSRRegion& region);
 
-    void checkpointColumn(const common::UniqLock& lock, common::column_id_t columnID,
+    void checkpointColumn(const common::ReadWriteLock& lock, common::column_id_t columnID,
         const CSRNodeGroupCheckpointState& csrState, const std::vector<CSRRegion>& regions);
-    ChunkCheckpointState checkpointColumnInRegion(const common::UniqLock& lock,
+    ChunkCheckpointState checkpointColumnInRegion(const common::ReadWriteLock& lock,
         common::column_id_t columnID, const CSRNodeGroupCheckpointState& csrState,
         const CSRRegion& region);
     void checkpointCSRHeaderColumns(const CSRNodeGroupCheckpointState& csrState) const;
-    void finalizeCheckpoint(const common::UniqLock& lock);
+    void finalizeCheckpoint(const common::WriteLock& lock);
 
 private:
     std::unique_ptr<ChunkedNodeGroup> persistentChunkGroup;

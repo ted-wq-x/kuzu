@@ -2,10 +2,10 @@
 
 #include <vector>
 
+#include "common/read_write_lock.h"
 #include "common/serializer/deserializer.h"
 #include "common/serializer/serializer.h"
 #include "common/types/types.h"
-#include "common/uniq_lock.h"
 
 namespace kuzu {
 namespace storage {
@@ -16,25 +16,26 @@ class GroupCollection {
 public:
     GroupCollection() {}
 
-    common::UniqLock lock() const { return common::UniqLock{mtx}; }
+    common::ReadLock readLock() const { return common::ReadLock{mtx}; }
+    common::WriteLock writeLock() const { return common::WriteLock{mtx}; }
 
     void deserializeGroups(MemoryManager& memoryManager, common::Deserializer& deSer) {
-        lock();
+        writeLock();
         deSer.deserializeVectorOfPtrs<T>(groups,
             [&](common::Deserializer& deser) { return T::deserialize(memoryManager, deser); });
     }
     void serializeGroups(common::Serializer& ser) {
-        lock();
+        readLock();
         ser.serializeVectorOfPtrs<T>(groups);
     }
 
-    void appendGroup(const common::UniqLock& lock, std::unique_ptr<T> group) {
+    void appendGroup(const common::WriteLock& lock, std::unique_ptr<T> group) {
         KU_ASSERT(group);
         KU_ASSERT(lock.isLocked());
         KU_UNUSED(lock);
         groups.push_back(std::move(group));
     }
-    T* getGroup(const common::UniqLock& lock, common::idx_t groupIdx) const {
+    T* getGroup(const common::ReadWriteLock& lock, common::idx_t groupIdx) const {
         KU_ASSERT(lock.isLocked());
         KU_UNUSED(lock);
         KU_ASSERT(groupIdx < groups.size());
@@ -44,7 +45,7 @@ public:
         KU_ASSERT(groupIdx < groups.size());
         return groups[groupIdx].get();
     }
-    void replaceGroup(const common::UniqLock& lock, common::idx_t groupIdx,
+    void replaceGroup(const common::WriteLock& lock, common::idx_t groupIdx,
         std::unique_ptr<T> group) {
         KU_ASSERT(group);
         KU_ASSERT(lock.isLocked());
@@ -55,7 +56,7 @@ public:
         groups[groupIdx] = std::move(group);
     }
 
-    void resize(const common::UniqLock& lock, common::idx_t newSize) {
+    void resize(const common::WriteLock& lock, common::idx_t newSize) {
         KU_ASSERT(lock.isLocked());
         KU_UNUSED(lock);
         if (newSize <= groups.size()) {
@@ -64,24 +65,24 @@ public:
         groups.resize(newSize);
     }
 
-    bool isEmpty(const common::UniqLock& lock) const {
+    bool isEmpty(const common::ReadWriteLock& lock) const {
         KU_ASSERT(lock.isLocked());
         KU_UNUSED(lock);
         return groups.empty();
     }
-    common::idx_t getNumGroups(const common::UniqLock& lock) const {
+    common::idx_t getNumGroups(const common::ReadWriteLock& lock) const {
         KU_ASSERT(lock.isLocked());
         KU_UNUSED(lock);
         return groups.size();
     }
     common::idx_t getNumGroupsNoLock() const { return groups.size(); }
 
-    const std::vector<std::unique_ptr<T>>& getAllGroups(const common::UniqLock& lock) const {
+    const std::vector<std::unique_ptr<T>>& getAllGroups(const common::ReadWriteLock& lock) const {
         KU_ASSERT(lock.isLocked());
         KU_UNUSED(lock);
         return groups;
     }
-    T* getFirstGroup(const common::UniqLock& lock) const {
+    T* getFirstGroup(const common::ReadWriteLock& lock) const {
         KU_ASSERT(lock.isLocked());
         KU_UNUSED(lock);
         if (groups.empty()) {
@@ -95,7 +96,7 @@ public:
         }
         return groups.front().get();
     }
-    T* getLastGroup(const common::UniqLock& lock) const {
+    T* getLastGroup(const common::ReadWriteLock& lock) const {
         KU_ASSERT(lock.isLocked());
         KU_UNUSED(lock);
         if (groups.empty()) {
@@ -104,14 +105,14 @@ public:
         return groups.back().get();
     }
 
-    void clear(const common::UniqLock& lock) {
+    void clear(const common::WriteLock& lock) {
         KU_ASSERT(lock.isLocked());
         KU_UNUSED(lock);
         groups.clear();
     }
 
 private:
-    mutable std::mutex mtx;
+    mutable std::shared_mutex mtx;
     std::vector<std::unique_ptr<T>> groups;
 };
 

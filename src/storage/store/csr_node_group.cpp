@@ -299,7 +299,7 @@ NodeGroupScanResult CSRNodeGroup::scanCommittedInMemSequential(const Transaction
     }
     const ChunkedNodeGroup* chunkedGroup = nullptr;
     {
-        const auto lock = chunkedGroups.lock();
+        const auto lock = chunkedGroups.readLock();
         chunkedGroup = chunkedGroups.getGroup(lock, chunkIdx);
     }
     chunkedGroup->scan(transaction, tableState, nodeGroupScanState, startRowInChunk, numRows);
@@ -326,7 +326,7 @@ NodeGroupScanResult CSRNodeGroup::scanCommittedInMemRandom(Transaction* transact
             StorageUtils::getQuotientRemainder(rowIdx, ChunkedNodeGroup::CHUNK_CAPACITY);
         if (chunkIdx != currentChunkIdx) {
             currentChunkIdx = chunkIdx;
-            const auto lock = chunkedGroups.lock();
+            const auto lock = chunkedGroups.readLock();
             chunkedGroup = chunkedGroups.getGroup(lock, chunkIdx);
         }
         KU_ASSERT(chunkedGroup);
@@ -415,7 +415,7 @@ void CSRNodeGroup::update(Transaction* transaction, CSRNodeGroupScanSource sourc
         KU_ASSERT(csrIndex);
         auto [chunkIdx, rowInChunk] =
             StorageUtils::getQuotientRemainder(rowIdxInGroup, ChunkedNodeGroup::CHUNK_CAPACITY);
-        const auto lock = chunkedGroups.lock();
+        const auto lock = chunkedGroups.readLock();
         const auto chunkedGroup = chunkedGroups.getGroup(lock, chunkIdx);
         return chunkedGroup->update(transaction, rowInChunk, columnID, propertyVector);
     }
@@ -436,7 +436,7 @@ bool CSRNodeGroup::delete_(const Transaction* transaction, CSRNodeGroupScanSourc
         KU_ASSERT(csrIndex);
         auto [chunkIdx, rowInChunk] =
             StorageUtils::getQuotientRemainder(rowIdxInGroup, ChunkedNodeGroup::CHUNK_CAPACITY);
-        const auto lock = chunkedGroups.lock();
+        const auto lock = chunkedGroups.readLock();
         const auto chunkedGroup = chunkedGroups.getGroup(lock, chunkIdx);
         return chunkedGroup->delete_(transaction, rowInChunk);
     }
@@ -470,7 +470,7 @@ void CSRNodeGroup::serialize(Serializer& serializer) {
 }
 
 void CSRNodeGroup::checkpoint(MemoryManager&, NodeGroupCheckpointState& state) {
-    const auto lock = chunkedGroups.lock();
+    const auto lock = chunkedGroups.writeLock();
     if (!persistentChunkGroup) {
         // No persistent data in the node group.
         checkpointInMemOnly(lock, state);
@@ -479,7 +479,7 @@ void CSRNodeGroup::checkpoint(MemoryManager&, NodeGroupCheckpointState& state) {
     checkpointInMemAndOnDisk(lock, state);
 }
 
-void CSRNodeGroup::checkpointInMemAndOnDisk(const UniqLock& lock, NodeGroupCheckpointState& state) {
+void CSRNodeGroup::checkpointInMemAndOnDisk(const WriteLock& lock, NodeGroupCheckpointState& state) {
     // TODO(Guodong): Should skip early here if no changes in the node group, so we avoid scanning
     // the csr header. Case: No insertions/deletions in persistent chunk and no in-mem chunks.
     auto& csrState = state.cast<CSRNodeGroupCheckpointState>();
@@ -529,7 +529,7 @@ void CSRNodeGroup::checkpointInMemAndOnDisk(const UniqLock& lock, NodeGroupCheck
     finalizeCheckpoint(lock);
 }
 
-std::vector<CSRRegion> CSRNodeGroup::collectLeafRegionsAndCSRLength(const UniqLock& lock,
+std::vector<CSRRegion> CSRNodeGroup::collectLeafRegionsAndCSRLength(const ReadWriteLock& lock,
     const CSRNodeGroupCheckpointState& csrState) {
     std::vector<CSRRegion> leafRegions;
     constexpr auto numLeafRegions =
@@ -556,7 +556,7 @@ void CSRNodeGroup::redistributeCSRRegions(const CSRNodeGroupCheckpointState& csr
     csrState.newHeader->finalizeCSRRegionEndOffsets(rightCSROffsetOfRegions);
 }
 
-void CSRNodeGroup::checkpointColumn(const UniqLock& lock, column_id_t columnID,
+void CSRNodeGroup::checkpointColumn(const ReadWriteLock& lock, column_id_t columnID,
     const CSRNodeGroupCheckpointState& csrState, const std::vector<CSRRegion>& regions) {
     std::vector<ChunkCheckpointState> chunkCheckpointStates;
     chunkCheckpointStates.reserve(regions.size());
@@ -579,7 +579,7 @@ void CSRNodeGroup::checkpointColumn(const UniqLock& lock, column_id_t columnID,
     csrState.columns[columnID]->checkpointColumnChunk(checkpointState);
 }
 
-ChunkCheckpointState CSRNodeGroup::checkpointColumnInRegion(const UniqLock& lock,
+ChunkCheckpointState CSRNodeGroup::checkpointColumnInRegion(const ReadWriteLock& lock,
     column_id_t columnID, const CSRNodeGroupCheckpointState& csrState, const CSRRegion& region) {
     const auto leftCSROffset = csrState.oldHeader->getStartCSROffset(region.leftNodeOffset);
     const auto rightCSROffset = csrState.oldHeader->getEndCSROffset(region.rightNodeOffset);
@@ -675,13 +675,13 @@ void CSRNodeGroup::checkpointCSRHeaderColumns(const CSRNodeGroupCheckpointState&
     csrState.csrLengthColumn->checkpointColumnChunk(csrLengthCheckpointState);
 }
 
-void CSRNodeGroup::collectRegionChangesAndUpdateHeaderLength(const UniqLock& lock,
+void CSRNodeGroup::collectRegionChangesAndUpdateHeaderLength(const ReadWriteLock& lock,
     CSRRegion& region, const CSRNodeGroupCheckpointState& csrState) {
     collectInMemRegionChangesAndUpdateHeaderLength(lock, region, csrState);
     collectOnDiskRegionChangesAndUpdateHeaderLength(lock, region, csrState);
 }
 
-void CSRNodeGroup::collectInMemRegionChangesAndUpdateHeaderLength(const UniqLock& lock,
+void CSRNodeGroup::collectInMemRegionChangesAndUpdateHeaderLength(const ReadWriteLock& lock,
     CSRRegion& region, const CSRNodeGroupCheckpointState& csrState) {
     row_idx_t numInsertionsInRegion = 0u;
     if (csrIndex) {
@@ -713,7 +713,7 @@ void CSRNodeGroup::collectInMemRegionChangesAndUpdateHeaderLength(const UniqLock
     region.sizeChange += static_cast<int64_t>(numInsertionsInRegion);
 }
 
-void CSRNodeGroup::collectOnDiskRegionChangesAndUpdateHeaderLength(const UniqLock&,
+void CSRNodeGroup::collectOnDiskRegionChangesAndUpdateHeaderLength(const ReadWriteLock&,
     CSRRegion& region, const CSRNodeGroupCheckpointState& csrState) const {
     const auto leftCSROffset = csrState.oldHeader->getStartCSROffset(region.leftNodeOffset);
     const auto rightCSROffset = csrState.oldHeader->getEndCSROffset(region.rightNodeOffset);
@@ -772,7 +772,7 @@ static DataChunk initScanDataChunk(const CSRNodeGroupCheckpointState& csrState,
     return dataChunk;
 }
 
-void CSRNodeGroup::checkpointInMemOnly(const UniqLock& lock, NodeGroupCheckpointState& state) {
+void CSRNodeGroup::checkpointInMemOnly(const WriteLock& lock, NodeGroupCheckpointState& state) {
     auto numRels = 0u;
     for (auto& chunkedGroup : chunkedGroups.getAllGroups(lock)) {
         numRels += chunkedGroup->getNumRows();
@@ -881,7 +881,7 @@ void CSRNodeGroup::initScanStateFromScanChunk(const CSRNodeGroupCheckpointState&
     }
 }
 
-void CSRNodeGroup::populateCSRLengthInMemOnly(const UniqLock& lock, offset_t numNodes,
+void CSRNodeGroup::populateCSRLengthInMemOnly(const ReadWriteLock& lock, offset_t numNodes,
     const CSRNodeGroupCheckpointState& csrState) {
     for (auto offset = 0u; offset < numNodes; offset++) {
         auto rows = csrIndex->indices[offset].getRows();
@@ -974,7 +974,7 @@ bool CSRNodeGroup::isWithinDensityBound(const ChunkedCSRHeader& header,
     return ratio <= getHighDensity(region.level);
 }
 
-void CSRNodeGroup::finalizeCheckpoint(const UniqLock& lock) {
+void CSRNodeGroup::finalizeCheckpoint(const WriteLock& lock) {
     // Clean up versions and in mem chunked groups.
     persistentChunkGroup->resetNumRowsFromChunks();
     persistentChunkGroup->resetVersionAndUpdateInfo();
