@@ -43,8 +43,19 @@ public:
         for (const auto& index : activationRelInfoIndex) {
             activationRelInfos.push_back(&relInfos.at(index));
         }
+        if (!directionValues.empty()) {
+            activationDirectionValues.clear();
+            for (const auto& index : activationRelInfoIndex) {
+                activationDirectionValues.push_back(directionValues.at(index));
+            }
+        }
     }
     const std::vector<ScanRelTableInfo>& getRelInfos() const { return relInfos; }
+
+    void addDirectionValue(bool value) {
+        directionValues.push_back(value);
+        activationDirectionValues.push_back(value);
+    }
 
 private:
     RelTableCollectionScanner(const RelTableCollectionScanner& other)
@@ -63,6 +74,7 @@ public:
     std::vector<ScanRelTableInfo> relInfos;
     std::vector<ScanRelTableInfo*> activationRelInfos;
     std::vector<bool> directionValues;
+    std::vector<bool> activationDirectionValues;
     common::ValueVector* directionVector = nullptr;
     uint32_t nextTableIdx = 0;
     common::idx_t currentTableIdx = common::INVALID_IDX;
