@@ -10,10 +10,11 @@ class ProcessorTask : public common::Task {
     friend class QueryProcessor;
 
 public:
-    ProcessorTask(Sink* sink, ExecutionContext* executionContext);
+    ProcessorTask(Sink* sink, ExecutionContext* executionContext, uint64_t ID);
 
     void run() override;
     void finalizeIfNecessary() override;
+    std::string profilePrintString() const override;
 
 private:
     static std::unique_ptr<ResultSet> populateResultSet(Sink* op,

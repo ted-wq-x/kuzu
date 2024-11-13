@@ -33,7 +33,8 @@ class FrontierTask : public common::Task {
 public:
     FrontierTask(uint64_t maxNumThreads, const FrontierTaskInfo& info,
         std::shared_ptr<FrontierTaskSharedState> sharedState)
-        : common::Task{maxNumThreads}, info{info}, sharedState{std::move(sharedState)} {}
+        : common::Task{maxNumThreads, UINT64_MAX}, info{info}, sharedState{std::move(sharedState)} {
+    }
 
     void run() override;
 
@@ -60,7 +61,8 @@ class VertexComputeTask : public common::Task {
 public:
     VertexComputeTask(uint64_t maxNumThreads, const VertexComputeTaskInfo& info,
         std::shared_ptr<VertexComputeTaskSharedState> sharedState)
-        : common::Task{maxNumThreads}, info{info}, sharedState{std::move(sharedState)} {};
+        : common::Task{maxNumThreads, UINT64_MAX}, info{info},
+          sharedState{std::move(sharedState)} {};
 
     void run() override;
 

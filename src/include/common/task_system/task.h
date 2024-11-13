@@ -27,7 +27,7 @@ class Task {
     friend class TaskScheduler;
 
 public:
-    explicit Task(uint64_t maxNumThreads);
+    explicit Task(uint64_t maxNumThreads, uint64_t ID);
     virtual ~Task() = default;
     virtual void run() = 0;
     //     This function is called from inside deRegisterThreadAndFinalizeTaskIfNecessary() only
@@ -71,6 +71,12 @@ public:
         lock_t lck{taskMtx};
         return exceptionsPtr;
     }
+
+    uint64_t getNumThreadsRegistered() const { return numThreadsRegistered; }
+
+    uint64_t getTaskId() const { return ID; }
+
+    virtual std::string profilePrintString() const { return "Stage-" + std::to_string(ID); }
 
 private:
     bool canRegisterNoLock() const {

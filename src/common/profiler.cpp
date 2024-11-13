@@ -47,5 +47,11 @@ void Profiler::addMetric(const std::string& key, std::unique_ptr<Metric> metric)
     metrics.at(key).push_back(std::move(metric));
 }
 
+std::shared_ptr<TaskProfileInfo> Profiler::addProfileTask(std::shared_ptr<Task> profileTask) {
+    auto info = std::make_shared<TaskProfileInfo>(profileTask, enabled);
+    std::lock_guard<std::mutex> lck(mtx);
+    taskProfileInfos.emplace(profileTask->getTaskId(), info);
+    return info;
+}
 } // namespace common
 } // namespace kuzu
