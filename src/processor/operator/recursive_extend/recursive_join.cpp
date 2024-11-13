@@ -127,6 +127,7 @@ void RecursiveJoin::initLocalStateInternal(ResultSet*, ExecutionContext* context
     default:
         KU_UNREACHABLE;
     }
+    bfsState->initialize();
     if (vectors->pathVector != nullptr) {
         auto pathNodesFieldIdx =
             StructType::getFieldIdx(vectors->pathVector->dataType, InternalKeyword::NODES);

@@ -418,10 +418,12 @@ private:
 public:
     // optimize method instead of resetState()
     void resetFlag() {
-        for (auto& item : blockFlags) {
-            item.resetMark();
+        if (hasValue) {
+            for (auto& item : blockFlags) {
+                item.resetMark();
+            }
+            hasValue = false;
         }
-        hasValue = false;
     }
 
     void clear() {

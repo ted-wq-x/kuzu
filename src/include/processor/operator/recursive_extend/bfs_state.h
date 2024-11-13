@@ -41,9 +41,16 @@ class BaseBFSState {
 public:
     explicit BaseBFSState(uint8_t upperBound, TargetDstNodes* targetDstNodes,
         main::ClientContext* clientContext)
-        : upperBound{upperBound}, currentLevel{0}, nextNodeIdxToExtend{0}, currentFrontier{nullptr},
-          nextFrontier{nullptr}, targetDstNodes{targetDstNodes}, clientContext{clientContext} {}
+        : upperBound{upperBound}, currentLevel{0}, currentFrontier{nullptr}, nextFrontier{nullptr},
+          targetDstNodes{targetDstNodes}, clientContext{clientContext} {}
     virtual ~BaseBFSState() = default;
+
+    void initialize() {
+        // reuse frontier
+        for (int i = 0; i <= upperBound; ++i) {
+            frontiers.push_back(createFrontier());
+        }
+    }
 
     // Get next node offset to extend from current level.
     common::nodeID_t getNextNodeID() {
@@ -58,9 +65,16 @@ public:
     }
 
     virtual void resetState() {
+        size_t size = 0;
+        if (currentLevel >= upperBound) {
+            size = frontiers.size();
+        } else {
+            size = currentLevel + 2;
+        }
+        for (auto i = 0u; i < size; ++i) {
+            frontiers[i]->resetState();
+        }
         currentLevel = 0;
-        nextNodeIdxToExtend = 0;
-        frontiers.clear();
         initStartFrontier();
         addNextFrontier();
     }
@@ -75,13 +89,27 @@ public:
     }
 
     inline void finalizeCurrentLevel() { moveNextLevelAsCurrentLevel(); }
-    inline size_t getNumFrontiers() const { return frontiers.size(); }
+    inline size_t getNumFrontiers() const {
+        if (currentLevel < upperBound) {
+            //+2 ,一个是0跳的,一个是nextLevel的
+            return currentLevel + 2;
+        } else {
+            return frontiers.size();
+        }
+    }
+
     inline Frontier* getFrontier(common::idx_t idx) const { return frontiers[idx].get(); }
     inline uint8_t getCurrentLevel() { return currentLevel; }
     inline void resetFrontiersIter() {
         // 为读取数据做准备
-        for (const auto& frontier : frontiers) {
-            frontier->fillingNodeIDIter(true);
+        size_t size = 0;
+        if (currentLevel >= upperBound) {
+            size = frontiers.size();
+        } else {
+            size = currentLevel + 2;
+        }
+        for (auto i = 0u; i < size; ++i) {
+            frontiers[i]->fillingNodeIDIter();
         }
     }
 
@@ -91,19 +119,15 @@ protected:
     virtual inline std::unique_ptr<Frontier> createFrontier() = 0;
 
     inline void initStartFrontier() {
-        KU_ASSERT(frontiers.empty());
-        frontiers.push_back(createFrontier());
-        currentFrontier = frontiers[frontiers.size() - 1].get();
+        currentFrontier = frontiers[currentLevel].get();
     }
 
     inline void addNextFrontier() {
-        frontiers.push_back(createFrontier());
-        nextFrontier = frontiers[frontiers.size() - 1].get();
+        nextFrontier = frontiers[currentLevel + 1].get();
     }
     void moveNextLevelAsCurrentLevel() {
         currentFrontier = nextFrontier;
         currentLevel++;
-        nextNodeIdxToExtend = 0;
         currentFrontier->fillingNodeIDIter();
         if (currentLevel < upperBound) {
             addNextFrontier();
@@ -115,15 +139,12 @@ protected:
     uint8_t upperBound;
     // Level state
     uint8_t currentLevel;
-    uint64_t nextNodeIdxToExtend; // next node to extend from current frontier.
     Frontier* currentFrontier;
     Frontier* nextFrontier;
     std::vector<std::unique_ptr<Frontier>> frontiers;
     // Target information.
     TargetDstNodes* targetDstNodes;
-
     main::ClientContext* clientContext;
-
 };
 
 } // namespace processor

@@ -50,15 +50,8 @@ public:
         if constexpr (TRACK_PATH) {
             return std::make_unique<TrackPathFrontier>();
         } else {
-//            if (clientContext->getTransactionContext()->isAutoTransaction()) {
-//                 手动事物的单次插入点,由于其offset太大,故使用map存储
-//                return std::make_unique<UnTrackPath1Frontier>(clientContext->getCatalog(),
-//                    clientContext->getStorageManager(), clientContext->getTx());
-//            } else {
-//                return std::make_unique<UnTrackPath2Frontier>();
-//            }
-return std::make_unique<UnTrackPath1Frontier>(clientContext->getCatalog(),
-    clientContext->getStorageManager(), clientContext->getTx());
+            return std::make_unique<UnTrackPathFrontier>(clientContext->getCatalog(),
+                clientContext->getStorageManager(), clientContext->getTx());
         }
     }
 
