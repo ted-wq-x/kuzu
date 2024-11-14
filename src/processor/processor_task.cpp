@@ -48,7 +48,7 @@ std::string ProcessorTask::profilePrintString() const {
     auto root = sink->getChild(0);
     while (!root->isSink()) {
         msg += "-" + std::to_string(root->getOperatorID());
-        if (root->getNumChildren() == 1) {
+        if (root->getNumChildren() != 0) {
             root = root->getChild(0);
         } else {
             break;

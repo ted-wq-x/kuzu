@@ -103,7 +103,7 @@ public:
 
     uint64_t sumAllNumericMetricsWithKey(const std::string& key);
 
-    std::shared_ptr<TaskProfileInfo> addProfileTask(std::shared_ptr<Task> profileTask);
+    void addProfileTask(std::shared_ptr<Task> profileTask);
 
     std::string printTaskProfileInfo() {
         std::string planInString;
