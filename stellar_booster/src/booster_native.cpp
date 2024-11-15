@@ -265,7 +265,9 @@ JNIEXPORT jlong JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_datab
     const char* path = env->GetStringUTFChars(database_path, JNI_FALSE);
     uint64_t buffer = static_cast<uint64_t>(buffer_pool_size);
     SystemConfig::enableCpuAffinity = enableCpuAffinity;
-    SystemConfig::lruCacheSize = lruCacheSize;
+    if (lruCacheSize > 0) {
+        SystemConfig::lruCacheSize = lruCacheSize;
+    }
     SystemConfig systemConfig{};
     systemConfig.bufferPoolSize = buffer == 0 ? systemConfig.bufferPoolSize : buffer;
     systemConfig.enableCompression = enable_compression;
@@ -571,14 +573,15 @@ Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1reset_1iterato
     qr->resetIterator();
 }
 
-
-JNIEXPORT jboolean JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1has_1next_1query_1result(
+JNIEXPORT jboolean JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1has_1next_1query_1result(
     JNIEnv* env, jclass, jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     return qr->hasNextQueryResult();
 }
 
-JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1next_1query_1result(
+JNIEXPORT jobject JNICALL
+Java_io_transwarp_stellardb_1booster_BoosterNative_query_1result_1get_1next_1query_1result(
     JNIEnv* env, jclass, jobject thisQR) {
     QueryResult* qr = getQueryResult(env, thisQR);
     auto query_result = qr->getNextQueryResult();
@@ -586,11 +589,11 @@ JNIEXPORT jobject JNICALL Java_io_transwarp_stellardb_1booster_BoosterNative_que
         return nullptr;
     }
 
-    jobject ret = createJavaObject(env, query_result, J_C_BoosterQueryResult, J_C_BoosterQueryResult_F_qr_ref);
+    jobject ret = createJavaObject(env, query_result, J_C_BoosterQueryResult,
+        J_C_BoosterQueryResult_F_qr_ref);
     env->SetBooleanField(ret, J_C_BoosterQueryResult_F_isOwnedByCPP, static_cast<jboolean>(true));
     return ret;
 }
-
 
 /**
  * All FlatTuple native functions
@@ -1479,7 +1482,8 @@ void initGlobalMethodRef(JNIEnv* env) {
 
 void initGlobalFieldRef(JNIEnv* env) {
     J_C_BoosterQueryResult_F_qr_ref = env->GetFieldID(J_C_BoosterQueryResult, "qr_ref", "J");
-    J_C_BoosterQueryResult_F_isOwnedByCPP = env->GetFieldID(J_C_BoosterQueryResult, "isOwnedByCPP", "Z");
+    J_C_BoosterQueryResult_F_isOwnedByCPP =
+        env->GetFieldID(J_C_BoosterQueryResult, "isOwnedByCPP", "Z");
 
     J_C_BoosterPreparedStatement_F_ps_ref =
         env->GetFieldID(J_C_BoosterPreparedStatement, "ps_ref", "J");

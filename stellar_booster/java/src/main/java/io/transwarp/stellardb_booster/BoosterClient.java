@@ -1,6 +1,5 @@
 package io.transwarp.stellardb_booster;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,7 +18,7 @@ public class BoosterClient {
 
     public static int concurrency = -1;
     public static boolean curReadOnly = false;
-    private static boolean preReadOnly = false;
+    private static volatile boolean preReadOnly = false;
 
     private static boolean isMemMode = System.getProperty(DB_PATH, "").isEmpty();
 
@@ -54,11 +53,12 @@ public class BoosterClient {
     public static BoosterClient getInstance(String graphName) throws BoosterObjectRefDestroyedException {
         if (preReadOnly != curReadOnly) {
             synchronized (BoosterClient.class) {
-                finalizeAll();
-                instances.clear();
+                if (preReadOnly != curReadOnly) {
+                    finalizeAll();
+                    instances.clear();
+                    preReadOnly = curReadOnly;
+                }
             }
-            preReadOnly = curReadOnly;
-
         }
         BoosterClient instance = instances.get(graphName);
 
@@ -77,19 +77,17 @@ public class BoosterClient {
         return instance;
     }
 
-    public static BoosterOperationResult destroyInstance(String graphName) throws BoosterObjectRefDestroyedException {
+    public static synchronized BoosterOperationResult destroyInstance(String graphName) throws BoosterObjectRefDestroyedException {
         BoosterClient instance = instances.get(graphName);
         if (instance != null) {
             int refCount = instance.refCount.decrementAndGet();
             if (refCount == 0) {
-                synchronized (BoosterClient.class) {
-                    if (instance.refCount.get() == 0) {
-                        instances.remove(graphName);
-                        instance.clear();
-                        return new BoosterOperationResult("destroy $graphName's instance success", true);
-                    } else {
-                        return new BoosterOperationResult("$graphName's instance ref:" + refCount, false);
-                    }
+                if (instance.refCount.get() == 0) {
+                    instances.remove(graphName);
+                    instance.clear();
+                    return new BoosterOperationResult("destroy $graphName's instance success", true);
+                } else {
+                    return new BoosterOperationResult("$graphName's instance ref:" + refCount, false);
                 }
             } else {
                 return new BoosterOperationResult("$graphName's instance ref:" + refCount, false);
@@ -99,13 +97,11 @@ public class BoosterClient {
         return new BoosterOperationResult("$graphName's instance not exists'", false);
     }
 
-    public static void destroyInstanceForce(String graphName) throws BoosterObjectRefDestroyedException {
+    public static synchronized void destroyInstanceForce(String graphName) throws BoosterObjectRefDestroyedException {
         BoosterClient instance = instances.get(graphName);
         if (instance != null) {
-            synchronized (BoosterClient.class) {
-                instances.remove(graphName);
-                instance.clear();
-            }
+            instances.remove(graphName);
+            instance.clear();
         }
     }
 
@@ -126,7 +122,7 @@ public class BoosterClient {
     private BoosterClient(String graphName, boolean readOnly) {
         this.graphName = graphName;
         String path = System.getProperty(DB_PATH, "");
-        long poolSize = Long.parseLong(System.getProperty(DB_BUFFER_POOL_SIZE, "-1"));
+        long poolSize = Long.parseLong(System.getProperty(DB_BUFFER_POOL_SIZE, "0"));
         boolean enableCompression = Boolean.parseBoolean(System.getProperty(DB_COMPRESSION, "true"));
         boolean enableCpuAffinity = Boolean.parseBoolean(System.getProperty(DB_CPU_AFFINITY, "false"));
         int lruCacheSize = Integer.parseInt(System.getProperty(DB_LRU_CACHE_SIZE, "-1"));
@@ -134,7 +130,7 @@ public class BoosterClient {
         if (_readOnly) {
             readOnly = true;
         }
-        this.database = new BoosterDatabase(path + "/" + graphName, poolSize, enableCompression, readOnly, -1L, enableCpuAffinity, lruCacheSize);
+        this.database = new BoosterDatabase(path + "/" + graphName, poolSize, enableCompression, readOnly, 0L, enableCpuAffinity, lruCacheSize);
 
     }
 
