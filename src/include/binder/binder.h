@@ -73,7 +73,7 @@ class Binder {
 
 public:
     explicit Binder(main::ClientContext* clientContext)
-        : lastExpressionId{0}, scope{}, graphEntrySet{}, expressionBinder{this, clientContext},
+        : lastInternalPathId{0}, lastExpressionId{0}, scope{}, graphEntrySet{}, expressionBinder{this, clientContext},
           clientContext{clientContext} {}
 
     std::unique_ptr<BoundStatement> bind(const parser::Statement& statement);
@@ -303,6 +303,7 @@ public:
     void validateDropSequence(const parser::Statement& dropTable);
     /*** helpers ***/
     std::string getUniqueExpressionName(const std::string& name);
+    std::string getInternalPathName();
 
     static bool reservedInColumnName(const std::string& name);
     static bool reservedInPropertyLookup(const std::string& name);
@@ -316,8 +317,11 @@ public:
         const common::ReaderConfig& config);
 
     ExpressionBinder* getExpressionBinder() { return &expressionBinder; }
+    expression_vector findPathExpressionInScope();
+    const BinderScope& getBinderScope() { return scope; }
 
 private:
+    uint32_t lastInternalPathId;
     uint32_t lastExpressionId;
     BinderScope scope;
     graph::GraphEntrySet graphEntrySet;
