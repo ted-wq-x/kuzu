@@ -171,8 +171,8 @@ std::shared_ptr<LogicalOperator> PathSemanticRewriter::visitHashJoinReplace(
         auto transaction = context->getTx();
         auto semanticFunctionName =
             semanticSwitch(context->getClientConfig()->recursivePatternSemantic);
-        if (semanticFunctionName.empty()&&
-            checkPattern(context->getClientConfig()->recursivePatternSemantic, nodeCount,
+        if (semanticFunctionName.empty() ||
+            !checkPattern(context->getClientConfig()->recursivePatternSemantic, nodeCount,
                          relCount)) {
             return op;
         }
