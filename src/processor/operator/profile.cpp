@@ -17,8 +17,10 @@ bool Profile::getNextTuplesInternal(ExecutionContext* context) {
     }
     localState.hasExecuted = true;
     ku_string_t profileStr;
-    const auto planInString =
+    auto planInString =
         main::PlanPrinter::printPlanToOstream(info.physicalPlan, context->profiler).str();
+    planInString += "\n";
+    planInString += context->profiler->printTaskProfileInfo();
     StringVector::addString(outputVector, profileStr, planInString.c_str(), planInString.length());
     auto& selVector = outputVector->state->getSelVectorUnsafe();
     selVector.setSelSize(1);

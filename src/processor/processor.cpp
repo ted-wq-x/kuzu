@@ -15,6 +15,21 @@ QueryProcessor::QueryProcessor(uint64_t numThreads) {
     taskScheduler = std::make_unique<TaskScheduler>(numThreads);
 }
 
+void QueryProcessor::appendTaskProfileInfo(std::shared_ptr<ProcessorTask> task,
+    ExecutionContext* context) {
+    Profiler* profiler = context->profiler;
+    std::stack<std::shared_ptr<Task>> stack;
+    stack.push(task);
+    while (!stack.empty()) {
+        auto top = stack.top();
+        stack.pop();
+        profiler->addProfileTask(top);
+        for (auto& child : top->children) {
+            stack.push(child);
+        }
+    }
+}
+
 std::shared_ptr<FactorizedTable> QueryProcessor::execute(PhysicalPlan* physicalPlan,
     ExecutionContext* context) {
     auto lastOperator = physicalPlan->lastOperator.get();
@@ -23,8 +38,10 @@ std::shared_ptr<FactorizedTable> QueryProcessor::execute(PhysicalPlan* physicalP
     // expect to have linear plans. For binary operators, e.g., HashJoin, we  keep probe and its
     // prevOperator in the same pipeline, and decompose build and its prevOperator into another
     // one.
-    auto task = std::make_shared<ProcessorTask>(resultCollector, context);
-    decomposePlanIntoTask(lastOperator->getChild(0), task.get(), context);
+    auto task = std::make_shared<ProcessorTask>(resultCollector, context, 0);
+    uint64_t ID = 1;
+    decomposePlanIntoTask(lastOperator->getChild(0), task.get(), context, ID);
+    appendTaskProfileInfo(task, context);
     initTask(task.get());
     context->clientContext->getProgressBar()->startProgress(context->queryID);
     taskScheduler->scheduleTaskAndWaitOrError(task, context);
@@ -32,21 +49,21 @@ std::shared_ptr<FactorizedTable> QueryProcessor::execute(PhysicalPlan* physicalP
     return resultCollector->getResultFactorizedTable();
 }
 
-void QueryProcessor::decomposePlanIntoTask(PhysicalOperator* op, Task* task,
-    ExecutionContext* context) {
+void QueryProcessor::decomposePlanIntoTask(PhysicalOperator* op, ProcessorTask* task,
+    ExecutionContext* context, uint64_t& ID) {
     if (op->isSource()) {
         context->clientContext->getProgressBar()->addPipeline();
     }
     if (op->isSink()) {
-        auto childTask = std::make_unique<ProcessorTask>(ku_dynamic_cast<Sink*>(op), context);
+        auto childTask = std::make_unique<ProcessorTask>(ku_dynamic_cast<Sink*>(op), context, ID++);
         for (auto i = (int64_t)op->getNumChildren() - 1; i >= 0; --i) {
-            decomposePlanIntoTask(op->getChild(i), childTask.get(), context);
+            decomposePlanIntoTask(op->getChild(i), childTask.get(), context, ID);
         }
         task->addChildTask(std::move(childTask));
     } else {
         // Schedule the right most side (e.g., build side of the hash join) first.
         for (auto i = (int64_t)op->getNumChildren() - 1; i >= 0; --i) {
-            decomposePlanIntoTask(op->getChild(i), task, context);
+            decomposePlanIntoTask(op->getChild(i), task, context, ID);
         }
     }
 }
