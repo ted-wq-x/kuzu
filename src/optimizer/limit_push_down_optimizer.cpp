@@ -21,6 +21,20 @@ void LimitPushDownOptimizer::rewrite(LogicalPlan* plan) {
     plan->setLastOperator(visitOperator(plan->getLastOperator()));
 }
 
+static bool isJoinNodeID(const LogicalHashJoin& hashJoin, const LogicalScanNodeTable& scanNode) {
+    if (hashJoin.isNodeIDOnlyJoin()) {
+        auto nodeIDs = hashJoin.getJoinNodeIDs();
+        if (nodeIDs.size() == 1) {
+            return nodeIDs.front()->cast<PropertyExpression>().getRawVariableName() ==
+                   scanNode.getNodeID()->cast<PropertyExpression>().getRawVariableName();
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+}
+
 static LogicalScanNodeTable* isSimpleScanNode(const std::shared_ptr<LogicalOperator>& op) {
     switch (op->getOperatorType()) {
     case LogicalOperatorType::SCAN_NODE_TABLE: {
@@ -101,19 +115,22 @@ std::shared_ptr<LogicalOperator> LimitPushDownOptimizer::visitOperator(
             // If probe side is ScanNode and build side has semiMasker, we can push down limit to
             // build side
             if (scanNode) {
-                const auto& ops = findLogicalSemiMasker(hashJoin.getChild(1))->getTargetOperators();
-                if (std::find(ops.begin(), ops.end(), scanNode) != ops.end()) {
-                    auto optimizer = LimitPushDownOptimizer(context);
-                    optimizer.limitOperator = limitOperator;
-                    auto newChild = optimizer.visitOperator(op->getChild(1));
-                    op->setChild(1, newChild);
-                    limitOperator = nullptr;
-                    return op;
+                auto semiMasker = findLogicalSemiMasker(hashJoin.getChild(1));
+                if (semiMasker) {
+                    const auto& ops = semiMasker->getTargetOperators();
+                    if (std::find(ops.begin(), ops.end(), scanNode) != ops.end()) {
+                        auto optimizer = LimitPushDownOptimizer(context);
+                        optimizer.limitOperator = limitOperator;
+                        auto newChild = optimizer.visitOperator(op->getChild(1));
+                        op->setChild(1, newChild);
+                        limitOperator = nullptr;
+                        return op;
+                    }
                 }
             }
             scanNode = isSimpleScanNode(hashJoin.getChild(1));
             // If build side is ScanNode ,we can push down limit to probe side
-            if (scanNode) {
+            if (scanNode && isJoinNodeID(hashJoin, *scanNode)) {
                 auto optimizer = LimitPushDownOptimizer(context);
                 optimizer.limitOperator = limitOperator;
                 auto newChild = optimizer.visitOperator(op->getChild(0));
