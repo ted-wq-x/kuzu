@@ -1,5 +1,13 @@
 package io.transwarp.stellardb_booster;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -132,6 +140,80 @@ public class BoosterClient {
         }
         this.database = new BoosterDatabase(path + "/" + graphName, poolSize, enableCompression, readOnly, 0L, enableCpuAffinity, lruCacheSize);
 
+    }
+
+    public static List<String> showGraphs() {
+        String path = System.getProperty(DB_PATH, "");
+        List<String> ans = new ArrayList<>();
+        if (!path.isEmpty()) {
+            File dir = new File(path);
+            if (dir.isDirectory()) {
+                File[] childDirs = dir.listFiles();
+                if (childDirs != null) {
+                    for (File file : childDirs) {
+                        if (file.isDirectory()) {
+                            ans.add(file.getName());
+                        }
+                    }
+                }
+            }
+        }
+        return ans;
+    }
+
+    public static void createGraph(String graphName) throws IOException {
+        String path = System.getProperty(DB_PATH, "");
+        if (!path.isEmpty()) {
+            File dir = new File(path);
+            if (dir.isDirectory()) {
+                File newGraph = new File(dir, graphName);
+
+                if (newGraph.exists()) {
+                    throw new RuntimeException("Graph already exists in db_path");
+                }
+                Files.createDirectory(newGraph.toPath());
+            }
+        }
+    }
+
+    public static void dropGraph(String graphName) throws BoosterObjectRefDestroyedException, IOException {
+        destroyInstanceForce(graphName);
+        String path = System.getProperty(DB_PATH, "");
+        if (!path.isEmpty()) {
+            File dir = new File(path);
+            if (dir.isDirectory()) {
+                File newGraph = new File(dir, graphName);
+                Files.walkFileTree(newGraph.toPath(), new SimpleFileVisitor<Path>() {
+                    @Override
+                    public java.nio.file.FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        Files.delete(file);
+                        return java.nio.file.FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public java.nio.file.FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                        Files.delete(dir);
+                        return java.nio.file.FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+        }
+    }
+
+    public static void renameGraph(String oldName, String newName) throws BoosterObjectRefDestroyedException {
+        destroyInstanceForce(oldName);
+        String path = System.getProperty(DB_PATH, "");
+        if (!path.isEmpty()) {
+            File dir = new File(path);
+            if (dir.isDirectory()) {
+                File newGraph = new File(dir, oldName);
+                if (newGraph.exists()) {
+                    if (!newGraph.renameTo(new File(dir, newName))) {
+                        throw new RuntimeException("Rename graph failed");
+                    }
+                }
+            }
+        }
     }
 
     public boolean isDestroyed() {
