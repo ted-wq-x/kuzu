@@ -153,8 +153,8 @@ protected:
     // Return false if no more tuples to pull, otherwise return true
     virtual bool getNextTuplesInternal(ExecutionContext* context) = 0;
 
-    std::string getTimeMetricKey() const { return "time-" + std::to_string(id); }
-    std::string getNumTupleMetricKey() const { return "numTuple-" + std::to_string(id); }
+    std::string getTimeMetricKey() const { return "time"; }
+    std::string getNumTupleMetricKey() const { return "numTuple"; }
 
     void registerProfilingMetrics(common::Profiler* profiler);
 

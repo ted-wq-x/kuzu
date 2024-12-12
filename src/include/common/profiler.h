@@ -11,23 +11,29 @@ namespace kuzu {
 namespace common {
 
 class Profiler {
+    using metrics_map = std::unordered_map<std::string, std::vector<std::unique_ptr<Metric>>>;
 
 public:
-    TimeMetric* registerTimeMetric(const std::string& key);
+    TimeMetric* registerTimeMetric(uint32_t id, const std::string& key, bool custom = false);
 
-    NumericMetric* registerNumericMetric(const std::string& key);
+    NumericMetric* registerNumericMetric(uint32_t id, const std::string& key, bool custom = false);
 
-    double sumAllTimeMetricsWithKey(const std::string& key);
+    double sumAllTimeMetricsWithKey(uint32_t id, const std::string& key);
 
-    uint64_t sumAllNumericMetricsWithKey(const std::string& key);
+    uint64_t sumAllNumericMetricsWithKey(uint32_t id, const std::string& key);
+
+    std::pair<std::unordered_map<std::string, double>, std::unordered_map<std::string, uint64_t>>
+    sumAllCustomMetrics(uint32_t id);
 
 private:
-    void addMetric(const std::string& key, std::unique_ptr<Metric> metric);
+    void addMetric(uint32_t id, const std::string& key, std::unique_ptr<Metric> metric,
+        bool custom);
 
 public:
     std::mutex mtx;
     bool enabled = false;
-    std::unordered_map<std::string, std::vector<std::unique_ptr<Metric>>> metrics;
+    std::unordered_map<uint32_t, metrics_map> metrics;
+    std::unordered_map<uint32_t, metrics_map> customMetrics;
 };
 
 } // namespace common

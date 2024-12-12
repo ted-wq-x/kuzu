@@ -219,21 +219,21 @@ void PhysicalOperator::finalize(ExecutionContext* context) {
 }
 
 void PhysicalOperator::registerProfilingMetrics(Profiler* profiler) {
-    auto executionTime = profiler->registerTimeMetric(getTimeMetricKey());
-    auto numOutputTuple = profiler->registerNumericMetric(getNumTupleMetricKey());
+    auto executionTime = profiler->registerTimeMetric(id, getTimeMetricKey());
+    auto numOutputTuple = profiler->registerNumericMetric(id, getNumTupleMetricKey());
     metrics = std::make_unique<OperatorMetrics>(*executionTime, *numOutputTuple);
 }
 
 double PhysicalOperator::getExecutionTime(Profiler& profiler) const {
-    auto executionTime = profiler.sumAllTimeMetricsWithKey(getTimeMetricKey());
+    auto executionTime = profiler.sumAllTimeMetricsWithKey(id, getTimeMetricKey());
     if (!isSource()) {
-        executionTime -= profiler.sumAllTimeMetricsWithKey(children[0]->getTimeMetricKey());
+        executionTime -= children[0]->getExecutionTime(profiler);
     }
     return executionTime;
 }
 
 uint64_t PhysicalOperator::getNumOutputTuples(Profiler& profiler) const {
-    return profiler.sumAllNumericMetricsWithKey(getNumTupleMetricKey());
+    return profiler.sumAllNumericMetricsWithKey(id, getNumTupleMetricKey());
 }
 
 std::unordered_map<std::string, std::string> PhysicalOperator::getProfilerKeyValAttributes(
@@ -241,6 +241,13 @@ std::unordered_map<std::string, std::string> PhysicalOperator::getProfilerKeyVal
     std::unordered_map<std::string, std::string> result;
     result.insert({"ExecutionTime", std::to_string(getExecutionTime(profiler))});
     result.insert({"NumOutputTuples", std::to_string(getNumOutputTuples(profiler))});
+    auto [customTimeMetrics, customSumMetrics] = profiler.sumAllCustomMetrics(id);
+    for (auto [metricName, metricValue] : customTimeMetrics) {
+        result.insert({metricName, std::to_string(metricValue)});
+    }
+    for (auto [metricName, metricValue] : customSumMetrics) {
+        result.insert({metricName, std::to_string(metricValue)});
+    }
     return result;
 }
 
