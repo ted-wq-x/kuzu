@@ -10,7 +10,7 @@
 namespace kuzu {
 namespace common {
 
-class Profiler {
+class KUZU_API Profiler {
     using metrics_map = std::unordered_map<std::string, std::vector<std::unique_ptr<Metric>>>;
 
 public:

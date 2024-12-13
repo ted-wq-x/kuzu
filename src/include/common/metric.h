@@ -19,7 +19,7 @@ public:
     bool enabled;
 };
 
-class TimeMetric : public Metric {
+class KUZU_API TimeMetric : public Metric {
 
 public:
     explicit TimeMetric(bool enable);
@@ -35,7 +35,7 @@ public:
     Timer timer;
 };
 
-class NumericMetric : public Metric {
+class KUZU_API NumericMetric : public Metric {
 
 public:
     explicit NumericMetric(bool enable);
